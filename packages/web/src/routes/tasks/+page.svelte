@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { TaskStatus, TaskPriority, type Task } from '$lib/notion';
+	import { TaskStatus, TaskPriority, type Task } from '$lib/types';
 
 	let tasks: Task[] = [];
 	let loading = true;

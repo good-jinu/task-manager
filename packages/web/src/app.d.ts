@@ -3,11 +3,24 @@
 declare global {
 	namespace App {
 		// interface Error {}
-		// interface Locals {}
+		interface Locals {
+			getSession(): Promise<Session | null>;
+		}
 		// interface PageData {}
 		// interface PageState {}
 		// interface Platform {}
 	}
 }
 
-export {};
+declare module "@auth/core/types" {
+	interface Session {
+		accessToken?: string;
+		notionUserId?: string;
+		user: {
+			id: string;
+			name?: string | null;
+			email?: string | null;
+			image?: string | null;
+		};
+	}
+}

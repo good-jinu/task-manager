@@ -1,265 +1,150 @@
 <script lang="ts">
-	import { TaskStatus, TaskPriority } from '$lib/notion';
-	import { enhance } from '$app/forms';
-	import type { ActionData, PageData } from './$types';
+	import type { PageData } from './$types';
 
-	let { data, form }: { data: PageData; form: ActionData } = $props();
-
-	let error = $derived(form?.error || '');
-
-	function getStatusColor(status: TaskStatus): string {
-		switch (status) {
-			case TaskStatus.TODO:
-				return 'bg-gray-100 text-gray-800';
-			case TaskStatus.IN_PROGRESS:
-				return 'bg-blue-100 text-blue-800';
-			case TaskStatus.DONE:
-				return 'bg-green-100 text-green-800';
-			case TaskStatus.CANCELLED:
-				return 'bg-red-100 text-red-800';
-			default:
-				return 'bg-gray-100 text-gray-800';
-		}
-	}
-
-	function getPriorityColor(priority?: TaskPriority): string {
-		switch (priority) {
-			case TaskPriority.LOW:
-				return 'bg-green-100 text-green-800';
-			case TaskPriority.MEDIUM:
-				return 'bg-yellow-100 text-yellow-800';
-			case TaskPriority.HIGH:
-				return 'bg-orange-100 text-orange-800';
-			case TaskPriority.URGENT:
-				return 'bg-red-100 text-red-800';
-			default:
-				return 'bg-gray-100 text-gray-800';
-		}
-	}
+	let { data }: { data: PageData } = $props();
 </script>
 
 <svelte:head>
-	<title>Task Manager</title>
+	<title>Notion Task Manager - Organize Your Work</title>
+	<meta name="description" content="A powerful task management application integrated with Notion. Organize, track, and manage your tasks efficiently." />
 </svelte:head>
 
-<div class="container mx-auto px-4 py-8">
-	<h1 class="text-3xl font-bold mb-8">Notion Task Manager</h1>
-
-	{#if error}
-		<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-			{error}
+<div class="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50">
+	<!-- Hero Section -->
+	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
+		<div class="text-center">
+			<h1 class="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
+				Notion Task Manager
+			</h1>
+			<p class="text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto">
+				Seamlessly integrate your task management with Notion. Create, organize, and track your tasks with the power of your Notion workspace.
+			</p>
+			<div class="flex flex-col sm:flex-row gap-4 justify-center">
+				<a
+					href="/auth/signin"
+					class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-8 rounded-lg text-lg transition-colors duration-200"
+				>
+					Get Started with Notion
+				</a>
+				<a
+					href="#features"
+					class="border border-gray-300 hover:border-gray-400 text-gray-700 font-semibold py-3 px-8 rounded-lg text-lg transition-colors duration-200"
+				>
+					Learn More
+				</a>
+			</div>
 		</div>
-	{/if}
-
-	{#if form?.success}
-		<div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-			Task operation completed successfully!
-		</div>
-	{/if}
-
-	<!-- Create Task Form -->
-	<div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-8">
-		<h2 class="text-xl font-semibold mb-4">Create New Task</h2>
-		
-		<form method="POST" action="?/create" use:enhance class="space-y-4">
-			<div>
-				<label class="block text-gray-700 text-sm font-bold mb-2" for="title">
-					Title *
-				</label>
-				<input
-					id="title"
-					name="title"
-					type="text"
-					required
-					class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-				/>
-			</div>
-
-			<div>
-				<label class="block text-gray-700 text-sm font-bold mb-2" for="description">
-					Description
-				</label>
-				<textarea
-					id="description"
-					name="description"
-					class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-					rows="3"
-				></textarea>
-			</div>
-
-			<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-				<div>
-					<label class="block text-gray-700 text-sm font-bold mb-2" for="status">
-						Status
-					</label>
-					<select
-						id="status"
-						name="status"
-						class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-					>
-						{#each Object.values(TaskStatus) as status}
-							<option value={status}>{status}</option>
-						{/each}
-					</select>
-				</div>
-
-				<div>
-					<label class="block text-gray-700 text-sm font-bold mb-2" for="priority">
-						Priority
-					</label>
-					<select
-						id="priority"
-						name="priority"
-						class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-					>
-						{#each Object.values(TaskPriority) as priority}
-							<option value={priority}>{priority}</option>
-						{/each}
-					</select>
-				</div>
-
-				<div>
-					<label class="block text-gray-700 text-sm font-bold mb-2" for="dueDate">
-						Due Date
-					</label>
-					<input
-						id="dueDate"
-						name="dueDate"
-						type="date"
-						class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-					/>
-				</div>
-			</div>
-
-			<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-				<div>
-					<label class="block text-gray-700 text-sm font-bold mb-2" for="assignee">
-						Assignee
-					</label>
-					<input
-						id="assignee"
-						name="assignee"
-						type="text"
-						class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-					/>
-				</div>
-
-				<div>
-					<label class="block text-gray-700 text-sm font-bold mb-2" for="tags">
-						Tags (comma-separated)
-					</label>
-					<input
-						id="tags"
-						name="tags"
-						type="text"
-						placeholder="urgent, documentation, feature"
-						class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-					/>
-				</div>
-			</div>
-
-			<button
-				type="submit"
-				class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-			>
-				Create Task
-			</button>
-		</form>
 	</div>
 
-	<!-- Tasks List -->
-	<div class="bg-white shadow-md rounded px-8 pt-6 pb-8">
-		<h2 class="text-xl font-semibold mb-4">Tasks</h2>
+	<!-- Features Section -->
+	<div id="features" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+		<div class="text-center mb-16">
+			<h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+				Powerful Task Management Features
+			</h2>
+			<p class="text-xl text-gray-600 max-w-2xl mx-auto">
+				Everything you need to stay organized and productive, powered by Notion's flexibility.
+			</p>
+		</div>
 
-		{#if data.tasks.length === 0}
-			<p class="text-gray-600">No tasks found. Create your first task above!</p>
-		{:else}
-			<div class="space-y-4">
-				{#each data.tasks as task (task.id)}
-					<div class="border rounded-lg p-4 hover:shadow-md transition-shadow">
-						<div class="flex justify-between items-start mb-2">
-							<h3 class="text-lg font-semibold">{task.title}</h3>
-							<form method="POST" action="?/delete" use:enhance>
-								<input type="hidden" name="taskId" value={task.id} />
-								<button
-									type="submit"
-									onclick={(e) => {
-										if (!confirm('Are you sure you want to delete this task?')) {
-											e.preventDefault();
-										}
-									}}
-									class="text-red-600 hover:text-red-800 text-sm"
-								>
-									Delete
-								</button>
-							</form>
-						</div>
-
-						{#if task.description}
-							<p class="text-gray-600 mb-3">{task.description}</p>
-						{/if}
-
-						<div class="flex flex-wrap gap-2 mb-3">
-							<span class="px-2 py-1 rounded-full text-xs font-medium {getStatusColor(task.status)}">
-								{task.status}
-							</span>
-
-							{#if task.priority}
-								<span class="px-2 py-1 rounded-full text-xs font-medium {getPriorityColor(task.priority)}">
-									{task.priority}
-								</span>
-							{/if}
-
-							{#if task.tags && task.tags.length > 0}
-								{#each task.tags as tag}
-									<span class="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-										{tag}
-									</span>
-								{/each}
-							{/if}
-						</div>
-
-						<div class="flex justify-between items-center text-sm text-gray-500">
-							<div>
-								{#if task.assignee}
-									<span>Assigned to: {task.assignee}</span>
-								{/if}
-								{#if task.dueDate}
-									<span class="ml-4">Due: {new Date(task.dueDate).toLocaleDateString()}</span>
-								{/if}
-							</div>
-
-							<div class="flex gap-2">
-								{#if task.status !== TaskStatus.DONE}
-									<form method="POST" action="?/updateStatus" use:enhance class="inline">
-										<input type="hidden" name="taskId" value={task.id} />
-										<input type="hidden" name="status" value={TaskStatus.DONE} />
-										<button
-											type="submit"
-											class="bg-green-500 hover:bg-green-700 text-white text-xs px-2 py-1 rounded"
-										>
-											Mark Done
-										</button>
-									</form>
-								{/if}
-
-								{#if task.status !== TaskStatus.IN_PROGRESS && task.status !== TaskStatus.DONE}
-									<form method="POST" action="?/updateStatus" use:enhance class="inline">
-										<input type="hidden" name="taskId" value={task.id} />
-										<input type="hidden" name="status" value={TaskStatus.IN_PROGRESS} />
-										<button
-											type="submit"
-											class="bg-blue-500 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded"
-										>
-											Start
-										</button>
-									</form>
-								{/if}
-							</div>
-						</div>
-					</div>
-				{/each}
+		<div class="grid md:grid-cols-3 gap-8">
+			<div class="text-center p-6">
+				<div class="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+					<svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+					</svg>
+				</div>
+				<h3 class="text-xl font-semibold text-gray-900 mb-2">Task Organization</h3>
+				<p class="text-gray-600">
+					Create, organize, and prioritize your tasks with intuitive status tracking and priority levels.
+				</p>
 			</div>
-		{/if}
+
+			<div class="text-center p-6">
+				<div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+					<svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+					</svg>
+				</div>
+				<h3 class="text-xl font-semibold text-gray-900 mb-2">Team Collaboration</h3>
+				<p class="text-gray-600">
+					Assign tasks, set due dates, and collaborate with your team using your existing Notion workspace.
+				</p>
+			</div>
+
+			<div class="text-center p-6">
+				<div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+					<svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+					</svg>
+				</div>
+				<h3 class="text-xl font-semibold text-gray-900 mb-2">Smart Tagging</h3>
+				<p class="text-gray-600">
+					Organize tasks with custom tags and filters to quickly find what you need when you need it.
+				</p>
+			</div>
+		</div>
+	</div>
+
+	<!-- How It Works Section -->
+	<div class="bg-gray-50 py-16">
+		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+			<div class="text-center mb-16">
+				<h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+					How It Works
+				</h2>
+				<p class="text-xl text-gray-600 max-w-2xl mx-auto">
+					Get started in minutes with your existing Notion account.
+				</p>
+			</div>
+
+			<div class="grid md:grid-cols-3 gap-8">
+				<div class="text-center">
+					<div class="w-12 h-12 bg-indigo-600 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
+						1
+					</div>
+					<h3 class="text-lg font-semibold text-gray-900 mb-2">Connect Your Notion</h3>
+					<p class="text-gray-600">
+						Sign in securely with your Notion account using OAuth authentication.
+					</p>
+				</div>
+
+				<div class="text-center">
+					<div class="w-12 h-12 bg-indigo-600 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
+						2
+					</div>
+					<h3 class="text-lg font-semibold text-gray-900 mb-2">Create Your Tasks</h3>
+					<p class="text-gray-600">
+						Start creating and organizing your tasks with our intuitive interface.
+					</p>
+				</div>
+
+				<div class="text-center">
+					<div class="w-12 h-12 bg-indigo-600 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
+						3
+					</div>
+					<h3 class="text-lg font-semibold text-gray-900 mb-2">Stay Organized</h3>
+					<p class="text-gray-600">
+						Track progress, set priorities, and collaborate with your team seamlessly.
+					</p>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- CTA Section -->
+	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
+		<h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+			Ready to Get Organized?
+		</h2>
+		<p class="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+			Join thousands of users who are already managing their tasks more efficiently with Notion Task Manager.
+		</p>
+		<a
+			href="/auth/signin"
+			class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-8 rounded-lg text-lg transition-colors duration-200 inline-block"
+		>
+			Start Managing Tasks Today
+		</a>
 	</div>
 </div>
