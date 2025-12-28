@@ -28,6 +28,7 @@ export class NotionTaskManager {
 	 */
 	async createTask(input: CreateTaskInput): Promise<Task> {
 		try {
+			// biome-ignore lint/suspicious/noExplicitAny: Notion API properties require flexible structure
 			const properties: any = {
 				[this.config.titleProperty]: {
 					title: [
@@ -126,6 +127,7 @@ export class NotionTaskManager {
 	 */
 	async getTasks(filter?: TaskFilter): Promise<Task[]> {
 		try {
+			// biome-ignore lint/suspicious/noExplicitAny: Notion API filter requires flexible structure
 			const queryFilter: any = {};
 
 			if (filter) {
@@ -204,6 +206,7 @@ export class NotionTaskManager {
 	 */
 	async updateTask(taskId: string, input: UpdateTaskInput): Promise<Task> {
 		try {
+			// biome-ignore lint/suspicious/noExplicitAny: Notion API properties require flexible structure
 			const properties: any = {};
 
 			if (input.title) {
@@ -294,7 +297,9 @@ export class NotionTaskManager {
 	/**
 	 * Map a Notion page to our Task interface
 	 */
+	// biome-ignore lint/suspicious/noExplicitAny: Notion API page structure is complex and dynamic
 	private mapNotionPageToTask(page: any): Task {
+		// biome-ignore lint/suspicious/noExplicitAny: Notion properties have dynamic structure
 		const properties = page.properties as Record<string, any>;
 
 		const title = this.extractTextFromProperty(

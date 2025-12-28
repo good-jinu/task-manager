@@ -1,0 +1,276 @@
+import type {
+	CreateTaskInput,
+	CreateUserInput,
+	UpdateTaskInput,
+	UpdateUserInput,
+} from "./types.js";
+
+/**
+ * Validation error class for input validation failures
+ */
+export class ValidationError extends Error {
+	constructor(
+		message: string,
+		public field?: string,
+	) {
+		super(message);
+		this.name = "ValidationError";
+	}
+}
+
+/**
+ * Validates email format
+ */
+function isValidEmail(email: string): boolean {
+	const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+	return emailRegex.test(email);
+}
+
+/**
+ * Validates that a string is not empty or just whitespace
+ */
+function isNonEmptyString(value: string): boolean {
+	return typeof value === "string" && value.trim().length > 0;
+}
+
+/**
+ * Validates that a value is a valid Date object or ISO date string
+ */
+function isValidDate(value: Date | string): boolean {
+	if (value instanceof Date) {
+		return !Number.isNaN(value.getTime());
+	}
+	if (typeof value === "string") {
+		const date = new Date(value);
+		return !Number.isNaN(date.getTime());
+	}
+	return false;
+}
+
+/**
+ * Validates user creation input
+ */
+export function validateCreateUserInput(input: CreateUserInput): void {
+	if (!input.notionUserId || !isNonEmptyString(input.notionUserId)) {
+		throw new ValidationError(
+			"Notion user ID is required and cannot be empty",
+			"notionUserId",
+		);
+	}
+
+	if (!input.email || !isNonEmptyString(input.email)) {
+		throw new ValidationError("Email is required and cannot be empty", "email");
+	}
+
+	if (!isValidEmail(input.email)) {
+		throw new ValidationError("Email must be a valid email address", "email");
+	}
+
+	if (!input.name || !isNonEmptyString(input.name)) {
+		throw new ValidationError("Name is required and cannot be empty", "name");
+	}
+
+	if (!input.notionAccessToken || !isNonEmptyString(input.notionAccessToken)) {
+		throw new ValidationError(
+			"Notion access token is required and cannot be empty",
+			"notionAccessToken",
+		);
+	}
+
+	// Optional fields validation
+	if (
+		input.avatarUrl !== undefined &&
+		input.avatarUrl !== null &&
+		!isNonEmptyString(input.avatarUrl)
+	) {
+		throw new ValidationError(
+			"Avatar URL cannot be empty if provided",
+			"avatarUrl",
+		);
+	}
+}
+
+/**
+ * Validates user update input
+ */
+export function validateUpdateUserInput(input: UpdateUserInput): void {
+	// Check that at least one field is provided for update
+	const hasValidUpdate = Object.values(input).some(
+		(value) => value !== undefined,
+	);
+	if (!hasValidUpdate) {
+		throw new ValidationError("At least one field must be provided for update");
+	}
+
+	// Validate individual fields if provided
+	if (input.email !== undefined) {
+		if (!isNonEmptyString(input.email)) {
+			throw new ValidationError("Email cannot be empty", "email");
+		}
+		if (!isValidEmail(input.email)) {
+			throw new ValidationError("Email must be a valid email address", "email");
+		}
+	}
+
+	if (input.name !== undefined && !isNonEmptyString(input.name)) {
+		throw new ValidationError("Name cannot be empty", "name");
+	}
+
+	if (
+		input.notionAccessToken !== undefined &&
+		!isNonEmptyString(input.notionAccessToken)
+	) {
+		throw new ValidationError(
+			"Notion access token cannot be empty",
+			"notionAccessToken",
+		);
+	}
+
+	if (
+		input.avatarUrl !== undefined &&
+		input.avatarUrl !== null &&
+		!isNonEmptyString(input.avatarUrl)
+	) {
+		throw new ValidationError(
+			"Avatar URL cannot be empty if provided",
+			"avatarUrl",
+		);
+	}
+}
+
+/**
+ * Validates task creation input
+ */
+export function validateCreateTaskInput(input: CreateTaskInput): void {
+	if (!input.title || !isNonEmptyString(input.title)) {
+		throw new ValidationError(
+			"Task title is required and cannot be empty",
+			"title",
+		);
+	}
+
+	// Optional fields validation
+	if (
+		input.description !== undefined &&
+		input.description !== null &&
+		!isNonEmptyString(input.description)
+	) {
+		throw new ValidationError(
+			"Task description cannot be empty if provided",
+			"description",
+		);
+	}
+
+	if (
+		input.assignee !== undefined &&
+		input.assignee !== null &&
+		!isNonEmptyString(input.assignee)
+	) {
+		throw new ValidationError(
+			"Assignee cannot be empty if provided",
+			"assignee",
+		);
+	}
+
+	if (
+		input.dueDate !== undefined &&
+		input.dueDate !== null &&
+		!isValidDate(input.dueDate)
+	) {
+		throw new ValidationError("Due date must be a valid date", "dueDate");
+	}
+
+	if (input.tags !== undefined && input.tags !== null) {
+		if (!Array.isArray(input.tags)) {
+			throw new ValidationError("Tags must be an array", "tags");
+		}
+		for (const tag of input.tags) {
+			if (!isNonEmptyString(tag)) {
+				throw new ValidationError("All tags must be non-empty strings", "tags");
+			}
+		}
+	}
+}
+
+/**
+ * Validates task update input
+ */
+export function validateUpdateTaskInput(input: UpdateTaskInput): void {
+	// Check that at least one field is provided for update
+	const hasValidUpdate = Object.values(input).some(
+		(value) => value !== undefined,
+	);
+	if (!hasValidUpdate) {
+		throw new ValidationError("At least one field must be provided for update");
+	}
+
+	// Validate individual fields if provided
+	if (input.title !== undefined && !isNonEmptyString(input.title)) {
+		throw new ValidationError("Task title cannot be empty", "title");
+	}
+
+	if (
+		input.description !== undefined &&
+		input.description !== null &&
+		!isNonEmptyString(input.description)
+	) {
+		throw new ValidationError(
+			"Task description cannot be empty if provided",
+			"description",
+		);
+	}
+
+	if (
+		input.assignee !== undefined &&
+		input.assignee !== null &&
+		!isNonEmptyString(input.assignee)
+	) {
+		throw new ValidationError(
+			"Assignee cannot be empty if provided",
+			"assignee",
+		);
+	}
+
+	if (
+		input.dueDate !== undefined &&
+		input.dueDate !== null &&
+		!isValidDate(input.dueDate)
+	) {
+		throw new ValidationError("Due date must be a valid date", "dueDate");
+	}
+
+	if (input.tags !== undefined && input.tags !== null) {
+		if (!Array.isArray(input.tags)) {
+			throw new ValidationError("Tags must be an array", "tags");
+		}
+		for (const tag of input.tags) {
+			if (!isNonEmptyString(tag)) {
+				throw new ValidationError("All tags must be non-empty strings", "tags");
+			}
+		}
+	}
+}
+
+/**
+ * Validates user ID format
+ */
+export function validateUserId(userId: string): void {
+	if (!userId || !isNonEmptyString(userId)) {
+		throw new ValidationError(
+			"User ID is required and cannot be empty",
+			"userId",
+		);
+	}
+}
+
+/**
+ * Validates task ID format
+ */
+export function validateTaskId(taskId: string): void {
+	if (!taskId || !isNonEmptyString(taskId)) {
+		throw new ValidationError(
+			"Task ID is required and cannot be empty",
+			"taskId",
+		);
+	}
+}

@@ -1,12 +1,17 @@
+import { randomUUID } from "node:crypto";
 import {
 	GetCommand,
 	PutCommand,
 	QueryCommand,
 	UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
-import { randomUUID } from "crypto";
 import { getDynamoDBClient, getTableNames } from "./client.js";
 import type { CreateUserInput, UpdateUserInput, User } from "./types.js";
+import {
+	validateCreateUserInput,
+	validateUpdateUserInput,
+	validateUserId,
+} from "./validation.js";
 
 export class UserService {
 	private client = getDynamoDBClient();
@@ -16,6 +21,9 @@ export class UserService {
 	 * Creates a new user in the database
 	 */
 	async createUser(userData: CreateUserInput): Promise<User> {
+		// Validate input data
+		validateCreateUserInput(userData);
+
 		const now = new Date();
 		const user: User = {
 			id: randomUUID(),
@@ -47,6 +55,9 @@ export class UserService {
 	 * Retrieves a user by their ID
 	 */
 	async getUserById(userId: string): Promise<User | null> {
+		// Validate input
+		validateUserId(userId);
+
 		try {
 			const result = await this.client.send(
 				new GetCommand({
@@ -68,6 +79,15 @@ export class UserService {
 	 * Retrieves a user by their Notion user ID
 	 */
 	async getUserByNotionId(notionUserId: string): Promise<User | null> {
+		// Validate input
+		if (
+			!notionUserId ||
+			typeof notionUserId !== "string" ||
+			notionUserId.trim().length === 0
+		) {
+			throw new Error("Notion user ID is required and cannot be empty");
+		}
+
 		try {
 			const result = await this.client.send(
 				new QueryCommand({
@@ -93,9 +113,13 @@ export class UserService {
 	 * Updates an existing user
 	 */
 	async updateUser(userId: string, updates: UpdateUserInput): Promise<User> {
+		// Validate inputs
+		validateUserId(userId);
+		validateUpdateUserInput(updates);
+
 		const updateExpressions: string[] = [];
 		const expressionAttributeNames: Record<string, string> = {};
-		const expressionAttributeValues: Record<string, any> = {};
+		const expressionAttributeValues: Record<string, unknown> = {};
 
 		// Build update expression dynamically
 		for (const [key, value] of Object.entries(updates)) {

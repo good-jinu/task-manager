@@ -20,3 +20,5 @@ export type {
 export { TaskPriority, TaskStatus } from "./types.js";
 // Export services for direct use if needed
 export { UserService } from "./user-service.js";
+// Export validation utilities
+export { ValidationError } from "./validation.js";

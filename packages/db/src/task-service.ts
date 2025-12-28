@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
 	DeleteCommand,
 	GetCommand,
@@ -5,7 +6,6 @@ import {
 	QueryCommand,
 	UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
-import { randomUUID } from "crypto";
 import { getDynamoDBClient, getTableNames } from "./client.js";
 import type {
 	CreateTaskInput,
@@ -14,6 +14,12 @@ import type {
 	UpdateTaskInput,
 } from "./types.js";
 import { TaskStatus } from "./types.js";
+import {
+	validateCreateTaskInput,
+	validateTaskId,
+	validateUpdateTaskInput,
+	validateUserId,
+} from "./validation.js";
 
 export class TaskService {
 	private client = getDynamoDBClient();
@@ -23,6 +29,10 @@ export class TaskService {
 	 * Creates a new task associated with a user
 	 */
 	async createTask(userId: string, taskData: CreateTaskInput): Promise<Task> {
+		// Validate inputs
+		validateUserId(userId);
+		validateCreateTaskInput(taskData);
+
 		const now = new Date();
 		const task: Task = {
 			id: randomUUID(),
@@ -55,9 +65,12 @@ export class TaskService {
 	 * Retrieves all tasks for a specific user with optional filtering
 	 */
 	async getTasksByUser(userId: string, filters?: TaskFilter): Promise<Task[]> {
+		// Validate input
+		validateUserId(userId);
+
 		try {
 			const keyConditionExpression = "userId = :userId";
-			const expressionAttributeValues: Record<string, any> = {
+			const expressionAttributeValues: Record<string, string | string[]> = {
 				":userId": userId,
 			};
 
@@ -114,6 +127,7 @@ export class TaskService {
 				}
 			}
 
+			// biome-ignore lint/suspicious/noExplicitAny: DynamoDB QueryCommand requires flexible parameter structure
 			const queryParams: any = {
 				TableName: this.tableName,
 				KeyConditionExpression: keyConditionExpression,
@@ -144,6 +158,10 @@ export class TaskService {
 	 * Retrieves a specific task by user ID and task ID
 	 */
 	async getTask(userId: string, taskId: string): Promise<Task | null> {
+		// Validate inputs
+		validateUserId(userId);
+		validateTaskId(taskId);
+
 		try {
 			const result = await this.client.send(
 				new GetCommand({
@@ -172,9 +190,14 @@ export class TaskService {
 		taskId: string,
 		updates: UpdateTaskInput,
 	): Promise<Task> {
+		// Validate inputs
+		validateUserId(userId);
+		validateTaskId(taskId);
+		validateUpdateTaskInput(updates);
+
 		const updateExpressions: string[] = [];
 		const expressionAttributeNames: Record<string, string> = {};
-		const expressionAttributeValues: Record<string, any> = {};
+		const expressionAttributeValues: Record<string, unknown> = {};
 
 		// Build update expression dynamically
 		for (const [key, value] of Object.entries(updates)) {
@@ -231,6 +254,10 @@ export class TaskService {
 	 * Deletes a task
 	 */
 	async deleteTask(userId: string, taskId: string): Promise<void> {
+		// Validate inputs
+		validateUserId(userId);
+		validateTaskId(taskId);
+
 		try {
 			await this.client.send(
 				new DeleteCommand({
