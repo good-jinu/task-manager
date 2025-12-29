@@ -145,6 +145,22 @@
 <div class="container mx-auto px-4 py-8">
 	<h1 class="text-3xl font-bold mb-8">Notion Database Manager</h1>
 
+	<!-- Quick Actions -->
+	<div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
+		<div class="flex items-center justify-between">
+			<div>
+				<h2 class="text-lg font-semibold text-blue-900 mb-1">Looking for something specific?</h2>
+				<p class="text-blue-700">Use our intelligent search to find tasks with natural language descriptions.</p>
+			</div>
+			<a
+				href="/search"
+				class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200"
+			>
+				Search Tasks →
+			</a>
+		</div>
+	</div>
+
 	{#if error}
 		<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
 			{error}

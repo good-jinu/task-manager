@@ -32,6 +32,12 @@
 							>
 								Databases
 							</a>
+							<a 
+								href="/search" 
+								class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+							>
+								Search Tasks
+							</a>
 							<div class="flex items-center space-x-3">
 								{#if session.user.image}
 									<img 
