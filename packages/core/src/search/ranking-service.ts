@@ -13,17 +13,17 @@ export interface RankingService {
 
 // Placeholder implementation - will be implemented in later tasks
 export class RankingServiceImpl implements RankingService {
-	async combineScores(results: RankedResult[]): Promise<RankedResult[]> {
+	async combineScores(_results: RankedResult[]): Promise<RankedResult[]> {
 		throw new Error("Score combination not yet implemented");
 	}
 
-	orderByScore(results: RankedResult[]): RankedResult[] {
+	orderByScore(_results: RankedResult[]): RankedResult[] {
 		throw new Error("Score ordering not yet implemented");
 	}
 
 	async checkPermissions(
-		results: RankedResult[],
-		userId: string,
+		_results: RankedResult[],
+		_userId: string,
 	): Promise<RankedResult[]> {
 		throw new Error("Permission checking not yet implemented");
 	}

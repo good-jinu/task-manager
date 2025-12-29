@@ -5,7 +5,7 @@ import type { ScoredResult, TaskSearchResult } from "./types.js";
 
 export interface SearchEngine {
 	findTasks(query: SearchQuery): Promise<TaskSearchResult>;
-	rankByRelevance(results: any[], query: string): Promise<ScoredResult[]>;
+	rankByRelevance(results: unknown[], query: string): Promise<ScoredResult[]>;
 	rankByDateProximity(
 		results: ScoredResult[],
 		targetDate: Date,
@@ -14,20 +14,20 @@ export interface SearchEngine {
 
 // Placeholder implementation - will be implemented in later tasks
 export class SearchEngineImpl implements SearchEngine {
-	async findTasks(query: SearchQuery): Promise<TaskSearchResult> {
+	async findTasks(_query: SearchQuery): Promise<TaskSearchResult> {
 		throw new Error("Search engine not yet implemented");
 	}
 
 	async rankByRelevance(
-		results: any[],
-		query: string,
+		_results: unknown[],
+		_query: string,
 	): Promise<ScoredResult[]> {
 		throw new Error("Relevance ranking not yet implemented");
 	}
 
 	async rankByDateProximity(
-		results: ScoredResult[],
-		targetDate: Date,
+		_results: ScoredResult[],
+		_targetDate: Date,
 	): Promise<RankedResult[]> {
 		throw new Error("Date proximity ranking not yet implemented");
 	}

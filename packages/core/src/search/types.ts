@@ -18,6 +18,6 @@ export interface SearchMetadata {
 }
 
 export interface ScoredResult {
-	page: any; // Will be typed with Notion page type
+	page: unknown; // Will be typed with Notion page type
 	relevanceScore: number;
 }

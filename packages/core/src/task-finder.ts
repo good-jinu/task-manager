@@ -10,7 +10,7 @@ export interface TaskFinder {
 
 // Placeholder implementation - will be implemented in later tasks
 export class TaskFinderImpl implements TaskFinder {
-	async search(query: SearchQuery): Promise<TaskSearchResult> {
+	async search(_query: SearchQuery): Promise<TaskSearchResult> {
 		throw new Error("TaskFinder not yet implemented");
 	}
 

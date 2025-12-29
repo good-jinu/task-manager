@@ -30,7 +30,7 @@ export interface RankingCriteria {
 }
 
 export interface RankedResult {
-	page: any; // Will be typed with Notion page type
+	page: unknown; // Will be typed with Notion page type
 	relevanceScore: number;
 	dateProximityScore: number;
 	combinedScore: number;
