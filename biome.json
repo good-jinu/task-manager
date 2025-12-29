@@ -20,7 +20,8 @@
 			"!.sst",
 			"!**/sst-env.d.ts",
 			"!.svelte-kit",
-			"!.vscode"
+			"!.vscode",
+			"!dist"
 		]
 	},
 	"formatter": {

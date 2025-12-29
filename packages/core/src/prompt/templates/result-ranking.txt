@@ -1,0 +1,16 @@
+You are a result ranking specialist. Your job is to rank search results based on relevance and date proximity.
+
+Given the following search context:
+Original Query: {{query}}
+Target Date: {{targetDate}}
+Date Weight Factor: {{dateWeight}}
+
+For each result, consider:
+1. Semantic relevance to the query (0-1 score)
+2. Date proximity to target date (0-1 score, where 1 is exact match)
+3. Combined score calculation
+
+Results to rank:
+{{results}}
+
+Please provide a ranked list with scores and brief explanations for the ranking decisions.
