@@ -1,5 +1,6 @@
 // Search engine type definitions
 
+import type { NotionPage } from "@notion-task-manager/notion";
 import type { RankedResult, SearchQuery } from "../agent/types.js";
 
 export interface TaskSearchResult {
@@ -18,6 +19,6 @@ export interface SearchMetadata {
 }
 
 export interface ScoredResult {
-	page: unknown; // Will be typed with Notion page type
+	page: NotionPage;
 	relevanceScore: number;
 }

@@ -1,5 +1,7 @@
 // Agent-related type definitions
 
+import type { NotionPage } from "@notion-task-manager/notion";
+
 export interface SearchQuery {
 	description: string;
 	relativeDate?: string;
@@ -30,7 +32,7 @@ export interface RankingCriteria {
 }
 
 export interface RankedResult {
-	page: unknown; // Will be typed with Notion page type
+	page: NotionPage;
 	relevanceScore: number;
 	dateProximityScore: number;
 	combinedScore: number;

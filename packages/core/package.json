@@ -17,6 +17,7 @@
 		"test:watch": "vitest"
 	},
 	"dependencies": {
+		"@notion-task-manager/notion": "workspace:*",
 		"openai": "^4.67.3"
 	},
 	"devDependencies": {

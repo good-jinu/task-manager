@@ -181,21 +181,14 @@ export class OpenAIClientImpl implements OpenAIClient {
 				});
 			});
 
-			// Convert SearchResults to RankedResults
-			const rankedResults: RankedResult[] = results.map((result, index) => ({
-				page: result, // Using SearchResult as page for now
-				relevanceScore: result.relevanceScore,
-				dateProximityScore: 0.5, // Mock date proximity score
-				combinedScore:
-					result.relevanceScore * criteria.semanticWeight +
-					0.5 * criteria.dateWeight,
-			}));
+			// Note: This is a mock implementation since we can't convert SearchResult to NotionPage
+			// In the real implementation, the SearchEngine should handle ranking with proper NotionPage objects
+			console.warn(
+				"OpenAI client rankResults is deprecated - use SearchEngine instead",
+			);
 
-			// Sort by combined score (descending)
-			rankedResults.sort((a, b) => b.combinedScore - a.combinedScore);
-
-			// Limit results based on criteria
-			return rankedResults.slice(0, criteria.maxResults);
+			// Return empty array since we can't properly convert SearchResult to RankedResult
+			return [];
 		} catch (error) {
 			return this.handleRankingError(error, results).slice(
 				0,
@@ -278,13 +271,11 @@ export class OpenAIClientImpl implements OpenAIClient {
 	): RankedResult[] {
 		console.error("Result ranking error:", error);
 
-		// Return fallback ranking (just convert SearchResults to RankedResults)
-		return results.map((result) => ({
-			page: result,
-			relevanceScore: result.relevanceScore,
-			dateProximityScore: 0.5,
-			combinedScore: result.relevanceScore,
-		}));
+		// Return empty array since we can't convert SearchResult to RankedResult
+		console.warn(
+			"OpenAI client ranking error handler - use SearchEngine instead",
+		);
+		return [];
 	}
 
 	private parseRelativeDate(dateInput: string): Date {

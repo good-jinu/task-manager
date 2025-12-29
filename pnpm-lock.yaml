@@ -27,6 +27,9 @@ importers:
 
   packages/core:
     dependencies:
+      '@notion-task-manager/notion':
+        specifier: workspace:*
+        version: link:../notion
       openai:
         specifier: ^4.67.3
         version: 4.104.0(zod@3.24.2)
