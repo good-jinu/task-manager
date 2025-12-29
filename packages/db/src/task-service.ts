@@ -104,12 +104,14 @@ export class TaskService {
 
 				if (filters.dueBefore) {
 					filterExpressions.push("dueDate < :dueBefore");
-					expressionAttributeValues[":dueBefore"] = filters.dueBefore;
+					expressionAttributeValues[":dueBefore"] =
+						filters.dueBefore.toISOString();
 				}
 
 				if (filters.dueAfter) {
 					filterExpressions.push("dueDate > :dueAfter");
-					expressionAttributeValues[":dueAfter"] = filters.dueAfter;
+					expressionAttributeValues[":dueAfter"] =
+						filters.dueAfter.toISOString();
 				}
 
 				if (filters.tags && filters.tags.length > 0) {

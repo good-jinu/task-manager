@@ -21,7 +21,7 @@
 			</p>
 			<div class="flex flex-col sm:flex-row gap-4 justify-center">
 				<a
-					href="/auth/signin"
+					href="/user/signin"
 					class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-8 rounded-lg text-lg transition-colors duration-200"
 				>
 					Get Started with Notion
@@ -141,7 +141,7 @@
 			Join thousands of users who are already managing their tasks more efficiently with Notion Task Manager.
 		</p>
 		<a
-			href="/auth/signin"
+			href="/user/signin"
 			class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-8 rounded-lg text-lg transition-colors duration-200 inline-block"
 		>
 			Start Managing Tasks Today

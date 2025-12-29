@@ -7,13 +7,21 @@ import { redirect } from "@sveltejs/kit";
  * @returns session if authenticated, throws redirect if not
  */
 export async function requireAuth(event: RequestEvent) {
-	const session = await event.locals.getSession();
+	const session = await event.locals.auth();
 
-	if (!session?.user) {
-		throw redirect(302, "/auth/signin");
+	if (!session?.user || !session.user.id) {
+		throw redirect(302, "/user/signin");
 	}
 
-	return session;
+	return {
+		user: {
+			id: session.user.id,
+			email: session.user.email,
+			image: session.user.image,
+			name: session.user.name,
+		},
+		expires: session.expires,
+	};
 }
 
 /**

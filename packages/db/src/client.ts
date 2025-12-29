@@ -1,22 +1,14 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
-import { getEnvironmentConfig } from "./config.js";
+import { Resource } from "sst";
 
 /**
  * Creates and configures a DynamoDB client
  */
 function createDynamoDBClient(): DynamoDBDocumentClient {
-	const config = getEnvironmentConfig();
-
 	// Create the base DynamoDB client
 	const client = new DynamoDBClient({
-		region: config.AWS_REGION,
-		// Additional configuration can be added here for different environments
-		...(config.NODE_ENV === "development" &&
-			{
-				// Local development configuration if needed
-				// endpoint: 'http://localhost:8000'
-			}),
+		region: process.env.APP_AWS_REGION || "us-east-1",
 	});
 
 	// Create the document client for easier JSON handling
@@ -54,12 +46,11 @@ export function getDynamoDBClient(): DynamoDBDocumentClient {
 }
 
 /**
- * Gets the table names from environment configuration
+ * Gets the table names from SST Resources
  */
 export function getTableNames() {
-	const config = getEnvironmentConfig();
 	return {
-		users: config.DYNAMODB_USERS_TABLE,
-		tasks: config.DYNAMODB_TASKS_TABLE,
+		users: (Resource as any).UsersTable.name,
+		tasks: (Resource as any).TasksTable.name,
 	};
 }

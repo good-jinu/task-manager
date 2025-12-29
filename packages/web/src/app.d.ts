@@ -11,16 +11,3 @@ declare global {
 		// interface Platform {}
 	}
 }
-
-declare module "@auth/core/types" {
-	interface Session {
-		accessToken?: string;
-		notionUserId?: string;
-		user: {
-			id: string;
-			name?: string | null;
-			email?: string | null;
-			image?: string | null;
-		};
-	}
-}

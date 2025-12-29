@@ -96,23 +96,3 @@ export interface TaskFilter {
 	dueBefore?: Date;
 	dueAfter?: Date;
 }
-
-/**
- * Environment configuration interface
- */
-export interface EnvironmentConfig {
-	// Authentication
-	AUTH_SECRET: string;
-	AUTH_NOTION_ID: string;
-	AUTH_NOTION_SECRET: string;
-	AUTH_NOTION_REDIRECT_URI: string;
-
-	// Database
-	AWS_REGION: string;
-	DYNAMODB_USERS_TABLE: string;
-	DYNAMODB_TASKS_TABLE: string;
-
-	// Application
-	DOMAIN_NAME: string;
-	NODE_ENV: "development" | "staging" | "production";
-}

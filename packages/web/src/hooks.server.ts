@@ -17,9 +17,10 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
 	],
 	secret: AUTH_SECRET,
 	trustHost: true,
+	basePath: "/auth",
 	pages: {
-		signIn: "/auth/signin",
-		error: "/auth/error",
+		signIn: "/user/signin",
+		error: "/user/error",
 	},
 	callbacks: {
 		async jwt({ token, user, account }) {

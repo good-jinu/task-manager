@@ -1,15 +1,12 @@
 // Export main database client
 
 export { getDynamoDBClient, getTableNames } from "./client.js";
-// Export configuration utilities
-export { getEnvironmentConfig, loadEnvironmentConfig } from "./config.js";
 export { DatabaseClient, getDatabaseClient } from "./database.js";
 export { TaskService } from "./task-service.js";
 // Export all types
 export type {
 	CreateTaskInput,
 	CreateUserInput,
-	EnvironmentConfig,
 	Task,
 	TaskFilter,
 	UpdateTaskInput,

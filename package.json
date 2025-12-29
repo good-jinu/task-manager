@@ -21,6 +21,6 @@
 		"typescript": "^5"
 	},
 	"dependencies": {
-		"sst": "3.17.25"
+		"sst": "^3.17"
 	}
 }

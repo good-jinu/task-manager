@@ -36,20 +36,15 @@ export default $config({
 		});
 
 		// Domain configuration from environment variables
-		const domainName = process.env.DOMAIN_NAME;
 		const webDomain = process.env.WEB_DOMAIN;
 
 		// SvelteKit application with environment variables and permissions
 		const web = new sst.aws.SvelteKit("TaskManagerWeb", {
 			path: "packages/web",
-			domain: webDomain
-				? {
-						name: webDomain,
-						dns: sst.aws.dns({
-							zone: domainName,
-						}),
-					}
-				: undefined,
+			domain: {
+				name: webDomain ?? "",
+			},
+			link: [usersTable, tasksTable],
 			environment: {
 				// Authentication
 				AUTH_SECRET: process.env.AUTH_SECRET,
@@ -58,32 +53,8 @@ export default $config({
 				AUTH_NOTION_REDIRECT_URI: process.env.AUTH_NOTION_REDIRECT_URI,
 
 				// Database
-				AWS_REGION: process.env.AWS_REGION || "us-east-1",
-				DYNAMODB_USERS_TABLE: usersTable.name,
-				DYNAMODB_TASKS_TABLE: tasksTable.name,
-
-				// Application
-				DOMAIN_NAME: domainName || "localhost",
-				NODE_ENV: process.env.NODE_ENV || "development",
+				APP_AWS_REGION: process.env.APP_AWS_REGION || "us-east-1",
 			},
-			permissions: [
-				{
-					actions: [
-						"dynamodb:GetItem",
-						"dynamodb:PutItem",
-						"dynamodb:UpdateItem",
-						"dynamodb:DeleteItem",
-						"dynamodb:Query",
-						"dynamodb:Scan",
-					],
-					resources: [
-						usersTable.arn,
-						$interpolate`${usersTable.arn}/index/*`,
-						tasksTable.arn,
-						$interpolate`${tasksTable.arn}/index/*`,
-					],
-				},
-			],
 		});
 
 		return {

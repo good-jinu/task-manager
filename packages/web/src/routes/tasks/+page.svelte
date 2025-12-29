@@ -1,10 +1,12 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { TaskStatus, TaskPriority, type Task } from '$lib/types';
+	import type { PageData } from './$types';
 
-	let tasks: Task[] = [];
-	let loading = true;
-	let error = '';
+	export let data: PageData;
+
+	let tasks: Task[] = data.tasks || [];
+	let loading = false;
+	let error = data.error || '';
 
 	// Form data for creating new tasks
 	let newTask = {
@@ -16,10 +18,6 @@
 		assignee: '',
 		tags: ''
 	};
-
-	onMount(async () => {
-		await loadTasks();
-	});
 
 	async function loadTasks() {
 		try {

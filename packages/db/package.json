@@ -13,7 +13,8 @@
 	},
 	"dependencies": {
 		"@aws-sdk/client-dynamodb": "^3.705.0",
-		"@aws-sdk/lib-dynamodb": "^3.705.0"
+		"@aws-sdk/lib-dynamodb": "^3.705.0",
+		"sst": "^3.3.0"
 	},
 	"devDependencies": {
 		"@types/node": "^20",
