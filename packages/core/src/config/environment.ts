@@ -153,7 +153,7 @@ export class EnvironmentConfig {
 				throw error;
 			}
 			throw new ConfigurationError(
-				`Configuration validation failed: ${error.message}`,
+				`Configuration validation failed: ${error instanceof Error ? error.message : String(error)}`,
 			);
 		}
 	}

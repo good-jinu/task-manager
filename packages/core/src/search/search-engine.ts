@@ -5,7 +5,11 @@ import type {
 	NotionTaskManager,
 } from "@notion-task-manager/notion";
 import type { RankedResult, SearchQuery } from "../agent/types.js";
-import type { ScoredResult, TaskSearchResult } from "./types.js";
+import type {
+	ScoredResult,
+	SearchMetadata,
+	TaskSearchResult,
+} from "./types.js";
 
 export interface SearchEngine {
 	findTasks(query: SearchQuery): Promise<TaskSearchResult>;
@@ -28,7 +32,7 @@ export class SearchEngineImpl implements SearchEngine {
 
 	async findTasks(query: SearchQuery): Promise<TaskSearchResult> {
 		const startTime = Date.now();
-		const metadata = {
+		const metadata: SearchMetadata = {
 			openaiTokensUsed: 0,
 			notionApiCalls: 0,
 			cacheHits: 0,

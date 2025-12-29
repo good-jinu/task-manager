@@ -24,6 +24,7 @@
 	},
 	"dependencies": {
 		"@auth/sveltekit": "^1.11.1",
+		"@notion-task-manager/core": "workspace:*",
 		"@notion-task-manager/db": "workspace:*",
 		"@notion-task-manager/notion": "workspace:*",
 		"svelte-kit-sst": "^2.43.5"

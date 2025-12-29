@@ -78,6 +78,9 @@ importers:
       '@auth/sveltekit':
         specifier: ^1.11.1
         version: 1.11.1(@sveltejs/kit@2.49.2(@sveltejs/vite-plugin-svelte@6.2.1(svelte@5.46.1)(vite@7.3.0(@types/node@20.19.27)(jiti@2.6.1)(lightningcss@1.30.2)))(svelte@5.46.1)(vite@7.3.0(@types/node@20.19.27)(jiti@2.6.1)(lightningcss@1.30.2)))(svelte@5.46.1)
+      '@notion-task-manager/core':
+        specifier: workspace:*
+        version: link:../core
       '@notion-task-manager/db':
         specifier: workspace:*
         version: link:../db
