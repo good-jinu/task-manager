@@ -1,4 +1,4 @@
-import { TaskService } from "./task-service.js";
+import { DatabaseConfigService } from "./database-config-service.js";
 import { UserService } from "./user-service.js";
 
 /**
@@ -6,11 +6,11 @@ import { UserService } from "./user-service.js";
  */
 export class DatabaseClient {
 	public readonly users: UserService;
-	public readonly tasks: TaskService;
+	public readonly databaseConfigs: DatabaseConfigService;
 
 	constructor() {
 		this.users = new UserService();
-		this.tasks = new TaskService();
+		this.databaseConfigs = new DatabaseConfigService();
 	}
 }
 

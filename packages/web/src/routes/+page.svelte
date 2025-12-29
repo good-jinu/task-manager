@@ -1,7 +1,5 @@
 <script lang="ts">
-	import type { PageData } from './$types';
-
-	let { data }: { data: PageData } = $props();
+	// No props needed for this page
 </script>
 
 <svelte:head>
@@ -17,7 +15,7 @@
 				Notion Task Manager
 			</h1>
 			<p class="text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto">
-				Seamlessly integrate your task management with Notion. Create, organize, and track your tasks with the power of your Notion workspace.
+				Connect your Notion workspace and manage your databases with ease. Browse, select, and work with your Notion data seamlessly.
 			</p>
 			<div class="flex flex-col sm:flex-row gap-4 justify-center">
 				<a
@@ -40,10 +38,10 @@
 	<div id="features" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
 		<div class="text-center mb-16">
 			<h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-				Powerful Task Management Features
+				Powerful Database Management Features
 			</h2>
 			<p class="text-xl text-gray-600 max-w-2xl mx-auto">
-				Everything you need to stay organized and productive, powered by Notion's flexibility.
+				Everything you need to browse and manage your Notion databases efficiently.
 			</p>
 		</div>
 
@@ -51,36 +49,36 @@
 			<div class="text-center p-6">
 				<div class="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
 					<svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"></path>
 					</svg>
 				</div>
-				<h3 class="text-xl font-semibold text-gray-900 mb-2">Task Organization</h3>
+				<h3 class="text-xl font-semibold text-gray-900 mb-2">Database Discovery</h3>
 				<p class="text-gray-600">
-					Create, organize, and prioritize your tasks with intuitive status tracking and priority levels.
+					Browse and discover all your Notion databases in one place with an intuitive interface.
 				</p>
 			</div>
 
 			<div class="text-center p-6">
 				<div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
 					<svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
 					</svg>
 				</div>
-				<h3 class="text-xl font-semibold text-gray-900 mb-2">Team Collaboration</h3>
+				<h3 class="text-xl font-semibold text-gray-900 mb-2">Page Management</h3>
 				<p class="text-gray-600">
-					Assign tasks, set due dates, and collaborate with your team using your existing Notion workspace.
+					View and manage all pages within your selected databases with detailed property information.
 				</p>
 			</div>
 
 			<div class="text-center p-6">
 				<div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
 					<svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
 					</svg>
 				</div>
-				<h3 class="text-xl font-semibold text-gray-900 mb-2">Smart Tagging</h3>
+				<h3 class="text-xl font-semibold text-gray-900 mb-2">Quick Access</h3>
 				<p class="text-gray-600">
-					Organize tasks with custom tags and filters to quickly find what you need when you need it.
+					Save your frequently used databases for quick access and seamless workflow management.
 				</p>
 			</div>
 		</div>
@@ -113,9 +111,9 @@
 					<div class="w-12 h-12 bg-indigo-600 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
 						2
 					</div>
-					<h3 class="text-lg font-semibold text-gray-900 mb-2">Create Your Tasks</h3>
+					<h3 class="text-lg font-semibold text-gray-900 mb-2">Select Your Database</h3>
 					<p class="text-gray-600">
-						Start creating and organizing your tasks with our intuitive interface.
+						Browse your Notion databases and select the ones you want to work with.
 					</p>
 				</div>
 
@@ -123,9 +121,9 @@
 					<div class="w-12 h-12 bg-indigo-600 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
 						3
 					</div>
-					<h3 class="text-lg font-semibold text-gray-900 mb-2">Stay Organized</h3>
+					<h3 class="text-lg font-semibold text-gray-900 mb-2">Manage Your Data</h3>
 					<p class="text-gray-600">
-						Track progress, set priorities, and collaborate with your team seamlessly.
+						View and manage all pages within your databases with detailed information and quick access.
 					</p>
 				</div>
 			</div>
@@ -135,16 +133,16 @@
 	<!-- CTA Section -->
 	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
 		<h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-			Ready to Get Organized?
+			Ready to Manage Your Databases?
 		</h2>
 		<p class="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-			Join thousands of users who are already managing their tasks more efficiently with Notion Task Manager.
+			Join users who are already managing their Notion databases more efficiently with our streamlined interface.
 		</p>
 		<a
 			href="/user/signin"
 			class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-8 rounded-lg text-lg transition-colors duration-200 inline-block"
 		>
-			Start Managing Tasks Today
+			Start Managing Databases Today
 		</a>
 	</div>
 </div>

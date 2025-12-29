@@ -13,12 +13,17 @@ export async function requireAuth(event: RequestEvent) {
 		throw redirect(302, "/user/signin");
 	}
 
+	// biome-ignore lint/suspicious/noExplicitAny: session type doesn't include our custom fields
+	const sessionAny = session as any;
+
 	return {
 		user: {
 			id: session.user.id,
 			email: session.user.email,
 			image: session.user.image,
 			name: session.user.name,
+			notionAccessToken: sessionAny.accessToken,
+			notionUserId: sessionAny.notionUserId,
 		},
 		expires: session.expires,
 	};

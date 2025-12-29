@@ -22,17 +22,12 @@ export default $config({
 			},
 		});
 
-		const tasksTable = new sst.aws.Dynamo("TasksTable", {
+		const databaseConfigsTable = new sst.aws.Dynamo("DatabaseConfigsTable", {
 			fields: {
 				userId: "string", // Partition key (User ID)
-				id: "string", // Sort key (Task UUID)
-				status: "string", // For GSI
-				createdAt: "string", // For GSI sorting
+				databaseId: "string", // Sort key (Notion Database ID)
 			},
-			primaryIndex: { hashKey: "userId", rangeKey: "id" },
-			globalIndexes: {
-				"status-createdAt-index": { hashKey: "status", rangeKey: "createdAt" },
-			},
+			primaryIndex: { hashKey: "userId", rangeKey: "databaseId" },
 		});
 
 		// Domain configuration from environment variables
@@ -44,7 +39,7 @@ export default $config({
 			domain: {
 				name: webDomain ?? "",
 			},
-			link: [usersTable, tasksTable],
+			link: [usersTable, databaseConfigsTable],
 			environment: {
 				// Authentication
 				AUTH_SECRET: process.env.AUTH_SECRET,
@@ -60,7 +55,7 @@ export default $config({
 		return {
 			web: web.url,
 			usersTable: usersTable.name,
-			tasksTable: tasksTable.name,
+			databaseConfigsTable: databaseConfigsTable.name,
 		};
 	},
 });

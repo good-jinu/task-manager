@@ -1,162 +1,149 @@
 <script lang="ts">
-	import { TaskStatus, TaskPriority, type Task } from '$lib/types';
-	import type { PageData } from './$types';
+	import type { NotionDatabase, NotionPage, DatabaseConfig } from '@notion-task-manager/notion';
 
-	export let data: PageData;
-
-	let tasks: Task[] = data.tasks || [];
+	// Use any for the arrays since dates come as strings from API
+	let databases: any[] = [];
+	let selectedDatabase: any | null = null;
+	let pages: any[] = [];
+	let savedConfigs: any[] = [];
 	let loading = false;
-	let error = data.error || '';
+	let error = '';
 
-	// Form data for creating new tasks
-	let newTask = {
-		title: '',
-		description: '',
-		status: TaskStatus.TODO,
-		priority: TaskPriority.MEDIUM,
-		dueDate: '',
-		assignee: '',
-		tags: ''
-	};
+	// Load initial data
+	loadSavedConfigs();
+	loadDatabases();
 
-	async function loadTasks() {
+	async function loadDatabases() {
 		try {
 			loading = true;
-			const response = await fetch('/api/tasks');
+			const response = await fetch('/api/databases');
 			const data = await response.json();
 			
 			if (response.ok) {
-				tasks = data.tasks;
+				databases = data.databases;
 			} else {
-				error = data.error || 'Failed to load tasks';
+				error = data.error || 'Failed to load databases';
 			}
 		} catch (err) {
-			error = 'Failed to load tasks';
+			error = 'Failed to load databases';
 			console.error(err);
 		} finally {
 			loading = false;
 		}
 	}
 
-	async function createTask() {
+	async function loadSavedConfigs() {
 		try {
-			const taskData = {
-				...newTask,
-				dueDate: newTask.dueDate || undefined,
-				tags: newTask.tags ? newTask.tags.split(',').map(tag => tag.trim()) : undefined
-			};
+			const response = await fetch('/api/databases/configs');
+			const data = await response.json();
+			
+			if (response.ok) {
+				savedConfigs = data.configs;
+			}
+		} catch (err) {
+			console.error('Failed to load saved configs:', err);
+		}
+	}
 
-			const response = await fetch('/api/tasks', {
+	async function selectDatabase(database: any) {
+		try {
+			loading = true;
+			selectedDatabase = database;
+			
+			// Save this database selection
+			await fetch('/api/databases', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
 				},
-				body: JSON.stringify(taskData)
+				body: JSON.stringify({
+					databaseId: database.id,
+					title: database.title,
+					description: database.description
+				})
 			});
 
-			if (response.ok) {
-				// Reset form
-				newTask = {
-					title: '',
-					description: '',
-					status: TaskStatus.TODO,
-					priority: TaskPriority.MEDIUM,
-					dueDate: '',
-					assignee: '',
-					tags: ''
-				};
-				
-				// Reload tasks
-				await loadTasks();
-			} else {
-				const data = await response.json();
-				error = data.error || 'Failed to create task';
-			}
+			// Load pages from this database
+			await loadDatabasePages(database.id);
+			
+			// Refresh saved configs
+			await loadSavedConfigs();
 		} catch (err) {
-			error = 'Failed to create task';
+			error = 'Failed to select database';
 			console.error(err);
+		} finally {
+			loading = false;
 		}
 	}
 
-	async function updateTaskStatus(taskId: string, status: TaskStatus) {
+	async function loadDatabasePages(databaseId: string) {
 		try {
-			const response = await fetch(`/api/tasks/${taskId}`, {
-				method: 'PUT',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({ status })
-			});
-
+			const response = await fetch(`/api/databases/${databaseId}/pages`);
+			const data = await response.json();
+			
 			if (response.ok) {
-				await loadTasks();
+				pages = data.pages;
 			} else {
-				const data = await response.json();
-				error = data.error || 'Failed to update task';
+				error = data.error || 'Failed to load database pages';
 			}
 		} catch (err) {
-			error = 'Failed to update task';
+			error = 'Failed to load database pages';
 			console.error(err);
 		}
 	}
 
-	async function deleteTask(taskId: string) {
-		if (!confirm('Are you sure you want to delete this task?')) return;
-
+	async function loadFromSavedConfig(config: any) {
 		try {
-			const response = await fetch(`/api/tasks/${taskId}`, {
-				method: 'DELETE'
-			});
+			loading = true;
+			
+			// Find the database in our list or create a minimal one
+			selectedDatabase = databases.find(db => db.id === config.databaseId) || {
+				id: config.databaseId,
+				title: config.title,
+				description: config.description,
+				url: '',
+				createdTime: '',
+				lastEditedTime: ''
+			};
 
-			if (response.ok) {
-				await loadTasks();
-			} else {
-				const data = await response.json();
-				error = data.error || 'Failed to delete task';
-			}
+			await loadDatabasePages(config.databaseId);
 		} catch (err) {
-			error = 'Failed to delete task';
+			error = 'Failed to load from saved configuration';
 			console.error(err);
+		} finally {
+			loading = false;
 		}
 	}
 
-	function getStatusColor(status: TaskStatus): string {
-		switch (status) {
-			case TaskStatus.TODO:
-				return 'bg-gray-100 text-gray-800';
-			case TaskStatus.IN_PROGRESS:
-				return 'bg-blue-100 text-blue-800';
-			case TaskStatus.DONE:
-				return 'bg-green-100 text-green-800';
-			case TaskStatus.CANCELLED:
-				return 'bg-red-100 text-red-800';
-			default:
-				return 'bg-gray-100 text-gray-800';
-		}
+	function formatDate(dateString: string): string {
+		return new Date(dateString).toLocaleDateString();
 	}
 
-	function getPriorityColor(priority?: TaskPriority): string {
-		switch (priority) {
-			case TaskPriority.LOW:
-				return 'bg-green-100 text-green-800';
-			case TaskPriority.MEDIUM:
-				return 'bg-yellow-100 text-yellow-800';
-			case TaskPriority.HIGH:
-				return 'bg-orange-100 text-orange-800';
-			case TaskPriority.URGENT:
-				return 'bg-red-100 text-red-800';
-			default:
-				return 'bg-gray-100 text-gray-800';
-		}
+	function formatProperties(properties: Record<string, any>): string {
+		const entries = Object.entries(properties);
+		if (entries.length === 0) return 'No properties';
+		
+		return entries.slice(0, 3).map(([key, value]) => {
+			if (value?.type === 'title' && value.title?.[0]?.plain_text) {
+				return `${key}: ${value.title[0].plain_text}`;
+			} else if (value?.type === 'rich_text' && value.rich_text?.[0]?.plain_text) {
+				return `${key}: ${value.rich_text[0].plain_text}`;
+			} else if (value?.type === 'select' && value.select?.name) {
+				return `${key}: ${value.select.name}`;
+			} else if (value?.type === 'date' && value.date?.start) {
+				return `${key}: ${new Date(value.date.start).toLocaleDateString()}`;
+			}
+			return `${key}: ${value?.type || 'unknown'}`;
+		}).join(', ');
 	}
 </script>
 
 <svelte:head>
-	<title>Task Manager</title>
+	<title>Notion Database Manager</title>
 </svelte:head>
 
 <div class="container mx-auto px-4 py-8">
-	<h1 class="text-3xl font-bold mb-8">Notion Task Manager</h1>
+	<h1 class="text-3xl font-bold mb-8">Notion Database Manager</h1>
 
 	{#if error}
 		<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
@@ -164,195 +151,117 @@
 		</div>
 	{/if}
 
-	<!-- Create Task Form -->
-	<div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-8">
-		<h2 class="text-xl font-semibold mb-4">Create New Task</h2>
-		
-		<form on:submit|preventDefault={createTask} class="space-y-4">
-			<div>
-				<label class="block text-gray-700 text-sm font-bold mb-2" for="title">
-					Title *
-				</label>
-				<input
-					id="title"
-					type="text"
-					bind:value={newTask.title}
-					required
-					class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-				/>
-			</div>
-
-			<div>
-				<label class="block text-gray-700 text-sm font-bold mb-2" for="description">
-					Description
-				</label>
-				<textarea
-					id="description"
-					bind:value={newTask.description}
-					class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-					rows="3"
-				></textarea>
-			</div>
-
-			<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-				<div>
-					<label class="block text-gray-700 text-sm font-bold mb-2" for="status">
-						Status
-					</label>
-					<select
-						id="status"
-						bind:value={newTask.status}
-						class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+	<!-- Saved Configurations -->
+	{#if savedConfigs.length > 0}
+		<div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-8">
+			<h2 class="text-xl font-semibold mb-4">Recently Selected Databases</h2>
+			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+				{#each savedConfigs as config}
+					<button
+						on:click={() => loadFromSavedConfig(config)}
+						class="text-left p-4 border rounded-lg hover:shadow-md transition-shadow bg-blue-50 hover:bg-blue-100"
 					>
-						{#each Object.values(TaskStatus) as status}
-							<option value={status}>{status}</option>
-						{/each}
-					</select>
-				</div>
-
-				<div>
-					<label class="block text-gray-700 text-sm font-bold mb-2" for="priority">
-						Priority
-					</label>
-					<select
-						id="priority"
-						bind:value={newTask.priority}
-						class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-					>
-						{#each Object.values(TaskPriority) as priority}
-							<option value={priority}>{priority}</option>
-						{/each}
-					</select>
-				</div>
-
-				<div>
-					<label class="block text-gray-700 text-sm font-bold mb-2" for="dueDate">
-						Due Date
-					</label>
-					<input
-						id="dueDate"
-						type="date"
-						bind:value={newTask.dueDate}
-						class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-					/>
-				</div>
-			</div>
-
-			<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-				<div>
-					<label class="block text-gray-700 text-sm font-bold mb-2" for="assignee">
-						Assignee
-					</label>
-					<input
-						id="assignee"
-						type="text"
-						bind:value={newTask.assignee}
-						class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-					/>
-				</div>
-
-				<div>
-					<label class="block text-gray-700 text-sm font-bold mb-2" for="tags">
-						Tags (comma-separated)
-					</label>
-					<input
-						id="tags"
-						type="text"
-						bind:value={newTask.tags}
-						placeholder="urgent, documentation, feature"
-						class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-					/>
-				</div>
-			</div>
-
-			<button
-				type="submit"
-				class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-			>
-				Create Task
-			</button>
-		</form>
-	</div>
-
-	<!-- Tasks List -->
-	<div class="bg-white shadow-md rounded px-8 pt-6 pb-8">
-		<h2 class="text-xl font-semibold mb-4">Tasks</h2>
-
-		{#if loading}
-			<p class="text-gray-600">Loading tasks...</p>
-		{:else if tasks.length === 0}
-			<p class="text-gray-600">No tasks found. Create your first task above!</p>
-		{:else}
-			<div class="space-y-4">
-				{#each tasks as task (task.id)}
-					<div class="border rounded-lg p-4 hover:shadow-md transition-shadow">
-						<div class="flex justify-between items-start mb-2">
-							<h3 class="text-lg font-semibold">{task.title}</h3>
-							<button
-								on:click={() => deleteTask(task.id)}
-								class="text-red-600 hover:text-red-800 text-sm"
-							>
-								Delete
-							</button>
-						</div>
-
-						{#if task.description}
-							<p class="text-gray-600 mb-3">{task.description}</p>
+						<h3 class="font-semibold text-blue-800">{config.title}</h3>
+						{#if config.description}
+							<p class="text-sm text-gray-600 mt-1">{config.description}</p>
 						{/if}
-
-						<div class="flex flex-wrap gap-2 mb-3">
-							<span class="px-2 py-1 rounded-full text-xs font-medium {getStatusColor(task.status)}">
-								{task.status}
-							</span>
-
-							{#if task.priority}
-								<span class="px-2 py-1 rounded-full text-xs font-medium {getPriorityColor(task.priority)}">
-									{task.priority}
-								</span>
-							{/if}
-
-							{#if task.tags && task.tags.length > 0}
-								{#each task.tags as tag}
-									<span class="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-										{tag}
-									</span>
-								{/each}
-							{/if}
-						</div>
-
-						<div class="flex justify-between items-center text-sm text-gray-500">
-							<div>
-								{#if task.assignee}
-									<span>Assigned to: {task.assignee}</span>
-								{/if}
-								{#if task.dueDate}
-									<span class="ml-4">Due: {new Date(task.dueDate).toLocaleDateString()}</span>
-								{/if}
-							</div>
-
-							<div class="flex gap-2">
-								{#if task.status !== TaskStatus.DONE}
-									<button
-										on:click={() => updateTaskStatus(task.id, TaskStatus.DONE)}
-										class="bg-green-500 hover:bg-green-700 text-white text-xs px-2 py-1 rounded"
-									>
-										Mark Done
-									</button>
-								{/if}
-
-								{#if task.status !== TaskStatus.IN_PROGRESS && task.status !== TaskStatus.DONE}
-									<button
-										on:click={() => updateTaskStatus(task.id, TaskStatus.IN_PROGRESS)}
-										class="bg-blue-500 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded"
-									>
-										Start
-									</button>
-								{/if}
-							</div>
-						</div>
-					</div>
+						<p class="text-xs text-gray-500 mt-2">Selected: {formatDate(config.selectedAt)}</p>
+					</button>
 				{/each}
 			</div>
-		{/if}
-	</div>
+		</div>
+	{/if}
+
+	<!-- Database Selection -->
+	{#if !selectedDatabase}
+		<div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-8">
+			<h2 class="text-xl font-semibold mb-4">Select a Notion Database</h2>
+			
+			{#if loading}
+				<p class="text-gray-600">Loading databases...</p>
+			{:else if databases.length === 0}
+				<p class="text-gray-600">No databases found. Make sure you have databases in your Notion workspace and have granted access to this integration.</p>
+			{:else}
+				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+					{#each databases as database}
+						<button
+							on:click={() => selectDatabase(database)}
+							class="text-left p-4 border rounded-lg hover:shadow-md transition-shadow hover:bg-gray-50"
+						>
+							<h3 class="font-semibold">{database.title}</h3>
+							{#if database.description}
+								<p class="text-sm text-gray-600 mt-1">{database.description}</p>
+							{/if}
+							<p class="text-xs text-gray-500 mt-2">
+								Created: {formatDate(database.createdTime)}
+							</p>
+						</button>
+					{/each}
+				</div>
+			{/if}
+		</div>
+	{:else}
+		<!-- Selected Database and Pages -->
+		<div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-8">
+			<div class="flex justify-between items-center mb-4">
+				<h2 class="text-xl font-semibold">Database: {selectedDatabase.title}</h2>
+				<button
+					on:click={() => { selectedDatabase = null; pages = []; }}
+					class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded"
+				>
+					Back to Databases
+				</button>
+			</div>
+
+			{#if selectedDatabase.description}
+				<p class="text-gray-600 mb-4">{selectedDatabase.description}</p>
+			{/if}
+
+			<div class="mb-4">
+				<a 
+					href={selectedDatabase.url} 
+					target="_blank" 
+					rel="noopener noreferrer"
+					class="text-blue-600 hover:text-blue-800 underline"
+				>
+					Open in Notion →
+				</a>
+			</div>
+
+			<h3 class="text-lg font-semibold mb-4">Pages in this Database</h3>
+
+			{#if loading}
+				<p class="text-gray-600">Loading pages...</p>
+			{:else if pages.length === 0}
+				<p class="text-gray-600">No pages found in this database.</p>
+			{:else}
+				<div class="space-y-4">
+					{#each pages as page}
+						<div class="border rounded-lg p-4 hover:shadow-md transition-shadow">
+							<div class="flex justify-between items-start mb-2">
+								<h4 class="text-lg font-semibold">{page.title}</h4>
+								<a 
+									href={page.url} 
+									target="_blank" 
+									rel="noopener noreferrer"
+									class="text-blue-600 hover:text-blue-800 text-sm underline"
+								>
+									Open →
+								</a>
+							</div>
+
+							<div class="text-sm text-gray-600 mb-2">
+								{formatProperties(page.properties)}
+							</div>
+
+							<div class="text-xs text-gray-500">
+								Created: {formatDate(page.createdTime)} | 
+								Updated: {formatDate(page.lastEditedTime)}
+							</div>
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
+	{/if}
 </div>

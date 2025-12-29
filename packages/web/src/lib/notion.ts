@@ -1,18 +1,14 @@
-import {
-	type CreateTaskInput,
-	type Task,
-	type TaskFilter,
-	TaskPriority,
-	TaskStatus,
-	type UpdateTaskInput,
-} from "@notion-task-manager/notion";
+import { Client, NotionTaskManager } from "@notion-task-manager/notion";
 
-// Export types and enums for use in components
-export {
-	TaskStatus,
-	TaskPriority,
-	type Task,
-	type CreateTaskInput,
-	type UpdateTaskInput,
-	type TaskFilter,
-};
+export function createNotionClient(accessToken: string): Client {
+	return new Client({
+		auth: accessToken,
+	});
+}
+
+export function createNotionTaskManager(
+	accessToken: string,
+): NotionTaskManager {
+	const client = createNotionClient(accessToken);
+	return new NotionTaskManager(client);
+}

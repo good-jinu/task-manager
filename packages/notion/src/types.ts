@@ -1,66 +1,25 @@
-export interface Task {
+export interface NotionDatabase {
 	id: string;
 	title: string;
 	description?: string;
-	status: TaskStatus;
-	priority?: TaskPriority;
-	dueDate?: Date;
-	createdAt: Date;
-	updatedAt: Date;
-	assignee?: string;
-	tags?: string[];
+	url: string;
+	createdTime: Date;
+	lastEditedTime: Date;
 }
 
-export enum TaskStatus {
-	TODO = "To Do",
-	IN_PROGRESS = "In Progress",
-	DONE = "Done",
-	CANCELLED = "Cancelled",
-}
-
-export enum TaskPriority {
-	LOW = "Low",
-	MEDIUM = "Medium",
-	HIGH = "High",
-	URGENT = "Urgent",
-}
-
-export interface CreateTaskInput {
+export interface NotionPage {
+	id: string;
 	title: string;
-	description?: string;
-	status?: TaskStatus;
-	priority?: TaskPriority;
-	dueDate?: Date;
-	assignee?: string;
-	tags?: string[];
-}
-
-export interface UpdateTaskInput {
-	title?: string;
-	description?: string;
-	status?: TaskStatus;
-	priority?: TaskPriority;
-	dueDate?: Date;
-	assignee?: string;
-	tags?: string[];
-}
-
-export interface TaskFilter {
-	status?: TaskStatus[];
-	priority?: TaskPriority[];
-	assignee?: string;
-	tags?: string[];
-	dueBefore?: Date;
-	dueAfter?: Date;
+	properties: Record<string, any>;
+	url: string;
+	createdTime: Date;
+	lastEditedTime: Date;
 }
 
 export interface DatabaseConfig {
+	userId: string;
 	databaseId: string;
-	titleProperty: string;
-	statusProperty: string;
-	priorityProperty?: string;
-	dueDateProperty?: string;
-	assigneeProperty?: string;
-	tagsProperty?: string;
-	descriptionProperty?: string;
+	title: string;
+	description?: string;
+	selectedAt: Date;
 }

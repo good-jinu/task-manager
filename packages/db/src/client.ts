@@ -51,6 +51,6 @@ export function getDynamoDBClient(): DynamoDBDocumentClient {
 export function getTableNames() {
 	return {
 		users: (Resource as any).UsersTable.name,
-		tasks: (Resource as any).TasksTable.name,
+		databaseConfigs: (Resource as any).DatabaseConfigsTable.name,
 	};
 }
