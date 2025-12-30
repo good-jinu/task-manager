@@ -1,0 +1,26 @@
+import type { User } from "@notion-task-manager/db";
+import { UserService } from "@notion-task-manager/db";
+
+/**
+ * Gets user data from DynamoDB by user ID
+ * @param userId - The user's UUID from our database
+ * @returns User data or null if not found
+ */
+export async function getUserFromDatabase(
+	userId: string,
+): Promise<User | null> {
+	const userService = new UserService();
+	return await userService.getUserById(userId);
+}
+
+/**
+ * Gets user data from DynamoDB by Notion user ID
+ * @param notionUserId - The user's Notion ID
+ * @returns User data or null if not found
+ */
+export async function getUserByNotionId(
+	notionUserId: string,
+): Promise<User | null> {
+	const userService = new UserService();
+	return await userService.getUserByNotionId(notionUserId);
+}

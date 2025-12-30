@@ -9,13 +9,34 @@ import type {
 	GetDatabaseResponse,
 	PageObjectResponse,
 } from "@notionhq/client/build/src/api-endpoints";
+import type { NotionAuthClient } from "./auth-client";
 import type { NotionDatabase, NotionPage } from "./types";
 
 export class NotionTaskManager {
-	private client: Client;
+	private authClient: NotionAuthClient | null = null;
+	private client: Client | null = null;
 
-	constructor(client: Client) {
-		this.client = client;
+	constructor(clientOrAuthClient: Client | NotionAuthClient) {
+		if ("getClient" in clientOrAuthClient) {
+			// It's a NotionAuthClient
+			this.authClient = clientOrAuthClient;
+		} else {
+			// It's a regular Client
+			this.client = clientOrAuthClient;
+		}
+	}
+
+	/**
+	 * Get the Notion client, handling token refresh if using auth client
+	 */
+	private async getClient(): Promise<Client> {
+		if (this.authClient) {
+			return await this.authClient.getClient();
+		}
+		if (this.client) {
+			return this.client;
+		}
+		throw new Error("No Notion client available");
 	}
 
 	/**
@@ -23,7 +44,8 @@ export class NotionTaskManager {
 	 */
 	async getDatabases(): Promise<NotionDatabase[]> {
 		try {
-			const response = await this.client.search({
+			const client = await this.getClient();
+			const response = await client.search({
 				filter: {
 					value: "database",
 					property: "object",
@@ -49,7 +71,8 @@ export class NotionTaskManager {
 	 */
 	async getDatabasePages(databaseId: string): Promise<NotionPage[]> {
 		try {
-			const response = await this.client.databases.query({
+			const client = await this.getClient();
+			const response = await client.databases.query({
 				database_id: databaseId,
 			});
 
@@ -69,10 +92,10 @@ export class NotionTaskManager {
 	 */
 	async getDatabase(databaseId: string): Promise<NotionDatabase | null> {
 		try {
-			const response: GetDatabaseResponse =
-				await this.client.databases.retrieve({
-					database_id: databaseId,
-				});
+			const client = await this.getClient();
+			const response: GetDatabaseResponse = await client.databases.retrieve({
+				database_id: databaseId,
+			});
 
 			// Check if response has the necessary properties
 			if (!this.hasRequiredDatabaseProperties(response)) {

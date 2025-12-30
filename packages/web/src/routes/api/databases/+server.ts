@@ -1,7 +1,8 @@
 import { getDatabaseClient } from "@notion-task-manager/db";
 import { json } from "@sveltejs/kit";
 import { requireAuth } from "$lib/auth";
-import { createNotionTaskManager } from "$lib/notion";
+import { createNotionTaskManagerWithAuth } from "$lib/notion";
+import { getUserFromDatabase } from "$lib/user";
 import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async (event) => {
@@ -9,12 +10,17 @@ export const GET: RequestHandler = async (event) => {
 		// Ensure user is authenticated
 		const session = await requireAuth(event);
 
-		// Create Notion client with user's access token
-		const notionManager = createNotionTaskManager(
-			session.user.notionAccessToken,
-		);
+		// Get user data from database (includes tokens)
+		const user = await getUserFromDatabase(session.user.id);
+		if (!user) {
+			return json({ error: "User not found in database" }, { status: 404 });
+		}
+
+		// Create Notion client with automatic token refresh
+		const notionManager = createNotionTaskManagerWithAuth(user);
 
 		// Get all databases from Notion
+		// Token refresh will happen automatically if needed
 		const databases = await notionManager.getDatabases();
 
 		// Convert Date objects to strings for client compatibility
@@ -27,6 +33,23 @@ export const GET: RequestHandler = async (event) => {
 		return json({ databases: clientDatabases });
 	} catch (error) {
 		console.error("Failed to fetch databases:", error);
+
+		if (error instanceof Error) {
+			// Handle token refresh errors
+			if (
+				error.message.includes("Token refresh failed") ||
+				error.message.includes("No refresh token")
+			) {
+				return json(
+					{
+						error:
+							"Authentication tokens expired. Please re-authenticate with Notion.",
+					},
+					{ status: 401 },
+				);
+			}
+		}
+
 		return json({ error: "Failed to fetch databases" }, { status: 500 });
 	}
 };
@@ -35,6 +58,12 @@ export const POST: RequestHandler = async (event) => {
 	try {
 		// Ensure user is authenticated
 		const session = await requireAuth(event);
+
+		// Get user data from database
+		const user = await getUserFromDatabase(session.user.id);
+		if (!user) {
+			return json({ error: "User not found in database" }, { status: 404 });
+		}
 
 		const { databaseId, title, description } = await event.request.json();
 
@@ -48,7 +77,7 @@ export const POST: RequestHandler = async (event) => {
 		// Save database configuration
 		const db = getDatabaseClient();
 		const config = await db.databaseConfigs.saveDatabaseConfig(
-			session.user.id,
+			user.id, // Use database user ID
 			{
 				databaseId,
 				title,
@@ -65,6 +94,23 @@ export const POST: RequestHandler = async (event) => {
 		return json({ config: clientConfig });
 	} catch (error) {
 		console.error("Failed to save database configuration:", error);
+
+		if (error instanceof Error) {
+			// Handle token refresh errors
+			if (
+				error.message.includes("Token refresh failed") ||
+				error.message.includes("No refresh token")
+			) {
+				return json(
+					{
+						error:
+							"Authentication tokens expired. Please re-authenticate with Notion.",
+					},
+					{ status: 401 },
+				);
+			}
+		}
+
 		return json(
 			{ error: "Failed to save database configuration" },
 			{ status: 500 },

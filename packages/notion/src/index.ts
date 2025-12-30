@@ -11,7 +11,8 @@ export {
 	iteratePaginatedAPI,
 	LogLevel,
 } from "@notionhq/client";
-
+export type { NotionAuthConfig, TokenRefreshCallback } from "./auth-client.js";
+export { NotionAuthClient } from "./auth-client.js";
 export { NotionTaskManager } from "./task-manager.js";
 export type {
 	DatabaseConfig,

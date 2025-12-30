@@ -12,6 +12,7 @@
 		}
 	},
 	"dependencies": {
+		"@notion-task-manager/db": "workspace:*",
 		"@notionhq/client": "^2.2.15"
 	},
 	"devDependencies": {

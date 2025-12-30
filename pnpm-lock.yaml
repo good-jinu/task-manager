@@ -65,6 +65,9 @@ importers:
 
   packages/notion:
     dependencies:
+      '@notion-task-manager/db':
+        specifier: workspace:*
+        version: link:../db
       '@notionhq/client':
         specifier: ^2.2.15
         version: 2.3.0

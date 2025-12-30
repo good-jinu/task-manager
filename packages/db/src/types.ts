@@ -7,7 +7,9 @@ export interface User {
 	email: string; // User email from Notion
 	name: string; // Display name
 	avatarUrl?: string; // Profile picture URL
-	notionAccessToken: string; // Encrypted Notion access token
+	notionAccessToken: string; // Notion access token for API calls
+	notionRefreshToken?: string; // Notion refresh token for token renewal
+	tokenExpiresAt?: Date; // When the access token expires
 	createdAt: Date; // Account creation timestamp
 	updatedAt: Date; // Last update timestamp
 }
@@ -21,6 +23,8 @@ export interface CreateUserInput {
 	name: string;
 	avatarUrl?: string;
 	notionAccessToken: string;
+	notionRefreshToken?: string;
+	tokenExpiresAt?: Date;
 }
 
 /**
@@ -31,4 +35,6 @@ export interface UpdateUserInput {
 	name?: string;
 	avatarUrl?: string;
 	notionAccessToken?: string;
+	notionRefreshToken?: string;
+	tokenExpiresAt?: Date;
 }

@@ -1,13 +1,20 @@
 import { TaskFinderImpl } from "@notion-task-manager/core";
 import { json } from "@sveltejs/kit";
 import { requireAuth } from "$lib/auth";
-import { createNotionTaskManager } from "$lib/notion";
+import { createNotionTaskManagerWithAuth } from "$lib/notion";
+import { getUserFromDatabase } from "$lib/user";
 import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async (event) => {
 	try {
 		// Ensure user is authenticated
 		const session = await requireAuth(event);
+
+		// Get user data from database (includes tokens)
+		const user = await getUserFromDatabase(session.user.id);
+		if (!user) {
+			return json({ error: "User not found in database" }, { status: 404 });
+		}
 
 		// Parse and validate request body
 		const requestBody = await event.request.json();
@@ -71,10 +78,8 @@ export const POST: RequestHandler = async (event) => {
 			);
 		}
 
-		// Create Notion client with user's access token
-		const notionManager = createNotionTaskManager(
-			session.user.notionAccessToken,
-		);
+		// Create Notion client with automatic token refresh
+		const notionManager = createNotionTaskManagerWithAuth(user);
 
 		// Create TaskFinder instance
 		const taskFinder = new TaskFinderImpl(notionManager);
@@ -83,7 +88,7 @@ export const POST: RequestHandler = async (event) => {
 		const searchQuery = {
 			description: description.trim(),
 			targetDate: parsedTargetDate,
-			userId: session.user.id,
+			userId: user.id, // Use database user ID
 			databaseId,
 			maxResults: maxResults || 10,
 			includeContent: includeContent || false,
@@ -156,10 +161,14 @@ export const GET: RequestHandler = async (event) => {
 		// Ensure user is authenticated
 		const session = await requireAuth(event);
 
-		// Create Notion client with user's access token
-		const notionManager = createNotionTaskManager(
-			session.user.notionAccessToken,
-		);
+		// Get user data from database (includes tokens)
+		const user = await getUserFromDatabase(session.user.id);
+		if (!user) {
+			return json({ error: "User not found in database" }, { status: 404 });
+		}
+
+		// Create Notion client with automatic token refresh
+		const notionManager = createNotionTaskManagerWithAuth(user);
 
 		// Create TaskFinder instance
 		const taskFinder = new TaskFinderImpl(notionManager);
