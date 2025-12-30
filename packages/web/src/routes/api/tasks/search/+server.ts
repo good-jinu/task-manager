@@ -11,13 +11,8 @@ export const POST: RequestHandler = async (event) => {
 
 		// Parse and validate request body
 		const requestBody = await event.request.json();
-		const {
-			description,
-			relativeDate,
-			databaseId,
-			maxResults,
-			includeContent,
-		} = requestBody;
+		const { description, targetDate, databaseId, maxResults, includeContent } =
+			requestBody;
 
 		// Validate required fields
 		if (!description || typeof description !== "string") {
@@ -39,8 +34,21 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		// Validate optional fields
-		if (relativeDate !== undefined && typeof relativeDate !== "string") {
-			return json({ error: "Relative date must be a string" }, { status: 400 });
+		if (targetDate !== undefined && typeof targetDate !== "string") {
+			return json({ error: "Target date must be a string" }, { status: 400 });
+		}
+
+		// Validate and parse target date if provided
+		let parsedTargetDate: Date | undefined;
+		if (targetDate?.trim()) {
+			try {
+				parsedTargetDate = new Date(targetDate.trim());
+				if (Number.isNaN(parsedTargetDate.getTime())) {
+					return json({ error: "Invalid target date format" }, { status: 400 });
+				}
+			} catch (_error) {
+				return json({ error: "Invalid target date format" }, { status: 400 });
+			}
 		}
 
 		if (maxResults !== undefined) {
@@ -74,7 +82,7 @@ export const POST: RequestHandler = async (event) => {
 		// Build search query
 		const searchQuery = {
 			description: description.trim(),
-			relativeDate,
+			targetDate: parsedTargetDate,
 			userId: session.user.id,
 			databaseId,
 			maxResults: maxResults || 10,

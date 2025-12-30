@@ -120,7 +120,7 @@ export class TaskFinderImpl implements TaskFinder {
 
 		try {
 			// Determine ranking criteria based on whether date was specified
-			const hasDate = !!(processedQuery as any).parsedTargetDate;
+			const hasDate = !!processedQuery.targetDate;
 			const criteria: RankingCriteria =
 				RankingServiceImpl.createRankingCriteria(
 					hasDate,
@@ -186,9 +186,9 @@ export class TaskFinderImpl implements TaskFinder {
 			}
 		}
 
-		if (query.relativeDate !== undefined) {
-			if (typeof query.relativeDate !== "string") {
-				throw new Error("Relative date must be a string");
+		if (query.targetDate !== undefined) {
+			if (!(query.targetDate instanceof Date)) {
+				throw new Error("Target date must be a Date object");
 			}
 		}
 	}

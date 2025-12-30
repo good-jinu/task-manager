@@ -15,6 +15,7 @@ describe("RankingService", () => {
 		url: `https://notion.so/${id}`,
 		createdTime: new Date("2024-01-01"),
 		lastEditedTime: new Date("2024-01-01"),
+		archived: false,
 		properties: {},
 	});
 

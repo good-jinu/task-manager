@@ -29,20 +29,6 @@ function isNonEmptyString(value: string): boolean {
 }
 
 /**
- * Validates that a value is a valid Date object or ISO date string
- */
-function isValidDate(value: Date | string): boolean {
-	if (value instanceof Date) {
-		return !Number.isNaN(value.getTime());
-	}
-	if (typeof value === "string") {
-		const date = new Date(value);
-		return !Number.isNaN(date.getTime());
-	}
-	return false;
-}
-
-/**
  * Validates user creation input
  */
 export function validateCreateUserInput(input: CreateUserInput): void {

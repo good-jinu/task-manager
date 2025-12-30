@@ -49,6 +49,20 @@ export default $config({
 
 				// Database
 				APP_AWS_REGION: process.env.APP_AWS_REGION || "us-east-1",
+
+				// OpenAI Configuration
+				OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+				OPENAI_BASE_URL: process.env.OPENAI_BASE_URL,
+				OPENAI_MODEL: process.env.OPENAI_MODEL,
+				OPENAI_MAX_TOKENS: process.env.OPENAI_MAX_TOKENS,
+				OPENAI_TEMPERATURE: process.env.OPENAI_TEMPERATURE,
+
+				// Search Configuration
+				SEARCH_MAX_RESULTS: process.env.SEARCH_MAX_RESULTS,
+				SEARCH_RELEVANCE_THRESHOLD: process.env.SEARCH_RELEVANCE_THRESHOLD,
+				SEARCH_DATE_WEIGHT_FACTOR: process.env.SEARCH_DATE_WEIGHT_FACTOR,
+				SEARCH_CACHE_ENABLED: process.env.SEARCH_CACHE_ENABLED,
+				SEARCH_CACHE_TTL: process.env.SEARCH_CACHE_TTL,
 			},
 		});
 

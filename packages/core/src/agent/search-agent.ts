@@ -35,16 +35,6 @@ export class SearchAgentImpl implements SearchAgent {
 			);
 		}
 
-		// Parse relative date if provided
-		if (query.relativeDate) {
-			const parsedDate = await this.parseDate(query.relativeDate);
-			if (parsedDate) {
-				// Store the parsed date information in the query for later use
-				// We'll add this to the query context without modifying the interface
-				(processedQuery as any).parsedTargetDate = parsedDate;
-			}
-		}
-
 		// Set default values if not provided
 		processedQuery.maxResults = processedQuery.maxResults || 10;
 		processedQuery.includeContent = processedQuery.includeContent ?? true;
@@ -121,7 +111,7 @@ export class SearchAgentImpl implements SearchAgent {
 
 	private parseSemanticKeywords(
 		description: string,
-		aiResults: any[],
+		_aiResults: any[],
 	): string[] {
 		// Extract keywords from AI response
 		// This is a simplified implementation - in practice, this would be more sophisticated
@@ -299,6 +289,6 @@ export class SearchAgentImpl implements SearchAgent {
 	}
 
 	private isValidDate(date: Date): boolean {
-		return date instanceof Date && !isNaN(date.getTime());
+		return date instanceof Date && !Number.isNaN(date.getTime());
 	}
 }

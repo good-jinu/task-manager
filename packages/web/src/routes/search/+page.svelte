@@ -5,7 +5,7 @@
 
 	// Form state
 	let description = $state('');
-	let relativeDate = $state('');
+	let targetDate = $state('');
 	let selectedDatabaseId = $state('');
 	let maxResults = $state(10);
 	let includeContent = $state(false);
@@ -41,9 +41,9 @@
 				includeContent
 			};
 
-			// Only include relativeDate if it's not empty
-			if (relativeDate.trim()) {
-				requestBody.relativeDate = relativeDate.trim();
+			// Only include targetDate if it's not empty
+			if (targetDate.trim()) {
+				requestBody.targetDate = targetDate.trim();
 			}
 
 			const response = await fetch('/api/tasks/search', {
@@ -71,7 +71,7 @@
 
 	function clearSearch() {
 		description = '';
-		relativeDate = '';
+		targetDate = '';
 		selectedDatabaseId = '';
 		maxResults = 10;
 		includeContent = false;
@@ -111,7 +111,7 @@
 	<div class="max-w-4xl mx-auto">
 		<h1 class="text-3xl font-bold mb-2">Intelligent Task Search</h1>
 		<p class="text-gray-600 mb-8">
-			Use natural language to describe what you're looking for. Optionally specify relative dates like "last week" or "2 days ago".
+			Use natural language to describe what you're looking for. Optionally select a specific date to find tasks created around that time.
 		</p>
 
 		<!-- Search Form -->
@@ -155,20 +155,19 @@
 					{/if}
 				</div>
 
-				<!-- Optional Relative Date -->
+				<!-- Target Date -->
 				<div class="mb-6">
-					<label for="relativeDate" class="block text-sm font-medium text-gray-700 mb-2">
-						Relative Date (Optional)
+					<label for="targetDate" class="block text-sm font-medium text-gray-700 mb-2">
+						Target Date (Optional)
 					</label>
 					<input
-						id="relativeDate"
-						type="text"
-						bind:value={relativeDate}
-						placeholder="e.g., 'last week', '2 days ago', 'yesterday'"
+						id="targetDate"
+						type="date"
+						bind:value={targetDate}
 						class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
 					/>
 					<p class="text-sm text-gray-500 mt-1">
-						Specify when the task was created relative to now. Leave empty to search all dates.
+						Select a specific date to find tasks created around that time. Leave empty to search all dates.
 					</p>
 				</div>
 

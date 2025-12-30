@@ -4,7 +4,7 @@ import type { NotionPage } from "@notion-task-manager/notion";
 
 export interface SearchQuery {
 	description: string;
-	relativeDate?: string;
+	targetDate?: Date;
 	userId: string;
 	databaseId: string;
 	maxResults?: number;

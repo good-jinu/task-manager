@@ -116,7 +116,7 @@ export class RankingServiceImpl implements RankingService {
 				}
 
 				// Check if page is archived (if this property exists)
-				const isArchived = (result.page as any).archived === true;
+				const isArchived = result.page.archived === true;
 				if (isArchived) {
 					continue; // Skip archived pages
 				}

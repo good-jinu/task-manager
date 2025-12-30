@@ -171,7 +171,7 @@ export class OpenAIClientImpl implements OpenAIClient {
 			});
 
 			// Make the API call with retry logic
-			const response = await this.makeAPICallWithRetry(async () => {
+			const _response = await this.makeAPICallWithRetry(async () => {
 				const config = EnvironmentConfig.getOpenAIConfig();
 				return await this.openai.chat.completions.create({
 					model: config.model,
@@ -267,7 +267,7 @@ export class OpenAIClientImpl implements OpenAIClient {
 
 	private handleRankingError(
 		error: any,
-		results: SearchResult[],
+		_results: SearchResult[],
 	): RankedResult[] {
 		console.error("Result ranking error:", error);
 

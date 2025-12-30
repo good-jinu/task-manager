@@ -3,21 +3,6 @@
 import { EnvironmentConfig } from "@notion-task-manager/core";
 
 /**
- * Validates OpenAI configuration for intelligent task finder features
- * This should be called before using any core package functionality
- * @throws ConfigurationError if OpenAI configuration is invalid
- */
-export function validateOpenAIConfig(): void {
-	try {
-		// This will throw a ConfigurationError if validation fails
-		EnvironmentConfig.validateConfig();
-	} catch (error) {
-		console.error("OpenAI configuration validation failed:", error);
-		throw error;
-	}
-}
-
-/**
  * Checks if OpenAI configuration is available without throwing
  * Useful for conditional feature enablement
  * @returns true if OpenAI is properly configured, false otherwise

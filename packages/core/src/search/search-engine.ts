@@ -69,7 +69,7 @@ export class SearchEngineImpl implements SearchEngine {
 
 			// Step 3: Apply date proximity ranking if date is specified
 			let rankedResults: RankedResult[];
-			const targetDate = (query as any).parsedTargetDate;
+			const targetDate = query.targetDate;
 
 			if (targetDate && targetDate instanceof Date) {
 				metadata.processingSteps.push("Applying date proximity ranking");
@@ -284,7 +284,7 @@ export class SearchEngineImpl implements SearchEngine {
 				if (property && typeof property === "object") {
 					const propertyText = this.extractPropertyText(property);
 					if (propertyText) {
-						text += " " + propertyText;
+						text += ` ${propertyText}`;
 					}
 				}
 			}
@@ -293,6 +293,7 @@ export class SearchEngineImpl implements SearchEngine {
 		return text;
 	}
 
+	// biome-ignore lint/suspicious/noExplicitAny: test
 	private extractPropertyText(property: any): string {
 		if (!property || typeof property !== "object") {
 			return "";
@@ -302,11 +303,13 @@ export class SearchEngineImpl implements SearchEngine {
 		switch (property.type) {
 			case "title":
 				return (
+					// biome-ignore lint/suspicious/noExplicitAny: test
 					property.title?.map((t: any) => t.plain_text || "").join(" ") || ""
 				);
 
 			case "rich_text":
 				return (
+					// biome-ignore lint/suspicious/noExplicitAny: test
 					property.rich_text?.map((t: any) => t.plain_text || "").join(" ") ||
 					""
 				);
@@ -316,6 +319,7 @@ export class SearchEngineImpl implements SearchEngine {
 
 			case "multi_select":
 				return (
+					// biome-ignore lint/suspicious/noExplicitAny: test
 					property.multi_select?.map((s: any) => s.name || "").join(" ") || ""
 				);
 

@@ -3,7 +3,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { OpenAIClient } from "./openai-client.js";
 import { SearchAgentImpl } from "./search-agent.js";
-import type { DateAnalysis, SearchQuery, SearchResult } from "./types.js";
+import type { DateAnalysis, SearchQuery } from "./types.js";
 
 // Mock OpenAI client for testing
 const createMockOpenAIClient = (): OpenAIClient => ({
@@ -51,27 +51,21 @@ describe("SearchAgent", () => {
 			expect(result.description).toContain("[Keywords:");
 		});
 
-		it("should parse relative date when provided", async () => {
+		it("should handle targetDate when provided", async () => {
 			const mockClient = createMockOpenAIClient();
-			const mockDateAnalysis: DateAnalysis = {
-				targetDate: new Date("2023-12-01"),
-				confidence: 0.9,
-				interpretation: "last week",
-			};
-			vi.mocked(mockClient.analyzeDate).mockResolvedValue(mockDateAnalysis);
-
 			const agent = new SearchAgentImpl(mockClient);
 
+			const targetDate = new Date("2023-12-01");
 			const query: SearchQuery = {
 				description: "find tasks",
-				relativeDate: "last week",
+				targetDate: targetDate,
 				userId: "user1",
 				databaseId: "db1",
 			};
 
 			const result = await agent.processQuery(query);
 
-			expect((result as any).parsedTargetDate).toEqual(new Date("2023-12-01"));
+			expect(result.targetDate).toEqual(targetDate);
 		});
 	});
 

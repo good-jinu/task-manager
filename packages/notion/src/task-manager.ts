@@ -143,6 +143,7 @@ export class NotionTaskManager {
 			url: page.url,
 			createdTime: new Date(page.created_time),
 			lastEditedTime: new Date(page.last_edited_time),
+			archived: page.archived,
 		};
 	}
 

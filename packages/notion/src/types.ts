@@ -1,3 +1,5 @@
+import type { PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
+
 export interface NotionDatabase {
 	id: string;
 	title: string;
@@ -7,14 +9,14 @@ export interface NotionDatabase {
 	lastEditedTime: Date;
 }
 
-export interface NotionPage {
+export type NotionPage = {
 	id: string;
 	title: string;
-	properties: Record<string, any>;
 	url: string;
 	createdTime: Date;
 	lastEditedTime: Date;
-}
+	archived: boolean;
+} & Pick<PageObjectResponse, "properties">;
 
 export interface DatabaseConfig {
 	userId: string;

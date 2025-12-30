@@ -29,6 +29,7 @@ describe("TaskFinder", () => {
 			const taskFinder = new TaskFinderImpl(mockNotionManager, mockSearchAgent);
 
 			// Test missing query
+			// biome-ignore lint/suspicious/noExplicitAny: test
 			await expect(taskFinder.search(null as any)).rejects.toThrow(
 				"Task search failed: Search query is required",
 			);
@@ -158,6 +159,7 @@ describe("TaskFinder", () => {
 				parseDate: vi.fn(),
 			};
 
+			// biome-ignore lint/suspicious/noExplicitAny: test
 			const taskFinder = new TaskFinderImpl(null as any, mockAgent);
 			const result = await taskFinder.healthCheck();
 			expect(result).toBe(false);
