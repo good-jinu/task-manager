@@ -24,60 +24,73 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
 		error: "/user/error",
 	},
 	callbacks: {
-		async jwt({ token, user, account }) {
-			// Store Notion access token and user info in JWT
+		async signIn({ user, account }) {
 			if (account && user) {
 				const userService = new UserService();
 
 				try {
-					// Check if user already exists in DynamoDB
-					let dbUser = await userService.getUserByNotionId(user.id!);
+					// Validate required user data from OAuth provider
+					if (!user.id || !user.email || !user.name || !account.access_token) {
+						return true; // Allow sign-in with fallback
+					}
 
-					// Calculate token expiration (Notion tokens typically expire in 1 hour)
+					// Check if user already exists in DynamoDB
+					const notionUserId = account.providerAccountId || user.id;
+					let dbUser = await userService.getUserByNotionId(notionUserId);
+
+					// Calculate token expiration
 					const tokenExpiresAt = account.expires_at
-						? new Date(account.expires_at * 1000)
-						: new Date(Date.now() + 3600 * 1000); // Default 1 hour
+						? new Date(account.expires_at * 1000).toISOString()
+						: new Date(Date.now() + 3600 * 1000).toISOString();
 
 					if (!dbUser) {
 						// Create new user in DynamoDB
 						dbUser = await userService.createUser({
-							notionUserId: user.id!,
-							email: user.email!,
-							name: user.name!,
+							notionUserId,
+							email: user.email,
+							name: user.name,
 							avatarUrl: user.image || undefined,
-							notionAccessToken: account.access_token!,
+							notionAccessToken: account.access_token,
 							notionRefreshToken: account.refresh_token || undefined,
 							tokenExpiresAt,
 						});
-						console.log(`Created new user in DynamoDB: ${dbUser.id}`);
 					} else {
-						// Update existing user with fresh tokens and profile data
+						// Update existing user with fresh tokens
 						dbUser = await userService.updateUser(dbUser.id, {
-							email: user.email!,
-							name: user.name!,
+							email: user.email,
+							name: user.name,
 							avatarUrl: user.image || undefined,
-							notionAccessToken: account.access_token!,
+							notionAccessToken: account.access_token,
 							notionRefreshToken: account.refresh_token || undefined,
 							tokenExpiresAt,
 						});
-						console.log(`Updated existing user in DynamoDB: ${dbUser.id}`);
 					}
 
-					// Store user data in JWT token
-					token.accessToken = account.access_token;
-					token.notionUserId = user.id;
-					token.userId = dbUser.id; // Use our internal UUID, not Notion's ID
-					token.userEmail = user.email;
-					token.userName = user.name;
-					token.userImage = user.image;
+					// Store the database user ID in the user object for JWT callback
+					user.id = dbUser.id;
+					return true;
 				} catch (error) {
 					console.error("Failed to save user to DynamoDB:", error);
-					// Still allow login but log the error
-					token.accessToken = account.access_token;
-					token.notionUserId = user.id;
-					token.userId = user.id; // Fallback to Notion ID
+					return true; // Allow sign-in with fallback
 				}
 			}
+			return true;
+		},
+		async jwt({ token, user, account }) {
+			// On initial sign-in, user and account are provided
+			if (user) {
+				token.userId = user.id;
+				token.userEmail = user.email;
+				token.userName = user.name;
+				token.userImage = user.image;
+			}
+
+			// Store access token if available
+			if (account?.access_token) {
+				token.accessToken = account.access_token;
+				token.notionUserId = account.providerAccountId;
+			}
+
 			return token;
 		},
 		async session({ session, token }) {

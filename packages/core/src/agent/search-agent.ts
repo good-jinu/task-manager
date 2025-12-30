@@ -8,6 +8,7 @@ export interface SearchAgent {
 	processQuery(query: SearchQuery): Promise<SearchQuery>;
 	extractSemanticMeaning(description: string): Promise<string[]>;
 	parseDate(dateInput: string): Promise<Date | null>;
+	getOpenAIClient?(): OpenAIClient;
 }
 
 export class SearchAgentImpl implements SearchAgent {
@@ -17,22 +18,35 @@ export class SearchAgentImpl implements SearchAgent {
 		this.openaiClient = openaiClient || new OpenAIClientImpl();
 	}
 
+	// Getter to allow TaskFinder to access the OpenAI client
+	getOpenAIClient(): OpenAIClient {
+		return this.openaiClient;
+	}
+
 	async processQuery(query: SearchQuery): Promise<SearchQuery> {
 		// Process the natural language input and enhance the query
 		const processedQuery = { ...query };
 
-		// Extract semantic meaning from the description
-		const semanticKeywords = await this.extractSemanticMeaning(
-			query.description,
-		);
-
-		// If we extracted meaningful keywords, enhance the description
-		if (semanticKeywords.length > 0) {
-			// Store original description and add semantic context
-			processedQuery.description = this.enhanceDescription(
+		try {
+			// Extract semantic meaning from the description
+			const semanticKeywords = await this.extractSemanticMeaning(
 				query.description,
-				semanticKeywords,
 			);
+
+			// If we extracted meaningful keywords, enhance the description
+			if (semanticKeywords.length > 0) {
+				// Store original description and add semantic context
+				processedQuery.description = this.enhanceDescription(
+					query.description,
+					semanticKeywords,
+				);
+			}
+		} catch (error) {
+			console.error(
+				"Error in semantic processing, using original query:",
+				error,
+			);
+			// Continue with original description if semantic processing fails
 		}
 
 		// Set default values if not provided
@@ -49,20 +63,27 @@ export class SearchAgentImpl implements SearchAgent {
 
 		try {
 			// Use OpenAI to extract semantic keywords and concepts
-			// Create a mock search query for the semantic analysis
-			const mockQuery: SearchQuery = {
-				description: `Extract key concepts and semantic keywords from: "${description}"`,
-				userId: "semantic-analysis",
-				databaseId: "semantic-analysis",
-			};
+			const prompt = `Extract 5-10 key semantic keywords and concepts from this search query. Return only the keywords separated by commas, no explanations:
 
-			const results = await this.openaiClient.searchDocuments(mockQuery);
+Query: "${description}"
 
-			// Parse the AI response to extract keywords
-			// In a real implementation, this would be more sophisticated
-			const keywords = this.parseSemanticKeywords(description, results);
+Keywords:`;
 
-			return keywords;
+			// Make direct OpenAI call for keyword extraction
+			const response = await this.openaiClient.extractKeywords(prompt);
+
+			if (response && response.length > 0) {
+				// Parse comma-separated keywords
+				const keywords = response
+					.split(",")
+					.map((k) => k.trim().toLowerCase())
+					.filter((k) => k.length > 2 && !this.isStopWord(k));
+
+				return [...new Set(keywords)]; // Remove duplicates
+			}
+
+			// Fallback: extract basic keywords using simple text processing
+			return this.extractBasicKeywords(description);
 		} catch (error) {
 			console.error("Error extracting semantic meaning:", error);
 
@@ -83,7 +104,7 @@ export class SearchAgentImpl implements SearchAgent {
 
 			// Validate the parsed date
 			if (
-				dateAnalysis.targetDate &&
+				dateAnalysis?.targetDate &&
 				this.isValidDate(dateAnalysis.targetDate)
 			) {
 				return dateAnalysis.targetDate;
@@ -105,51 +126,12 @@ export class SearchAgentImpl implements SearchAgent {
 	): string {
 		// Combine original description with extracted semantic keywords
 		// This helps improve search relevance
+		if (keywords.length === 0) {
+			return originalDescription;
+		}
+
 		const keywordString = keywords.join(" ");
-		return `${originalDescription} [Keywords: ${keywordString}]`;
-	}
-
-	private parseSemanticKeywords(
-		description: string,
-		_aiResults: any[],
-	): string[] {
-		// Extract keywords from AI response
-		// This is a simplified implementation - in practice, this would be more sophisticated
-		const keywords: string[] = [];
-
-		// Extract nouns and important terms from the description
-		const words = description.toLowerCase().split(/\s+/);
-		const importantWords = words.filter(
-			(word) =>
-				word.length > 3 && !this.isStopWord(word) && /^[a-zA-Z]+$/.test(word),
-		);
-
-		keywords.push(...importantWords);
-
-		// Add task-related keywords based on common patterns
-		if (
-			description.toLowerCase().includes("bug") ||
-			description.toLowerCase().includes("fix")
-		) {
-			keywords.push("bug", "fix", "issue");
-		}
-
-		if (
-			description.toLowerCase().includes("feature") ||
-			description.toLowerCase().includes("implement")
-		) {
-			keywords.push("feature", "implementation", "development");
-		}
-
-		if (
-			description.toLowerCase().includes("test") ||
-			description.toLowerCase().includes("testing")
-		) {
-			keywords.push("test", "testing", "qa");
-		}
-
-		// Remove duplicates and return
-		return [...new Set(keywords)];
+		return `${originalDescription} ${keywordString}`;
 	}
 
 	private extractBasicKeywords(description: string): string[] {
@@ -160,7 +142,25 @@ export class SearchAgentImpl implements SearchAgent {
 			.split(/\s+/)
 			.filter((word) => word.length > 2 && !this.isStopWord(word));
 
-		return [...new Set(words)];
+		// Add some domain-specific keyword expansion
+		const expandedWords = [...words];
+
+		// Add synonyms and related terms for common task-related words
+		for (const word of words) {
+			if (word === "bug" || word === "error" || word === "issue") {
+				expandedWords.push("fix", "debug", "problem", "broken");
+			} else if (word === "feature" || word === "implement") {
+				expandedWords.push("add", "create", "build", "develop");
+			} else if (word === "test" || word === "testing") {
+				expandedWords.push("qa", "verify", "check");
+			} else if (word === "update" || word === "upgrade") {
+				expandedWords.push("modify", "change", "improve");
+			} else if (word === "documentation" || word === "docs") {
+				expandedWords.push("readme", "guide", "manual");
+			}
+		}
+
+		return [...new Set(expandedWords)];
 	}
 
 	private isStopWord(word: string): boolean {

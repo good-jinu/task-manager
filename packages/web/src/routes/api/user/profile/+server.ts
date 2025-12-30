@@ -26,8 +26,8 @@ export const GET: RequestHandler = async (event) => {
 			email: user.email,
 			name: user.name,
 			avatarUrl: user.avatarUrl,
-			createdAt: user.createdAt.toISOString(),
-			updatedAt: user.updatedAt.toISOString(),
+			createdAt: user.createdAt,
+			updatedAt: user.updatedAt,
 			// Don't expose the access token in API responses
 		};
 
@@ -78,8 +78,8 @@ export const PUT: RequestHandler = async (event) => {
 			email: updatedUser.email,
 			name: updatedUser.name,
 			avatarUrl: updatedUser.avatarUrl,
-			createdAt: updatedUser.createdAt.toISOString(),
-			updatedAt: updatedUser.updatedAt.toISOString(),
+			createdAt: updatedUser.createdAt,
+			updatedAt: updatedUser.updatedAt,
 		};
 
 		return json({ success: true, data: profile });

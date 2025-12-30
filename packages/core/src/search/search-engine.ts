@@ -4,6 +4,8 @@ import type {
 	NotionPage,
 	NotionTaskManager,
 } from "@notion-task-manager/notion";
+import type { OpenAIClient } from "../agent/openai-client.js";
+import { OpenAIClientImpl } from "../agent/openai-client.js";
 import type { RankedResult, SearchQuery } from "../agent/types.js";
 import type {
 	ScoredResult,
@@ -25,9 +27,11 @@ export interface SearchEngine {
 
 export class SearchEngineImpl implements SearchEngine {
 	private notionManager: NotionTaskManager;
+	private openaiClient: OpenAIClient;
 
-	constructor(notionManager: NotionTaskManager) {
+	constructor(notionManager: NotionTaskManager, openaiClient?: OpenAIClient) {
 		this.notionManager = notionManager;
+		this.openaiClient = openaiClient || new OpenAIClientImpl();
 	}
 
 	async findTasks(query: SearchQuery): Promise<TaskSearchResult> {
@@ -40,7 +44,7 @@ export class SearchEngineImpl implements SearchEngine {
 		};
 
 		try {
-			metadata.processingSteps.push("Starting task search");
+			metadata.processingSteps.push("Starting LLM-powered task search");
 
 			// Step 1: Get all pages from the specified database
 			metadata.processingSteps.push("Fetching pages from Notion database");
@@ -60,28 +64,89 @@ export class SearchEngineImpl implements SearchEngine {
 
 			metadata.processingSteps.push(`Found ${pages.length} pages in database`);
 
-			// Step 2: Rank by relevance to the search query
-			metadata.processingSteps.push("Ranking pages by relevance");
+			// Step 2: Use LLM to intelligently select relevant documents
+			metadata.processingSteps.push("Using LLM to select relevant documents");
+			const maxResults = query.maxResults || 10;
+			const llmSelections = await this.openaiClient.selectRelevantDocuments(
+				query.description,
+				pages,
+				maxResults,
+			);
+
+			// Step 3: Convert LLM selections to RankedResult format
+			const rankedResults: RankedResult[] = [];
+			for (const selection of llmSelections) {
+				const page = pages.find((p) => p.id === selection.pageId);
+				if (page) {
+					// Calculate date proximity score if target date is specified
+					let dateProximityScore = 0;
+					if (query.targetDate && query.targetDate instanceof Date) {
+						dateProximityScore = this.calculateDateProximityScore(
+							page.createdTime,
+							query.targetDate,
+						);
+					}
+
+					// Combine relevance and date proximity scores
+					const combinedScore = query.targetDate
+						? selection.relevanceScore * 0.3 + dateProximityScore * 0.7
+						: selection.relevanceScore;
+
+					rankedResults.push({
+						page,
+						relevanceScore: selection.relevanceScore,
+						dateProximityScore,
+						combinedScore,
+					});
+				}
+			}
+
+			// Sort by combined score
+			rankedResults.sort((a, b) => b.combinedScore - a.combinedScore);
+
+			metadata.processingSteps.push(
+				`LLM selected ${rankedResults.length} relevant documents`,
+			);
+
+			return {
+				results: rankedResults,
+				totalCount: pages.length,
+				searchTime: Date.now() - startTime,
+				query,
+				metadata,
+			};
+		} catch (error) {
+			metadata.processingSteps.push(
+				`Error during LLM search: ${error instanceof Error ? error.message : "Unknown error"}`,
+			);
+
+			// Fallback to basic text matching if LLM fails
+			console.error("LLM search failed, falling back to basic search:", error);
+			return this.fallbackSearch(query, startTime, metadata);
+		}
+	}
+
+	private async fallbackSearch(
+		query: SearchQuery,
+		startTime: number,
+		metadata: SearchMetadata,
+	): Promise<TaskSearchResult> {
+		try {
+			metadata.processingSteps.push("Falling back to basic text search");
+
+			const pages = await this.notionManager.getDatabasePages(query.databaseId);
 			const scoredResults = await this.rankByRelevance(
 				pages,
 				query.description,
 			);
 
-			// Step 3: Apply date proximity ranking if date is specified
 			let rankedResults: RankedResult[];
-			const targetDate = query.targetDate;
-
-			if (targetDate && targetDate instanceof Date) {
-				metadata.processingSteps.push("Applying date proximity ranking");
+			if (query.targetDate && query.targetDate instanceof Date) {
 				rankedResults = await this.rankByDateProximity(
 					scoredResults,
-					targetDate,
+					query.targetDate,
 				);
 			} else {
-				metadata.processingSteps.push(
-					"No date specified, using relevance-only ranking",
-				);
-				// Convert ScoredResult to RankedResult with zero date proximity score
 				rankedResults = scoredResults.map((result) => ({
 					page: result.page,
 					relevanceScore: result.relevanceScore,
@@ -90,15 +155,9 @@ export class SearchEngineImpl implements SearchEngine {
 				}));
 			}
 
-			// Step 4: Sort by combined score and limit results
 			rankedResults.sort((a, b) => b.combinedScore - a.combinedScore);
-
 			const maxResults = query.maxResults || 10;
 			const limitedResults = rankedResults.slice(0, maxResults);
-
-			metadata.processingSteps.push(
-				`Returning top ${limitedResults.length} results`,
-			);
 
 			return {
 				results: limitedResults,
@@ -107,12 +166,10 @@ export class SearchEngineImpl implements SearchEngine {
 				query,
 				metadata,
 			};
-		} catch (error) {
-			metadata.processingSteps.push(
-				`Error during search: ${error instanceof Error ? error.message : "Unknown error"}`,
-			);
+		} catch (fallbackError) {
+			metadata.processingSteps.push("Fallback search also failed");
 			throw new Error(
-				`Search failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+				`Both LLM and fallback search failed: ${fallbackError instanceof Error ? fallbackError.message : "Unknown error"}`,
 			);
 		}
 	}
@@ -212,12 +269,14 @@ export class SearchEngineImpl implements SearchEngine {
 			"they",
 		]);
 
-		return query
+		const terms = query
 			.toLowerCase()
 			.replace(/[^\w\s]/g, " ")
 			.split(/\s+/)
 			.filter((term) => term.length > 2 && !stopWords.has(term))
 			.filter((term) => /^[a-zA-Z]+$/.test(term));
+
+		return terms;
 	}
 
 	private calculateRelevanceScore(
@@ -233,28 +292,39 @@ export class SearchEngineImpl implements SearchEngine {
 		const titleText = page.title.toLowerCase();
 
 		for (const term of queryTerms) {
-			// Title matches are weighted more heavily
-			const titleMatches = (titleText.match(new RegExp(term, "g")) || [])
-				.length;
-			score += titleMatches * 3;
+			// Exact matches
+			const titleMatches = (
+				titleText.match(new RegExp(`\\b${term}\\b`, "g")) || []
+			).length;
+			const contentMatches = (
+				pageText.match(new RegExp(`\\b${term}\\b`, "g")) || []
+			).length;
 
-			// Content matches
-			const contentMatches = (pageText.match(new RegExp(term, "g")) || [])
-				.length;
-			score += contentMatches * 1;
+			// Partial matches (substring)
+			const titlePartialMatches = titleText.includes(term) ? 1 : 0;
+			const contentPartialMatches = pageText.includes(term) ? 1 : 0;
 
-			// Exact phrase bonus
-			if (titleText.includes(term)) {
-				score += 2;
-			}
+			// Weight exact matches higher than partial matches
+			score += titleMatches * 5; // Exact title matches are most important
+			score += contentMatches * 2; // Exact content matches
+			score += titlePartialMatches * 3; // Partial title matches
+			score += contentPartialMatches * 1; // Partial content matches
 		}
 
-		// Normalize score by query length and page content length
-		const normalizedScore =
-			score / (queryTerms.length * Math.max(1, Math.log(pageText.length + 1)));
+		// Bonus for multiple term matches
+		const matchedTerms = queryTerms.filter(
+			(term) => titleText.includes(term) || pageText.includes(term),
+		).length;
 
-		// Return score between 0 and 1
-		return Math.min(1, normalizedScore);
+		if (matchedTerms > 1) {
+			score += matchedTerms * 2; // Bonus for multiple matches
+		}
+
+		// Normalize score by query length, but ensure we don't over-penalize
+		const normalizedScore = score / Math.max(1, queryTerms.length);
+
+		// Return score between 0 and 1, but allow higher scores for very relevant matches
+		return Math.min(1, normalizedScore / 10); // Divide by 10 to keep scores reasonable
 	}
 
 	private calculateDateProximityScore(

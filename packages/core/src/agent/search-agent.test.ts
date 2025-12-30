@@ -10,6 +10,8 @@ const createMockOpenAIClient = (): OpenAIClient => ({
 	searchDocuments: vi.fn(),
 	analyzeDate: vi.fn(),
 	rankResults: vi.fn(),
+	extractKeywords: vi.fn(),
+	selectRelevantDocuments: vi.fn(),
 });
 
 describe("SearchAgent", () => {
@@ -35,7 +37,9 @@ describe("SearchAgent", () => {
 
 		it("should enhance description with semantic keywords", async () => {
 			const mockClient = createMockOpenAIClient();
-			vi.mocked(mockClient.searchDocuments).mockResolvedValue([]);
+			vi.mocked(mockClient.extractKeywords).mockResolvedValue(
+				"debug, problem, broken",
+			);
 
 			const agent = new SearchAgentImpl(mockClient);
 
@@ -48,7 +52,8 @@ describe("SearchAgent", () => {
 			const result = await agent.processQuery(query);
 
 			expect(result.description).toContain("fix authentication bug");
-			expect(result.description).toContain("[Keywords:");
+			expect(result.description).toContain("debug");
+			expect(result.description).toContain("problem");
 		});
 
 		it("should handle targetDate when provided", async () => {

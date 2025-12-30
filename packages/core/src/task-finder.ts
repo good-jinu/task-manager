@@ -1,6 +1,8 @@
 // Main TaskFinder facade class
 
 import type { NotionTaskManager } from "@notion-task-manager/notion";
+import type { OpenAIClient } from "./agent/openai-client.js";
+import { OpenAIClientImpl } from "./agent/openai-client.js";
 import type { SearchAgent } from "./agent/search-agent.js";
 import { SearchAgentImpl } from "./agent/search-agent.js";
 import type { RankingCriteria, SearchQuery } from "./agent/types.js";
@@ -29,7 +31,16 @@ export class TaskFinderImpl implements TaskFinder {
 	constructor(notionManager: NotionTaskManager, searchAgent?: SearchAgent) {
 		this.notionManager = notionManager;
 		this.searchAgent = searchAgent || new SearchAgentImpl();
-		this.searchEngine = new SearchEngineImpl(notionManager);
+
+		// Get OpenAI client from SearchAgent if available, otherwise create new one
+		let openaiClient: OpenAIClient;
+		if (this.searchAgent.getOpenAIClient) {
+			openaiClient = this.searchAgent.getOpenAIClient();
+		} else {
+			openaiClient = new OpenAIClientImpl();
+		}
+
+		this.searchEngine = new SearchEngineImpl(notionManager, openaiClient);
 		this.rankingService = new RankingServiceImpl();
 	}
 

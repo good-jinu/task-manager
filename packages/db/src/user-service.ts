@@ -24,12 +24,12 @@ export class UserService {
 		// Validate input data
 		validateCreateUserInput(userData);
 
-		const now = new Date();
+		const now = new Date().toISOString();
 		const user: User = {
 			id: randomUUID(),
 			...userData,
-			createdAt: now,
-			updatedAt: now,
+			createdAt: now as any,
+			updatedAt: now as any,
 		};
 
 		try {
@@ -133,7 +133,7 @@ export class UserService {
 		// Always update the updatedAt timestamp
 		updateExpressions.push("#updatedAt = :updatedAt");
 		expressionAttributeNames["#updatedAt"] = "updatedAt";
-		expressionAttributeValues[":updatedAt"] = new Date();
+		expressionAttributeValues[":updatedAt"] = new Date().toISOString();
 
 		if (updateExpressions.length === 1) {
 			// Only updatedAt was added, no actual updates

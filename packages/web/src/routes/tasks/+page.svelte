@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import type { NotionDatabase, NotionPage, DatabaseConfig } from '@notion-task-manager/notion';
 
 	// Use any for the arrays since dates come as strings from API
@@ -9,9 +10,11 @@
 	let loading = false;
 	let error = '';
 
-	// Load initial data
-	loadSavedConfigs();
-	loadDatabases();
+	// Load initial data on mount
+	onMount(() => {
+		loadSavedConfigs();
+		loadDatabases();
+	});
 
 	async function loadDatabases() {
 		try {

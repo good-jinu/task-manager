@@ -5,7 +5,7 @@ export type TokenRefreshCallback = (
 	userId: string,
 	newAccessToken: string,
 	newRefreshToken?: string,
-	expiresAt?: Date,
+	expiresAt?: string,
 ) => Promise<void>;
 
 export interface NotionAuthConfig {
@@ -57,8 +57,14 @@ export class NotionAuthClient {
 		}
 
 		const now = new Date();
+		// Handle both string and Date formats
+		const expirationDate =
+			typeof this.user.tokenExpiresAt === "string"
+				? new Date(this.user.tokenExpiresAt)
+				: this.user.tokenExpiresAt;
+
 		const expirationWithBuffer = new Date(
-			this.user.tokenExpiresAt.getTime() - bufferMinutes * 60 * 1000,
+			expirationDate.getTime() - bufferMinutes * 60 * 1000,
 		);
 
 		return now >= expirationWithBuffer;
@@ -99,8 +105,6 @@ export class NotionAuthClient {
 		}
 
 		try {
-			console.log(`Refreshing token for user: ${this.user.id}`);
-
 			// Make request to Notion's token refresh endpoint
 			const response = await fetch("https://api.notion.com/v1/oauth/token", {
 				method: "POST",
@@ -125,8 +129,8 @@ export class NotionAuthClient {
 
 			// Calculate new expiration time
 			const tokenExpiresAt = tokenData.expires_in
-				? new Date(Date.now() + tokenData.expires_in * 1000)
-				: new Date(Date.now() + 3600 * 1000); // Default 1 hour
+				? new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+				: new Date(Date.now() + 3600 * 1000).toISOString(); // Default 1 hour
 
 			// Update user object
 			this.user.notionAccessToken = tokenData.access_token;

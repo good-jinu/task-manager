@@ -22,6 +22,12 @@ export interface OpenAIClient {
 		results: SearchResult[],
 		criteria: RankingCriteria,
 	): Promise<RankedResult[]>;
+	extractKeywords(prompt: string): Promise<string>;
+	selectRelevantDocuments(
+		query: string,
+		pages: any[],
+		maxResults: number,
+	): Promise<{ pageId: string; relevanceScore: number; reasoning: string }[]>;
 }
 
 export class OpenAIClientImpl implements OpenAIClient {
@@ -322,6 +328,169 @@ export class OpenAIClientImpl implements OpenAIClient {
 
 		// Default: return current date if we can't parse
 		return now;
+	}
+
+	async selectRelevantDocuments(
+		query: string,
+		pages: any[],
+		maxResults: number,
+	): Promise<{ pageId: string; relevanceScore: number; reasoning: string }[]> {
+		try {
+			// Format pages for LLM analysis
+			const formattedPages = pages.map((page, index) => ({
+				id: page.id,
+				index: index,
+				title: page.title || "Untitled",
+				content: this.extractPageContent(page),
+				createdTime: page.createdTime?.toISOString() || "",
+			}));
+
+			// Create prompt for LLM to select relevant documents
+			const prompt = `You are an intelligent document search assistant. Given a search query and a list of documents, select the most relevant documents and score them.
+
+Search Query: "${query}"
+
+Documents:
+${formattedPages
+	.map(
+		(page) => `
+ID: ${page.id}
+Title: ${page.title}
+Content: ${page.content.substring(0, 500)}${page.content.length > 500 ? "..." : ""}
+Created: ${page.createdTime}
+---`,
+	)
+	.join("\n")}
+
+Instructions:
+1. Analyze each document for relevance to the search query
+2. Consider semantic meaning, not just keyword matching
+3. Score each relevant document from 0.0 to 1.0 (1.0 = perfect match)
+4. Select up to ${maxResults} most relevant documents
+5. Provide brief reasoning for each selection
+
+Respond with a JSON array of selected documents in this exact format:
+[
+  {
+    "pageId": "document_id",
+    "relevanceScore": 0.95,
+    "reasoning": "Brief explanation of why this document is relevant"
+  }
+]
+
+Only return the JSON array, no other text.`;
+
+			// Make API call
+			const response = await this.makeAPICallWithRetry(async () => {
+				const config = EnvironmentConfig.getOpenAIConfig();
+				return await this.openai.chat.completions.create({
+					model: config.model,
+					messages: [{ role: "user", content: prompt }],
+					max_tokens: 1500,
+					temperature: 0.3, // Lower temperature for consistent selection
+				});
+			});
+
+			const content = response.choices[0]?.message?.content?.trim() || "";
+
+			// Parse JSON response
+			try {
+				const selections = JSON.parse(content);
+				if (Array.isArray(selections)) {
+					return selections.filter(
+						(sel) =>
+							sel.pageId &&
+							typeof sel.relevanceScore === "number" &&
+							sel.relevanceScore >= 0 &&
+							sel.relevanceScore <= 1,
+					);
+				}
+			} catch (_parseError) {
+				console.error("Failed to parse LLM response:", content);
+			}
+
+			// Fallback: return empty array
+			return [];
+		} catch (error) {
+			console.error("Document selection error:", error);
+			return [];
+		}
+	}
+
+	private extractPageContent(page: any): string {
+		let content = page.title || "";
+
+		if (page.properties) {
+			for (const [key, property] of Object.entries(page.properties)) {
+				if (property && typeof property === "object") {
+					const propertyText = this.extractPropertyText(property);
+					if (propertyText) {
+						content += ` ${key}: ${propertyText}`;
+					}
+				}
+			}
+		}
+
+		return content.trim();
+	}
+
+	private extractPropertyText(property: any): string {
+		if (!property || typeof property !== "object") {
+			return "";
+		}
+
+		switch (property.type) {
+			case "title":
+				return (
+					property.title?.map((t: any) => t.plain_text || "").join(" ") || ""
+				);
+			case "rich_text":
+				return (
+					property.rich_text?.map((t: any) => t.plain_text || "").join(" ") ||
+					""
+				);
+			case "select":
+				return property.select?.name || "";
+			case "multi_select":
+				return (
+					property.multi_select?.map((s: any) => s.name || "").join(", ") || ""
+				);
+			case "number":
+				return property.number?.toString() || "";
+			case "checkbox":
+				return property.checkbox ? "checked" : "unchecked";
+			case "url":
+				return property.url || "";
+			case "email":
+				return property.email || "";
+			case "phone_number":
+				return property.phone_number || "";
+			case "date":
+				return property.date?.start || "";
+			default:
+				return "";
+		}
+	}
+
+	async extractKeywords(prompt: string): Promise<string> {
+		try {
+			// Make the API call with retry logic
+			const response = await this.makeAPICallWithRetry(async () => {
+				const config = EnvironmentConfig.getOpenAIConfig();
+				return await this.openai.chat.completions.create({
+					model: config.model,
+					messages: [{ role: "user", content: prompt }],
+					max_tokens: 150,
+					temperature: 0.3, // Lower temperature for consistent keyword extraction
+				});
+			});
+
+			return response.choices[0]?.message?.content?.trim() || "";
+		} catch (error) {
+			console.error("Keyword extraction error:", error);
+			// Return empty string so fallback keyword extraction is used
+			return "";
+		}
 	}
 
 	// Method to clear conversation history (useful for testing)
