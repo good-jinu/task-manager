@@ -63,6 +63,7 @@ export default $config({
 			domain: {
 				name: webDomain ?? "",
 			},
+			regions: [],
 			link: [
 				usersTable,
 				databaseConfigsTable,

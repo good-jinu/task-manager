@@ -33,6 +33,12 @@
 								Databases
 							</a>
 							<a 
+								href="/agent" 
+								class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+							>
+								Agent
+							</a>
+							<a 
 								href="/search" 
 								class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
 							>
