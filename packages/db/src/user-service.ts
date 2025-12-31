@@ -28,8 +28,8 @@ export class UserService {
 		const user: User = {
 			id: randomUUID(),
 			...userData,
-			createdAt: now as any,
-			updatedAt: now as any,
+			createdAt: now,
+			updatedAt: now,
 		};
 
 		try {
