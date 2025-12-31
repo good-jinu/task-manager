@@ -42,6 +42,18 @@ export default $config({
 			},
 		});
 
+		const agentExecutionsTable = new sst.aws.Dynamo("AgentExecutionsTable", {
+			fields: {
+				userId: "string", // Partition key (User ID)
+				executionId: "string", // Sort key (Unique execution ID)
+				createdAt: "string", // For GSI to query execution history
+			},
+			primaryIndex: { hashKey: "userId", rangeKey: "executionId" },
+			globalIndexes: {
+				"createdAt-index": { hashKey: "userId", rangeKey: "createdAt" },
+			},
+		});
+
 		// Domain configuration from environment variables
 		const webDomain = process.env.WEB_DOMAIN;
 
@@ -51,7 +63,12 @@ export default $config({
 			domain: {
 				name: webDomain ?? "",
 			},
-			link: [usersTable, databaseConfigsTable, searchHistoryTable],
+			link: [
+				usersTable,
+				databaseConfigsTable,
+				searchHistoryTable,
+				agentExecutionsTable,
+			],
 			environment: {
 				// Authentication
 				AUTH_SECRET: process.env.AUTH_SECRET,
@@ -79,6 +96,7 @@ export default $config({
 			usersTable: usersTable.name,
 			databaseConfigsTable: databaseConfigsTable.name,
 			searchHistoryTable: searchHistoryTable.name,
+			agentExecutionsTable: agentExecutionsTable.name,
 		};
 	},
 });

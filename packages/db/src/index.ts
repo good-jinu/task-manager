@@ -1,4 +1,15 @@
 // Export main database client
+
+// Export agent execution types and service
+export type {
+	AgentExecutionRecord,
+	AgentExecutionResult,
+	CreateExecutionInput,
+	ExecutionStatus,
+	ExecutionStep,
+	ExecutionUpdateData,
+} from "./agent-execution-service";
+export { AgentExecutionService } from "./agent-execution-service";
 export { getDynamoDBClient, getTableNames } from "./client";
 export { DatabaseClient, getDatabaseClient } from "./database";
 // Export database config types from service

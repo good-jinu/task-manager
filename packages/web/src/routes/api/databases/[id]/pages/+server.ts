@@ -1,6 +1,6 @@
 import { json } from "@sveltejs/kit";
 import { requireAuth } from "$lib/auth";
-import { createNotionTaskManager } from "$lib/notion";
+import { createNotionTaskManagerWithAuth } from "$lib/notion";
 import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async (event) => {
@@ -14,7 +14,7 @@ export const GET: RequestHandler = async (event) => {
 		}
 
 		// Create Notion client with user's access token
-		const notionManager = createNotionTaskManager(
+		const notionManager = createNotionTaskManagerWithAuth(
 			session.user.notionAccessToken,
 		);
 

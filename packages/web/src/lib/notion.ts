@@ -1,24 +1,10 @@
 import type { User } from "@notion-task-manager/db";
 import { UserService } from "@notion-task-manager/db";
 import {
-	Client,
 	NotionAuthClient,
 	NotionTaskManager,
 } from "@notion-task-manager/notion";
 import { AUTH_NOTION_ID, AUTH_NOTION_SECRET } from "$env/static/private";
-
-export function createNotionClient(accessToken: string): Client {
-	return new Client({
-		auth: accessToken,
-	});
-}
-
-export function createNotionTaskManager(
-	accessToken: string,
-): NotionTaskManager {
-	const client = createNotionClient(accessToken);
-	return new NotionTaskManager(client);
-}
 
 /**
  * Create a NotionTaskManager with automatic token refresh capability
