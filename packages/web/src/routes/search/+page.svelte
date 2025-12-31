@@ -41,7 +41,6 @@
 	// UI state
 	let loading = $state(false);
 	let error = $state('');
-	let refreshing = $state(false);
 
 	// Search history state - initialize from server data and allow updates
 	let localSearchHistory = $state<SearchHistoryRecord[]>([]);
@@ -72,7 +71,7 @@
 		if (hasPendingSearches && !autoRefreshInterval) {
 			autoRefreshInterval = setInterval(() => {
 				refreshSearchHistory();
-			}, 3000); // Refresh every 3 seconds
+			}, 10000); // Refresh every 10 seconds
 		} else if (!hasPendingSearches && autoRefreshInterval) {
 			clearInterval(autoRefreshInterval);
 			autoRefreshInterval = null;
@@ -155,7 +154,6 @@
 
 	async function refreshSearchHistory() {
 		try {
-			refreshing = true;
 			const response = await fetch('/api/tasks/search/history');
 			const result = await response.json();
 
@@ -164,8 +162,6 @@
 			}
 		} catch (err) {
 			console.error('Failed to refresh search history:', err);
-		} finally {
-			refreshing = false;
 		}
 	}
 
@@ -183,24 +179,6 @@
 
 	function formatDateTime(dateString: string): string {
 		return new Date(dateString).toLocaleString();
-	}
-
-	function formatProperties(properties: Record<string, any>): string {
-		const entries = Object.entries(properties);
-		if (entries.length === 0) return 'No properties';
-		
-		return entries.slice(0, 3).map(([key, value]) => {
-			if (value?.type === 'title' && value.title?.[0]?.plain_text) {
-				return `${key}: ${value.title[0].plain_text}`;
-			} else if (value?.type === 'rich_text' && value.rich_text?.[0]?.plain_text) {
-				return `${key}: ${value.rich_text[0].plain_text}`;
-			} else if (value?.type === 'select' && value.select?.name) {
-				return `${key}: ${value.select.name}`;
-			} else if (value?.type === 'date' && value.date?.start) {
-				return `${key}: ${new Date(value.date.start).toLocaleDateString()}`;
-			}
-			return `${key}: ${value?.type || 'unknown'}`;
-		}).join(', ');
 	}
 
 	function getStatusColor(status: string): string {
@@ -376,21 +354,6 @@
 		<div class="bg-white shadow-md rounded-lg px-8 pt-6 pb-8">
 			<div class="flex justify-between items-center mb-6">
 				<h2 class="text-xl font-semibold">Search History</h2>
-				<button
-					onclick={refreshSearchHistory}
-					disabled={refreshing}
-					class="flex items-center text-sm text-indigo-600 hover:text-indigo-800 disabled:text-gray-400"
-				>
-					<svg 
-						class="w-4 h-4 mr-1 {refreshing ? 'animate-spin' : ''}" 
-						fill="none" 
-						stroke="currentColor" 
-						viewBox="0 0 24 24"
-					>
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-					</svg>
-					{refreshing ? 'Refreshing...' : 'Refresh'}
-				</button>
 			</div>
 
 			{#if hasPendingSearches}

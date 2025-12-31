@@ -3,7 +3,7 @@ import {
 	SearchHistoryService,
 } from "@notion-task-manager/db";
 import { requireAuth } from "$lib/auth";
-import { createNotionTaskManager } from "$lib/notion";
+import { createNotionTaskManagerWithAuth } from "$lib/notion";
 import { getUserFromDatabase } from "$lib/user";
 import type { PageServerLoad } from "./$types";
 
@@ -12,10 +12,18 @@ export const load: PageServerLoad = async (event) => {
 		// Ensure user is authenticated
 		const session = await requireAuth(event);
 
-		// Create Notion client with user's access token
-		const notionManager = createNotionTaskManager(
-			session.user.notionAccessToken,
-		);
+		// Get user from database for token refresh capability
+		const user = await getUserFromDatabase(session.user.id);
+		if (!user) {
+			console.error("User not found in database:", session.user.id);
+			return {
+				databases: [],
+				searchHistory: [],
+			};
+		}
+
+		// Create Notion client with automatic token refresh
+		const notionManager = createNotionTaskManagerWithAuth(user);
 
 		// Fetch available databases
 		const databases = await notionManager.getDatabases();
@@ -23,14 +31,11 @@ export const load: PageServerLoad = async (event) => {
 		// Fetch user's search history
 		let searchHistory: SearchHistoryRecord[] = [];
 		try {
-			const user = await getUserFromDatabase(session.user.id);
-			if (user) {
-				const searchHistoryService = new SearchHistoryService();
-				searchHistory = await searchHistoryService.getUserSearchHistory(
-					user.id,
-					20,
-				);
-			}
+			const searchHistoryService = new SearchHistoryService();
+			searchHistory = await searchHistoryService.getUserSearchHistory(
+				user.id,
+				5,
+			);
 		} catch (historyError) {
 			console.error("Failed to load search history:", historyError);
 			// Continue with empty history - non-critical error

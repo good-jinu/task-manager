@@ -1,12 +1,10 @@
-// Task search agent using AI SDK with tool-based approach
-
-import { createDeepInfra } from "@ai-sdk/deepinfra";
 import type {
 	NotionPage,
 	NotionTaskManager,
 } from "@notion-task-manager/notion";
 import { generateText, stepCountIs } from "ai";
 import { z } from "zod";
+import { getModel } from "./llm/provider.js";
 import type { SearchQuery, SearchResult, TaskSearchResult } from "./types.js";
 
 export interface TaskFinder {
@@ -48,14 +46,9 @@ export class TaskFinderImpl implements TaskFinder {
 		// Track all pages fetched by the AI for totalCount
 		let allFetchedPages: NotionPage[] = [];
 
-		// Create OpenAI-compatible client
-		const provider = createDeepInfra({
-			apiKey: process.env.DEEPINFRA_API_KEY,
-		});
-
 		// Use AI SDK with tool-based approach
 		const response = await generateText({
-			model: provider(process.env.DEEPINFRA_MODEL || "gpt-4o-mini"),
+			model: getModel(),
 			tools: {
 				queryDatabase: {
 					description:
