@@ -18,6 +18,7 @@ export type {
 	DatabaseConfig,
 	NotionDatabase,
 	NotionPage,
+	PageProperties,
 } from "./types";
 export {
 	extractProperties,

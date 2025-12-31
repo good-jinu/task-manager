@@ -25,3 +25,11 @@ export interface DatabaseConfig {
 	description?: string;
 	selectedAt: Date;
 }
+
+/**
+ * Properties for creating or updating a Notion page
+ */
+export interface PageProperties {
+	title: string;
+	[key: string]: unknown;
+}

@@ -10,7 +10,7 @@ import type {
 	PageObjectResponse,
 } from "@notionhq/client/build/src/api-endpoints";
 import type { NotionAuthClient } from "./auth-client";
-import type { NotionDatabase, NotionPage } from "./types";
+import type { NotionDatabase, NotionPage, PageProperties } from "./types";
 
 export class NotionTaskManager {
 	private authClient: NotionAuthClient | null = null;
@@ -151,6 +151,132 @@ export class NotionTaskManager {
 					return null;
 				}
 				throw new Error(`Failed to get database: ${error.message}`);
+			}
+			throw error;
+		}
+	}
+
+	/**
+	 * Create a new page in a Notion database
+	 * @param databaseId - The ID of the database to create the page in
+	 * @param properties - The properties for the new page (must include title)
+	 * @returns The created NotionPage
+	 */
+	async createPage(
+		databaseId: string,
+		properties: PageProperties,
+	): Promise<NotionPage> {
+		try {
+			const client = await this.getClient();
+
+			// Build the properties object for the Notion API
+			// The title property is handled specially as a rich text array
+			const notionProperties: Record<
+				string,
+				| { title: Array<{ text: { content: string } }> }
+				| { rich_text: Array<{ text: { content: string } }> }
+				| unknown
+			> = {
+				title: {
+					title: [
+						{
+							text: {
+								content: properties.title,
+							},
+						},
+					],
+				},
+			};
+
+			// Add any additional properties (excluding title which we've already handled)
+			for (const [key, value] of Object.entries(properties)) {
+				if (key !== "title") {
+					notionProperties[key] = value;
+				}
+			}
+
+			const response = await client.pages.create({
+				parent: {
+					database_id: databaseId,
+				},
+				// Type assertion needed because Notion SDK has strict property types
+				// but we're building a dynamic properties object
+				properties: notionProperties as Parameters<
+					typeof client.pages.create
+				>[0]["properties"],
+			});
+
+			if (!isFullPage(response)) {
+				throw new Error("Failed to create page: incomplete response");
+			}
+
+			return this.mapNotionPageToInterface(response);
+		} catch (error) {
+			if (isNotionClientError(error)) {
+				throw new Error(`Failed to create page: ${error.message}`);
+			}
+			throw error;
+		}
+	}
+
+	/**
+	 * Update an existing Notion page
+	 * @param pageId - The ID of the page to update
+	 * @param properties - The properties to update (partial update supported)
+	 * @returns The updated NotionPage
+	 */
+	async updatePage(
+		pageId: string,
+		properties: Partial<PageProperties>,
+	): Promise<NotionPage> {
+		try {
+			const client = await this.getClient();
+
+			// Build the properties object for the Notion API
+			const notionProperties: Record<
+				string,
+				| { title: Array<{ text: { content: string } }> }
+				| { rich_text: Array<{ text: { content: string } }> }
+				| unknown
+			> = {};
+
+			// Handle title property specially
+			if (properties.title !== undefined) {
+				notionProperties.title = {
+					title: [
+						{
+							text: {
+								content: properties.title,
+							},
+						},
+					],
+				};
+			}
+
+			// Add any additional properties (excluding title which we've already handled)
+			for (const [key, value] of Object.entries(properties)) {
+				if (key !== "title") {
+					notionProperties[key] = value;
+				}
+			}
+
+			const response = await client.pages.update({
+				page_id: pageId,
+				// Type assertion needed because Notion SDK has strict property types
+				// but we're building a dynamic properties object
+				properties: notionProperties as Parameters<
+					typeof client.pages.update
+				>[0]["properties"],
+			});
+
+			if (!isFullPage(response)) {
+				throw new Error("Failed to update page: incomplete response");
+			}
+
+			return this.mapNotionPageToInterface(response);
+		} catch (error) {
+			if (isNotionClientError(error)) {
+				throw new Error(`Failed to update page: ${error.message}`);
 			}
 			throw error;
 		}
