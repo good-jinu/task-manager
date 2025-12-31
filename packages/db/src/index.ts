@@ -1,12 +1,12 @@
 // Export main database client
-export { getDynamoDBClient, getTableNames } from "./client.js";
-export { DatabaseClient, getDatabaseClient } from "./database.js";
+export { getDynamoDBClient, getTableNames } from "./client";
+export { DatabaseClient, getDatabaseClient } from "./database";
 // Export database config types from service
 export type {
 	CreateDatabaseConfigInput,
 	DatabaseConfig,
-} from "./database-config-service.js";
-export { DatabaseConfigService } from "./database-config-service.js";
+} from "./database-config-service";
+export { DatabaseConfigService } from "./database-config-service";
 // Export search history types and service
 export type {
 	CreateSearchInput,
@@ -15,15 +15,15 @@ export type {
 	SearchHistoryRecord,
 	SearchQuery,
 	SearchResult,
-} from "./search-history-service.js";
-export { SearchHistoryService } from "./search-history-service.js";
+} from "./search-history-service";
+export { SearchHistoryService } from "./search-history-service";
 // Export user types
 export type {
 	CreateUserInput,
 	UpdateUserInput,
 	User,
-} from "./types.js";
-export { UserService } from "./user-service.js";
+} from "./types";
+export { UserService } from "./user-service";
 
 // Export validation utilities
-export { ValidationError } from "./validation.js";
+export { ValidationError } from "./validation";

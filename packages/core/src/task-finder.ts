@@ -2,10 +2,11 @@ import type {
 	NotionPage,
 	NotionTaskManager,
 } from "@notion-task-manager/notion";
+import { formatPagesForAI } from "@notion-task-manager/notion";
 import { generateText, stepCountIs } from "ai";
 import { z } from "zod";
-import { getModel } from "./llm/provider.js";
-import type { SearchQuery, SearchResult, TaskSearchResult } from "./types.js";
+import { getModel } from "./llm/provider";
+import type { SearchQuery, SearchResult, TaskSearchResult } from "./types";
 
 export interface TaskFinder {
 	search(query: SearchQuery): Promise<TaskSearchResult>;
@@ -13,11 +14,6 @@ export interface TaskFinder {
 
 const SelectedPageSchema = z.object({
 	pageId: z.string().describe("The ID of the selected page"),
-	relevanceScore: z
-		.number()
-		.min(0)
-		.max(1)
-		.describe("Relevance score from 0 to 1"),
 	reasoning: z
 		.string()
 		.describe("Brief explanation of why this page is relevant"),
@@ -70,7 +66,7 @@ export class TaskFinderImpl implements TaskFinder {
 								titleQuery,
 							);
 							allFetchedPages = [...allFetchedPages, ...pages];
-							return this.formatPagesForAI(pages);
+							return formatPagesForAI(pages);
 						} catch (error) {
 							return {
 								error:
@@ -94,7 +90,7 @@ export class TaskFinderImpl implements TaskFinder {
 							const pages =
 								await this.notionManager.getAllDatabasePages(databaseId);
 							allFetchedPages = [...allFetchedPages, ...pages];
-							return this.formatPagesForAI(pages);
+							return formatPagesForAI(pages);
 						} catch (error) {
 							return {
 								error:
@@ -107,11 +103,13 @@ export class TaskFinderImpl implements TaskFinder {
 				},
 				setSearchResults: {
 					description:
-						"Set the search results with selected pages. Call this tool once with all relevant pages after you have analyzed the available pages.",
+						"Set the search results with selected pages sorted by relevance (most relevant first). Call this tool once with all relevant pages after you have analyzed the available pages.",
 					inputSchema: z.object({
 						selectedPages: z
 							.array(SelectedPageSchema)
-							.describe("Array of selected pages with relevance scores"),
+							.describe(
+								"Array of selected pages sorted by relevance (most relevant first)",
+							),
 					}),
 					execute: async ({ selectedPages: pages }) => {
 						selectedPages = pages;
@@ -130,7 +128,7 @@ ${dateContext}
 You have access to the following tools:
 1. queryDatabase - Query Notion database with title filter to narrow results. Use this when the user's query contains specific keywords that might appear in page titles. This is efficient for targeted searches.
 2. viewAllPages - Retrieve all pages from a Notion database. Use this for comprehensive semantic searches when you need to analyze all content, or when the query is broad/abstract.
-3. setSearchResults - Submit your final selection of relevant pages with relevance scores.
+3. setSearchResults - Submit your final selection of relevant pages.
 
 Search Strategy:
 - For queries with specific keywords (e.g., "meeting notes", "project X", "bug fixes"): Start with queryDatabase to filter by title
@@ -144,10 +142,10 @@ Instructions:
 3. Analyze the returned pages for relevance to the query
 4. Consider semantic meaning, not just keyword matching
 5. Select up to ${maxResults} most relevant pages
-6. Score each from 0.0 to 1.0 (1.0 = perfect match)
+6. Sort the results by relevance (most relevant first)
 7. Provide brief reasoning for each selection
-8. Only include pages that are actually relevant (score > 0.3)
-9. Call setSearchResults with your final selections`,
+8. Only include pages that are actually relevant to the query
+9. Call setSearchResults with your final selections (sorted by relevance)`,
 		});
 
 		console.log(response.text);
@@ -158,21 +156,17 @@ Instructions:
 			uniquePages.set(page.id, page);
 		}
 
-		// Map selections back to full page data
+		// Map selections back to full page data (already sorted by relevance from AI)
 		const results: SearchResult[] = [];
 		for (const selection of selectedPages) {
 			const page = uniquePages.get(selection.pageId);
 			if (page) {
 				results.push({
 					page,
-					relevanceScore: selection.relevanceScore,
 					reasoning: selection.reasoning,
 				});
 			}
 		}
-
-		// Sort by relevance score
-		results.sort((a, b) => b.relevanceScore - a.relevanceScore);
 
 		return {
 			results: results.slice(0, maxResults),
@@ -180,77 +174,5 @@ Instructions:
 			searchTime: Date.now() - startTime,
 			query,
 		};
-	}
-
-	/**
-	 * Format pages for AI consumption as JSON-serializable array
-	 */
-	private formatPagesForAI(pages: NotionPage[]): object[] {
-		return pages.map((page) => ({
-			id: page.id,
-			title: page.title,
-			url: page.url,
-			createdTime: page.createdTime.toISOString(),
-			lastEditedTime: page.lastEditedTime.toISOString(),
-			archived: page.archived,
-			properties: this.extractProperties(page.properties),
-		}));
-	}
-
-	private extractProperties(
-		properties: Record<string, unknown>,
-	): Record<string, string> {
-		const extracted: Record<string, string> = {};
-
-		for (const [key, value] of Object.entries(properties)) {
-			const text = this.extractPropertyText(value);
-			if (text) {
-				extracted[key] = text;
-			}
-		}
-
-		return extracted;
-	}
-
-	private extractPropertyText(property: unknown): string {
-		if (!property || typeof property !== "object") return "";
-
-		const prop = property as Record<string, unknown>;
-		const type = prop.type as string;
-
-		switch (type) {
-			case "title":
-				return (
-					(prop.title as Array<{ plain_text?: string }>)
-						?.map((t) => t.plain_text || "")
-						.join(" ") || ""
-				);
-			case "rich_text":
-				return (
-					(prop.rich_text as Array<{ plain_text?: string }>)
-						?.map((t) => t.plain_text || "")
-						.join(" ") || ""
-				);
-			case "select":
-				return (prop.select as { name?: string })?.name || "";
-			case "multi_select":
-				return (
-					(prop.multi_select as Array<{ name?: string }>)
-						?.map((s) => s.name || "")
-						.join(", ") || ""
-				);
-			case "number":
-				return (prop.number as number)?.toString() || "";
-			case "checkbox":
-				return prop.checkbox ? "checked" : "unchecked";
-			case "date":
-				return (prop.date as { start?: string })?.start || "";
-			case "url":
-				return (prop.url as string) || "";
-			case "email":
-				return (prop.email as string) || "";
-			default:
-				return "";
-		}
 	}
 }

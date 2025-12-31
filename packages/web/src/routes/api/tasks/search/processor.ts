@@ -57,7 +57,6 @@ async function executeSearch(
 			id: result.page.id,
 			title: result.page.title,
 			url: result.page.url,
-			relevanceScore: result.relevanceScore,
 			properties: result.page.properties as Record<string, unknown>,
 		}));
 

@@ -4,8 +4,8 @@ import {
 	PutCommand,
 	QueryCommand,
 } from "@aws-sdk/lib-dynamodb";
-import { getDynamoDBClient, getTableNames } from "./client.js";
-import { ValidationError } from "./validation.js";
+import { getDynamoDBClient, getTableNames } from "./client";
+import { ValidationError } from "./validation";
 
 export interface DatabaseConfig {
 	userId: string;

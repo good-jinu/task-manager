@@ -5,7 +5,7 @@ import {
 	QueryCommand,
 	UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
-import { getDynamoDBClient, getTableNames } from "./client.js";
+import { getDynamoDBClient, getTableNames } from "./client";
 
 /**
  * Search query parameters stored with each search request
@@ -24,7 +24,6 @@ export interface SearchResult {
 	id: string;
 	title: string;
 	url: string;
-	relevanceScore?: number;
 	properties?: Record<string, unknown>;
 }
 

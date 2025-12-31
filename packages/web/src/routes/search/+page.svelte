@@ -13,7 +13,6 @@
 		id: string;
 		title: string;
 		url: string;
-		relevanceScore?: number;
 		properties?: Record<string, unknown>;
 	}
 
@@ -454,11 +453,6 @@
 															>
 																{result.title}
 															</a>
-															{#if result.relevanceScore !== undefined}
-																<span class="ml-2 text-xs text-gray-500">
-																	Score: {result.relevanceScore.toFixed(2)}
-																</span>
-															{/if}
 														</div>
 														<a 
 															href={result.url} 

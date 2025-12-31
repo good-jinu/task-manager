@@ -1,5 +1,5 @@
-import { DatabaseConfigService } from "./database-config-service.js";
-import { UserService } from "./user-service.js";
+import { DatabaseConfigService } from "./database-config-service";
+import { UserService } from "./user-service";
 
 /**
  * Main database client that provides access to all services

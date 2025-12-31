@@ -5,13 +5,13 @@ import {
 	QueryCommand,
 	UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
-import { getDynamoDBClient, getTableNames } from "./client.js";
-import type { CreateUserInput, UpdateUserInput, User } from "./types.js";
+import { getDynamoDBClient, getTableNames } from "./client";
+import type { CreateUserInput, UpdateUserInput, User } from "./types";
 import {
 	validateCreateUserInput,
 	validateUpdateUserInput,
 	validateUserId,
-} from "./validation.js";
+} from "./validation";
 
 export class UserService {
 	private client = getDynamoDBClient();

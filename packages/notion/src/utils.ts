@@ -1,62 +1,86 @@
-import { NotionTaskClient } from "./client.js";
-import { NotionTaskManager } from "./task-manager.js";
-import type { DatabaseConfig } from "./types.js";
+import type { NotionPage } from "./types";
 
 /**
- * Factory function to create a configured NotionTaskManager
+ * Extract text value from a Notion property
  */
-export function createTaskManager(
-	notionToken: string,
-	databaseConfig: DatabaseConfig,
-): NotionTaskManager {
-	const client = new NotionTaskClient({ auth: notionToken });
-	return new NotionTaskManager(client.getClient(), databaseConfig);
+export function extractPropertyText(property: unknown): string {
+	if (!property || typeof property !== "object") return "";
+
+	const prop = property as Record<string, unknown>;
+	const type = prop.type as string;
+
+	switch (type) {
+		case "title":
+			return (
+				(prop.title as Array<{ plain_text?: string }>)
+					?.map((t) => t.plain_text || "")
+					.join(" ") || ""
+			);
+		case "rich_text":
+			return (
+				(prop.rich_text as Array<{ plain_text?: string }>)
+					?.map((t) => t.plain_text || "")
+					.join(" ") || ""
+			);
+		case "select":
+			return (prop.select as { name?: string })?.name || "";
+		case "multi_select":
+			return (
+				(prop.multi_select as Array<{ name?: string }>)
+					?.map((s) => s.name || "")
+					.join(", ") || ""
+			);
+		case "number":
+			return (prop.number as number)?.toString() || "";
+		case "checkbox":
+			return prop.checkbox ? "checked" : "unchecked";
+		case "date":
+			return (prop.date as { start?: string })?.start || "";
+		case "url":
+			return (prop.url as string) || "";
+		case "email":
+			return (prop.email as string) || "";
+		default:
+			return "";
+	}
 }
 
 /**
- * Default database configuration for a typical task management setup
+ * Extract all properties from a Notion page as string key-value pairs
  */
-export const DEFAULT_DATABASE_CONFIG: Omit<DatabaseConfig, "databaseId"> = {
-	titleProperty: "Name",
-	statusProperty: "Status",
-	priorityProperty: "Priority",
-	dueDateProperty: "Due Date",
-	assigneeProperty: "Assignee",
-	tagsProperty: "Tags",
-	descriptionProperty: "Description",
-};
+export function extractProperties(
+	properties: Record<string, unknown>,
+): Record<string, string> {
+	const extracted: Record<string, string> = {};
 
-/**
- * Validate that a database ID is properly formatted
- */
-export function validateDatabaseId(databaseId: string): boolean {
-	// Notion database IDs are 32 characters long (UUID without hyphens)
-	// or 36 characters with hyphens
-	const cleanId = databaseId.replace(/-/g, "");
-	return /^[a-f0-9]{32}$/i.test(cleanId);
-}
-
-/**
- * Clean and format a database ID
- */
-export function formatDatabaseId(databaseId: string): string {
-	return databaseId.replace(/-/g, "");
-}
-
-/**
- * Create a complete database configuration with validation
- */
-export function createDatabaseConfig(
-	databaseId: string,
-	customConfig?: Partial<DatabaseConfig>,
-): DatabaseConfig {
-	if (!validateDatabaseId(databaseId)) {
-		throw new Error("Invalid database ID format");
+	for (const [key, value] of Object.entries(properties)) {
+		const text = extractPropertyText(value);
+		if (text) {
+			extracted[key] = text;
+		}
 	}
 
+	return extracted;
+}
+
+/**
+ * Format a NotionPage for AI consumption as a JSON-serializable object
+ */
+export function formatPageForAI(page: NotionPage): object {
 	return {
-		databaseId: formatDatabaseId(databaseId),
-		...DEFAULT_DATABASE_CONFIG,
-		...customConfig,
+		id: page.id,
+		title: page.title,
+		url: page.url,
+		createdTime: page.createdTime.toISOString(),
+		lastEditedTime: page.lastEditedTime.toISOString(),
+		archived: page.archived,
+		properties: extractProperties(page.properties),
 	};
+}
+
+/**
+ * Format multiple NotionPages for AI consumption
+ */
+export function formatPagesForAI(pages: NotionPage[]): object[] {
+	return pages.map(formatPageForAI);
 }

@@ -11,18 +11,24 @@ export {
 	iteratePaginatedAPI,
 	LogLevel,
 } from "@notionhq/client";
-export type { NotionAuthConfig, TokenRefreshCallback } from "./auth-client.js";
-export { NotionAuthClient } from "./auth-client.js";
-export { NotionTaskManager } from "./task-manager.js";
+export type { NotionAuthConfig, TokenRefreshCallback } from "./auth-client";
+export { NotionAuthClient } from "./auth-client";
+export { NotionTaskManager } from "./task-manager";
 export type {
 	DatabaseConfig,
 	NotionDatabase,
 	NotionPage,
-} from "./types.js";
+} from "./types";
+export {
+	extractProperties,
+	extractPropertyText,
+	formatPageForAI,
+	formatPagesForAI,
+} from "./utils";
 
 // Import types for helper functions
 import { Client } from "@notionhq/client";
-import { NotionTaskManager } from "./task-manager.js";
+import { NotionTaskManager } from "./task-manager";
 
 // Helper functions for easier setup
 export function createTaskManager(token: string): NotionTaskManager {

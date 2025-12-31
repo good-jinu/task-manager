@@ -12,7 +12,6 @@ export interface SearchQuery {
 
 export interface SearchResult {
 	page: NotionPage;
-	relevanceScore: number;
 	reasoning: string;
 }
 
