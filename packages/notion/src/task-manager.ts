@@ -88,6 +88,44 @@ export class NotionTaskManager {
 	}
 
 	/**
+	 * Query database pages with a title filter
+	 * Returns pages where the title contains the query string (case-insensitive)
+	 */
+	async queryDatabasePages(
+		databaseId: string,
+		titleQuery: string,
+	): Promise<NotionPage[]> {
+		try {
+			const client = await this.getClient();
+			const response = await client.databases.query({
+				database_id: databaseId,
+				filter: {
+					property: "title",
+					title: {
+						contains: titleQuery,
+					},
+				},
+			});
+
+			return response.results
+				.filter(isFullPage)
+				.map((page: PageObjectResponse) => this.mapNotionPageToInterface(page));
+		} catch (error) {
+			if (isNotionClientError(error)) {
+				throw new Error(`Failed to query database pages: ${error.message}`);
+			}
+			throw error;
+		}
+	}
+
+	/**
+	 * Get all pages from a database (alias for getDatabasePages for consistency)
+	 */
+	async getAllDatabasePages(databaseId: string): Promise<NotionPage[]> {
+		return this.getDatabasePages(databaseId);
+	}
+
+	/**
 	 * Get a specific database by ID
 	 */
 	async getDatabase(databaseId: string): Promise<NotionDatabase | null> {
