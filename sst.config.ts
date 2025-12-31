@@ -30,6 +30,18 @@ export default $config({
 			primaryIndex: { hashKey: "userId", rangeKey: "databaseId" },
 		});
 
+		const searchHistoryTable = new sst.aws.Dynamo("SearchHistoryTable", {
+			fields: {
+				userId: "string", // Partition key (User ID)
+				searchId: "string", // Sort key (Unique search request ID)
+				createdAt: "string", // For GSI to query recent searches
+			},
+			primaryIndex: { hashKey: "userId", rangeKey: "searchId" },
+			globalIndexes: {
+				"createdAt-index": { hashKey: "userId", rangeKey: "createdAt" },
+			},
+		});
+
 		// Domain configuration from environment variables
 		const webDomain = process.env.WEB_DOMAIN;
 
@@ -39,7 +51,7 @@ export default $config({
 			domain: {
 				name: webDomain ?? "",
 			},
-			link: [usersTable, databaseConfigsTable],
+			link: [usersTable, databaseConfigsTable, searchHistoryTable],
 			environment: {
 				// Authentication
 				AUTH_SECRET: process.env.AUTH_SECRET,
@@ -53,16 +65,12 @@ export default $config({
 				// OpenAI Configuration
 				OPENAI_API_KEY: process.env.OPENAI_API_KEY,
 				OPENAI_BASE_URL: process.env.OPENAI_BASE_URL,
+				OPENAI_NAME: process.env.OPENAI_NAME,
 				OPENAI_MODEL: process.env.OPENAI_MODEL,
-				OPENAI_MAX_TOKENS: process.env.OPENAI_MAX_TOKENS,
-				OPENAI_TEMPERATURE: process.env.OPENAI_TEMPERATURE,
 
-				// Search Configuration
-				SEARCH_MAX_RESULTS: process.env.SEARCH_MAX_RESULTS,
-				SEARCH_RELEVANCE_THRESHOLD: process.env.SEARCH_RELEVANCE_THRESHOLD,
-				SEARCH_DATE_WEIGHT_FACTOR: process.env.SEARCH_DATE_WEIGHT_FACTOR,
-				SEARCH_CACHE_ENABLED: process.env.SEARCH_CACHE_ENABLED,
-				SEARCH_CACHE_TTL: process.env.SEARCH_CACHE_TTL,
+				// DeepInfra Configuration
+				DEEPINFRA_API_KEY: process.env.DEEPINFRA_API_KEY,
+				DEEPINFRA_MODEL: process.env.DEEPINFRA_MODEL,
 			},
 		});
 
@@ -70,6 +78,7 @@ export default $config({
 			web: web.url,
 			usersTable: usersTable.name,
 			databaseConfigsTable: databaseConfigsTable.name,
+			searchHistoryTable: searchHistoryTable.name,
 		};
 	},
 });

@@ -8,7 +8,6 @@
 	let targetDate = $state('');
 	let selectedDatabaseId = $state('');
 	let maxResults = $state(10);
-	let includeContent = $state(false);
 
 	// UI state
 	let loading = $state(false);
@@ -37,8 +36,7 @@
 			const requestBody: any = {
 				description: description.trim(),
 				databaseId: selectedDatabaseId,
-				maxResults,
-				includeContent
+				maxResults
 			};
 
 			// Only include targetDate if it's not empty
@@ -74,7 +72,6 @@
 		targetDate = '';
 		selectedDatabaseId = '';
 		maxResults = 10;
-		includeContent = false;
 		searchResults = null;
 		error = '';
 	}
@@ -192,19 +189,6 @@
 									class="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
 								/>
 							</div>
-
-							<!-- Include Content -->
-							<div class="flex items-center">
-								<input
-									id="includeContent"
-									type="checkbox"
-									bind:checked={includeContent}
-									class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-								/>
-								<label for="includeContent" class="ml-2 block text-sm text-gray-700">
-									Include page content in search results
-								</label>
-							</div>
 						</div>
 					</details>
 				</div>
@@ -283,10 +267,10 @@
 										{result.page.title}
 									</h3>
 									<div class="flex items-center space-x-4">
-										<!-- Scores -->
+										<!-- Score -->
 										<div class="text-sm text-gray-500">
 											<span class="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">
-												Score: {result.combinedScore.toFixed(2)}
+												Score: {result.relevanceScore.toFixed(2)}
 											</span>
 										</div>
 										<!-- Open Link -->
@@ -306,12 +290,10 @@
 									{formatProperties(result.page.properties)}
 								</div>
 
-								<!-- Content Preview -->
-								{#if includeContent && result.page.content}
-									<div class="bg-gray-50 rounded p-3 mb-3">
-										<p class="text-sm text-gray-700 line-clamp-3">
-											{result.page.content}
-										</p>
+								<!-- Reasoning -->
+								{#if result.reasoning}
+									<div class="text-sm text-gray-600 italic mb-2">
+										{result.reasoning}
 									</div>
 								{/if}
 
@@ -321,53 +303,16 @@
 										Created: {formatDate(result.page.createdTime)} | 
 										Updated: {formatDate(result.page.lastEditedTime)}
 									</div>
-									<div class="flex space-x-4">
+									<div>
 										<span>Relevance: {result.relevanceScore.toFixed(2)}</span>
-										{#if result.dateProximityScore > 0}
-											<span>Date Match: {result.dateProximityScore.toFixed(2)}</span>
-										{/if}
 									</div>
 								</div>
 							</div>
 						{/each}
 					</div>
 
-					<!-- Search Metadata -->
-					{#if searchResults.metadata}
-						<div class="mt-6 pt-4 border-t border-gray-200">
-							<details class="group">
-								<summary class="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-800">
-									Search Details
-								</summary>
-								<div class="mt-2 text-xs text-gray-500 space-y-1">
-									{#if searchResults.metadata.openaiTokensUsed}
-										<p>OpenAI Tokens Used: {searchResults.metadata.openaiTokensUsed}</p>
-									{/if}
-									{#if searchResults.metadata.notionApiCalls}
-										<p>Notion API Calls: {searchResults.metadata.notionApiCalls}</p>
-									{/if}
-									{#if searchResults.metadata.cacheHits}
-										<p>Cache Hits: {searchResults.metadata.cacheHits}</p>
-									{/if}
-									{#if searchResults.metadata.processingSteps}
-										<p>Processing Steps: {searchResults.metadata.processingSteps.join(' → ')}</p>
-									{/if}
-								</div>
-							</details>
-						</div>
-					{/if}
 				{/if}
 			</div>
 		{/if}
 	</div>
 </div>
-
-<style>
-	.line-clamp-3 {
-		display: -webkit-box;
-		-webkit-line-clamp: 3;
-		line-clamp: 3;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
-	}
-</style>

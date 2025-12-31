@@ -7,30 +7,26 @@ import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async (event) => {
 	try {
-		// Ensure user is authenticated
 		const session = await requireAuth(event);
 
-		// Get user data from database (includes tokens)
 		const user = await getUserFromDatabase(session.user.id);
 		if (!user) {
 			return json({ error: "User not found in database" }, { status: 404 });
 		}
 
-		// Parse and validate request body
 		const requestBody = await event.request.json();
-		const { description, targetDate, databaseId, maxResults, includeContent } =
-			requestBody;
+		const { description, targetDate, databaseId, maxResults } = requestBody;
 
 		// Validate required fields
-		if (!description || typeof description !== "string") {
+		if (
+			!description ||
+			typeof description !== "string" ||
+			!description.trim()
+		) {
 			return json(
-				{ error: "Description is required and must be a string" },
+				{ error: "Description is required and must be a non-empty string" },
 				{ status: 400 },
 			);
-		}
-
-		if (description.trim().length === 0) {
-			return json({ error: "Description cannot be empty" }, { status: 400 });
 		}
 
 		if (!databaseId || typeof databaseId !== "string") {
@@ -40,64 +36,29 @@ export const POST: RequestHandler = async (event) => {
 			);
 		}
 
-		// Validate optional fields
-		if (targetDate !== undefined && typeof targetDate !== "string") {
-			return json({ error: "Target date must be a string" }, { status: 400 });
-		}
-
-		// Validate and parse target date if provided
+		// Parse target date if provided
 		let parsedTargetDate: Date | undefined;
 		if (targetDate?.trim()) {
-			try {
-				parsedTargetDate = new Date(targetDate.trim());
-				if (Number.isNaN(parsedTargetDate.getTime())) {
-					return json({ error: "Invalid target date format" }, { status: 400 });
-				}
-			} catch (_error) {
+			parsedTargetDate = new Date(targetDate.trim());
+			if (Number.isNaN(parsedTargetDate.getTime())) {
 				return json({ error: "Invalid target date format" }, { status: 400 });
 			}
 		}
 
-		if (maxResults !== undefined) {
-			if (
-				typeof maxResults !== "number" ||
-				maxResults < 1 ||
-				maxResults > 100
-			) {
-				return json(
-					{ error: "Max results must be a number between 1 and 100" },
-					{ status: 400 },
-				);
-			}
-		}
-
-		if (includeContent !== undefined && typeof includeContent !== "boolean") {
-			return json(
-				{ error: "Include content must be a boolean" },
-				{ status: 400 },
-			);
-		}
-
-		// Create Notion client with automatic token refresh
+		// Create Notion client and TaskFinder
 		const notionManager = createNotionTaskManagerWithAuth(user);
-
-		// Create TaskFinder instance
 		const taskFinder = new TaskFinderImpl(notionManager);
 
-		// Build search query
-		const searchQuery = {
+		// Execute search
+		const searchResult = await taskFinder.search({
 			description: description.trim(),
 			targetDate: parsedTargetDate,
-			userId: user.id, // Use database user ID
+			userId: user.id,
 			databaseId,
 			maxResults: maxResults || 10,
-			includeContent: includeContent || false,
-		};
+		});
 
-		// Execute search
-		const searchResult = await taskFinder.search(searchQuery);
-
-		// Convert Date objects to strings for client compatibility
+		// Convert Date objects to strings for JSON response
 		const clientResult = {
 			...searchResult,
 			results: searchResult.results.map((result) => ({
@@ -114,90 +75,15 @@ export const POST: RequestHandler = async (event) => {
 	} catch (error) {
 		console.error("Task search failed:", error);
 
-		// Handle specific error types
 		if (error instanceof Error) {
-			// Check for validation errors (400 status)
-			if (
-				error.message.includes("required") ||
-				error.message.includes("must be") ||
-				error.message.includes("cannot be empty")
-			) {
-				return json({ error: error.message }, { status: 400 });
-			}
-
-			// Check for authentication/authorization errors (401/403 status)
 			if (
 				error.message.includes("unauthorized") ||
-				error.message.includes("access token") ||
-				error.message.includes("permission")
+				error.message.includes("access token")
 			) {
-				return json(
-					{ error: "Authentication or permission error" },
-					{ status: 401 },
-				);
-			}
-
-			// Check for OpenAI API errors (502 status for external service)
-			if (
-				error.message.includes("OpenAI") ||
-				error.message.includes("API key") ||
-				error.message.includes("rate limit")
-			) {
-				return json({ error: "External service error" }, { status: 502 });
+				return json({ error: "Authentication error" }, { status: 401 });
 			}
 		}
 
-		// Generic server error for all other cases
-		return json(
-			{ error: "Internal server error occurred during task search" },
-			{ status: 500 },
-		);
-	}
-};
-
-// Health check endpoint
-export const GET: RequestHandler = async (event) => {
-	try {
-		// Ensure user is authenticated
-		const session = await requireAuth(event);
-
-		// Get user data from database (includes tokens)
-		const user = await getUserFromDatabase(session.user.id);
-		if (!user) {
-			return json({ error: "User not found in database" }, { status: 404 });
-		}
-
-		// Create Notion client with automatic token refresh
-		const notionManager = createNotionTaskManagerWithAuth(user);
-
-		// Create TaskFinder instance
-		const taskFinder = new TaskFinderImpl(notionManager);
-
-		// Perform health check
-		const isHealthy = await taskFinder.healthCheck();
-
-		if (isHealthy) {
-			return json({
-				status: "healthy",
-				message: "Task search service is operational",
-			});
-		} else {
-			return json(
-				{
-					status: "unhealthy",
-					message: "Task search service is not functioning properly",
-				},
-				{ status: 503 },
-			);
-		}
-	} catch (error) {
-		console.error("Health check failed:", error);
-		return json(
-			{
-				status: "error",
-				message: "Health check could not be completed",
-			},
-			{ status: 503 },
-		);
+		return json({ error: "Internal server error" }, { status: 500 });
 	}
 };
