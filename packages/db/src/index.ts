@@ -7,7 +7,16 @@ export type {
 	DatabaseConfig,
 } from "./database-config-service.js";
 export { DatabaseConfigService } from "./database-config-service.js";
-
+// Export search history types and service
+export type {
+	CreateSearchInput,
+	SearchDoneData,
+	SearchFailData,
+	SearchHistoryRecord,
+	SearchQuery,
+	SearchResult,
+} from "./search-history-service.js";
+export { SearchHistoryService } from "./search-history-service.js";
 // Export user types
 export type {
 	CreateUserInput,
