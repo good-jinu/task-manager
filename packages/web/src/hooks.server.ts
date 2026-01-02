@@ -1,6 +1,8 @@
 import { SvelteKitAuth } from "@auth/sveltekit";
 import Notion from "@auth/sveltekit/providers/notion";
 import { UserService } from "@notion-task-manager/db";
+import { type Handle, redirect } from "@sveltejs/kit";
+import { sequence } from "@sveltejs/kit/hooks";
 import {
 	AUTH_NOTION_ID,
 	AUTH_NOTION_REDIRECT_URI,
@@ -8,7 +10,23 @@ import {
 	AUTH_SECRET,
 } from "$env/static/private";
 
-export const { handle, signIn, signOut } = SvelteKitAuth({
+// Redirect handler for legacy routes
+const redirectHandle: Handle = async ({ event, resolve }) => {
+	// Redirect /search to /agent
+	if (
+		event.url.pathname === "/search" ||
+		event.url.pathname.startsWith("/search/")
+	) {
+		redirect(301, "/agent");
+	}
+	return resolve(event);
+};
+
+const {
+	handle: authHandle,
+	signIn,
+	signOut,
+} = SvelteKitAuth({
 	providers: [
 		Notion({
 			clientId: AUTH_NOTION_ID,
@@ -95,21 +113,21 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
 		},
 		async session({ session, token }) {
 			// Pass user info and access token to session
-			// biome-ignore-start lint/suspicious/noExplicitAny: session
-			if (token) {
-				(session as any).user.id = token.userId as string;
-				(session as any).accessToken = token.accessToken as string;
-				(session as any).notionUserId = token.notionUserId as string;
+			if (typeof token?.userId === "string") {
+				session.user.id = token.userId;
 				// Add additional user data to session
-				if (token.userEmail)
-					(session as any).user.email = token.userEmail as string;
-				if (token.userName)
-					(session as any).user.name = token.userName as string;
-				if (token.userImage)
-					(session as any).user.image = token.userImage as string;
+				if (typeof token.userEmail === "string")
+					session.user.email = token.userEmail;
+				if (typeof token.userName === "string")
+					session.user.name = token.userName;
+				if (typeof token.userImage === "string")
+					session.user.image = token.userImage;
 			}
-			// biome-ignore-end lint/suspicious/noExplicitAny: session
 			return session;
 		},
 	},
 });
+
+// Combine redirect handler with auth handler
+export const handle = sequence(redirectHandle, authHandle);
+export { signIn, signOut };

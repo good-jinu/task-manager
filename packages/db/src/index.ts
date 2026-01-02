@@ -18,16 +18,6 @@ export type {
 	DatabaseConfig,
 } from "./database-config-service";
 export { DatabaseConfigService } from "./database-config-service";
-// Export search history types and service
-export type {
-	CreateSearchInput,
-	SearchDoneData,
-	SearchFailData,
-	SearchHistoryRecord,
-	SearchQuery,
-	SearchResult,
-} from "./search-history-service";
-export { SearchHistoryService } from "./search-history-service";
 // Export user types
 export type {
 	CreateUserInput,

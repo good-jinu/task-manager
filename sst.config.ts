@@ -30,18 +30,6 @@ export default $config({
 			primaryIndex: { hashKey: "userId", rangeKey: "databaseId" },
 		});
 
-		const searchHistoryTable = new sst.aws.Dynamo("SearchHistoryTable", {
-			fields: {
-				userId: "string", // Partition key (User ID)
-				searchId: "string", // Sort key (Unique search request ID)
-				createdAt: "string", // For GSI to query recent searches
-			},
-			primaryIndex: { hashKey: "userId", rangeKey: "searchId" },
-			globalIndexes: {
-				"createdAt-index": { hashKey: "userId", rangeKey: "createdAt" },
-			},
-		});
-
 		const agentExecutionsTable = new sst.aws.Dynamo("AgentExecutionsTable", {
 			fields: {
 				userId: "string", // Partition key (User ID)
@@ -60,35 +48,30 @@ export default $config({
 		// SvelteKit application with environment variables and permissions
 		const web = new sst.aws.SvelteKit("TaskManagerWeb", {
 			path: "packages/web",
-			domain: {
-				name: webDomain ?? "",
-			},
-			regions: [],
-			link: [
-				usersTable,
-				databaseConfigsTable,
-				searchHistoryTable,
-				agentExecutionsTable,
-			],
+			...(webDomain ? { domain: { name: webDomain } } : {}),
+			link: [usersTable, databaseConfigsTable, agentExecutionsTable],
 			environment: {
 				// Authentication
-				AUTH_SECRET: process.env.AUTH_SECRET,
-				AUTH_NOTION_ID: process.env.AUTH_NOTION_ID,
-				AUTH_NOTION_SECRET: process.env.AUTH_NOTION_SECRET,
-				AUTH_NOTION_REDIRECT_URI: process.env.AUTH_NOTION_REDIRECT_URI,
+				AUTH_SECRET: process.env.AUTH_SECRET ?? "",
+				AUTH_NOTION_ID: process.env.AUTH_NOTION_ID ?? "",
+				AUTH_NOTION_SECRET: process.env.AUTH_NOTION_SECRET ?? "",
+				AUTH_NOTION_REDIRECT_URI: process.env.AUTH_NOTION_REDIRECT_URI ?? "",
 
 				// Database
-				APP_AWS_REGION: process.env.APP_AWS_REGION || "us-east-1",
+				APP_AWS_REGION: process.env.APP_AWS_REGION ?? "us-east-1",
 
 				// OpenAI Configuration
-				OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-				OPENAI_BASE_URL: process.env.OPENAI_BASE_URL,
-				OPENAI_NAME: process.env.OPENAI_NAME,
-				OPENAI_MODEL: process.env.OPENAI_MODEL,
+				OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "",
+				OPENAI_BASE_URL: process.env.OPENAI_BASE_URL ?? "",
+				OPENAI_NAME: process.env.OPENAI_NAME ?? "",
+				OPENAI_MODEL: process.env.OPENAI_MODEL ?? "",
 
 				// DeepInfra Configuration
-				DEEPINFRA_API_KEY: process.env.DEEPINFRA_API_KEY,
-				DEEPINFRA_MODEL: process.env.DEEPINFRA_MODEL,
+				DEEPINFRA_API_KEY: process.env.DEEPINFRA_API_KEY ?? "",
+				DEEPINFRA_MODEL: process.env.DEEPINFRA_MODEL ?? "",
+			},
+			server: {
+				runtime: "nodejs22.x",
 			},
 		});
 
@@ -96,7 +79,6 @@ export default $config({
 			web: web.url,
 			usersTable: usersTable.name,
 			databaseConfigsTable: databaseConfigsTable.name,
-			searchHistoryTable: searchHistoryTable.name,
 			agentExecutionsTable: agentExecutionsTable.name,
 		};
 	},

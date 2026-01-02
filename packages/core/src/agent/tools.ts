@@ -25,7 +25,6 @@ export interface SearchPagesOutput {
 		id: string;
 		title: string;
 		url: string;
-		similarity: number;
 		properties: Record<string, unknown>;
 	}>;
 }
@@ -130,30 +129,13 @@ export async function executeSearchPages(
 		// Limit results
 		const limitedPages = pages.slice(0, input.maxResults || 10);
 
-		// Map to output format with similarity scores
-		// For now, we use a simple heuristic: exact match = 1.0, contains = 0.7
 		const output: SearchPagesOutput = {
-			pages: limitedPages.map((page) => {
-				const titleLower = page.title.toLowerCase();
-				const queryLower = input.query.toLowerCase();
-				let similarity = 0.5; // Base similarity for any match
-
-				if (titleLower === queryLower) {
-					similarity = 1.0;
-				} else if (titleLower.includes(queryLower)) {
-					similarity = 0.8;
-				} else if (queryLower.includes(titleLower)) {
-					similarity = 0.7;
-				}
-
-				return {
-					id: page.id,
-					title: page.title,
-					url: page.url,
-					similarity,
-					properties: page.properties as Record<string, unknown>,
-				};
-			}),
+			pages: limitedPages.map((page) => ({
+				id: page.id,
+				title: page.title,
+				url: page.url,
+				properties: page.properties as Record<string, unknown>,
+			})),
 		};
 
 		step.output = output as unknown as Record<string, unknown>;

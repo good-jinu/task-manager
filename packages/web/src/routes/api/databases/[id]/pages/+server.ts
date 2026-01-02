@@ -1,6 +1,7 @@
 import { json } from "@sveltejs/kit";
 import { requireAuth } from "$lib/auth";
 import { createNotionTaskManagerWithAuth } from "$lib/notion";
+import { getUserFromDatabase } from "$lib/user";
 import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async (event) => {
@@ -13,10 +14,13 @@ export const GET: RequestHandler = async (event) => {
 			return json({ error: "Database ID is required" }, { status: 400 });
 		}
 
+		const user = await getUserFromDatabase(session.user.id);
+		if (!user) {
+			return json({ error: "User not found in database" }, { status: 404 });
+		}
+
 		// Create Notion client with user's access token
-		const notionManager = createNotionTaskManagerWithAuth(
-			session.user.notionAccessToken,
-		);
+		const notionManager = createNotionTaskManagerWithAuth(user);
 
 		// Get all pages from the database
 		const pages = await notionManager.getDatabasePages(databaseId);

@@ -89,7 +89,7 @@ export class TaskManagerAgent {
 					},
 					create_page: {
 						description:
-							"Create a new page in the Notion database. Only use this if search_pages found no similar existing pages (similarity < 0.7).",
+							"Create a new page in the Notion database. Only use this if search_pages found no similar existing pages.",
 						inputSchema: createPageInputSchema,
 						execute: async (
 							input,
@@ -120,7 +120,7 @@ export class TaskManagerAgent {
 					},
 					update_page: {
 						description:
-							"Update an existing page in the Notion database. Use this when search_pages found a similar page (similarity >= 0.7) that should be updated with new information.",
+							"Update an existing page in the Notion database. Use this when search_pages found a similar page that should be updated with new information.",
 						inputSchema: updatePageInputSchema,
 						execute: async (
 							input,
@@ -152,11 +152,19 @@ export class TaskManagerAgent {
 Your job is to process natural language task descriptions and either create new tasks or update existing ones.
 
 IMPORTANT RULES:
-1. ALWAYS call search_pages first to check for existing similar tasks
-2. If a similar task exists (similarity >= 0.7), update it instead of creating a new one
-3. If no similar task exists (similarity < 0.7), create a new task
-4. Extract relevant information from the user's query (title, priority, due date if mentioned)
-5. Be concise in your reasoning
+1. BEFORE creating or updating any task, call search_pages with SINGLE-KEYWORD queries extracted from the user’s message.  
+   Example: user says “Rails framework migration to Next.js. • Inventory all Rails components (models, controllers, assets, APIs). • Identify which parts will move to Next.js (pages, isomorphic UI) vs. stay on Rails (API, background jobs). • Set up version control, CI, and a shared staging environment.”  
+   – try #1: “Rails”  
+   – try #2: “Next”  
+   – try #3: “Migration”  
+   – try #4: “Framework”  
+   – try #5: “FE”  
+   – try #6: “Frontend”  
+   Stop at first match.  
+2. If a similar task exists, update it.  
+3. If no match after all tries, create a new task.  
+4. Extract title, priority, due date if mentioned.  
+5. Keep reasoning concise.
 
 When searching, use the key terms from the user's task description.
 When creating or updating, use a clear, actionable title.`,

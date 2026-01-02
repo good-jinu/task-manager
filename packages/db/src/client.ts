@@ -53,7 +53,6 @@ export function getTableNames() {
 		// biome-ignore-start lint/suspicious/noExplicitAny: Resource for any
 		users: (Resource as any).UsersTable.name,
 		databaseConfigs: (Resource as any).DatabaseConfigsTable.name,
-		searchHistory: (Resource as any).SearchHistoryTable.name,
 		agentExecutions: (Resource as any).AgentExecutionsTable.name,
 		// biome-ignore-end lint/suspicious/noExplicitAny: Resource for any
 	};

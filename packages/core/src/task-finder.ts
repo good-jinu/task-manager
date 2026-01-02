@@ -43,7 +43,7 @@ export class TaskFinderImpl implements TaskFinder {
 		let allFetchedPages: NotionPage[] = [];
 
 		// Use AI SDK with tool-based approach
-		const response = await generateText({
+		await generateText({
 			model: getModel(),
 			tools: {
 				queryDatabase: {
@@ -147,8 +147,6 @@ Instructions:
 8. Only include pages that are actually relevant to the query
 9. Call setSearchResults with your final selections (sorted by relevance)`,
 		});
-
-		console.log(response.text);
 
 		// Deduplicate fetched pages by ID
 		const uniquePages = new Map<string, NotionPage>();
