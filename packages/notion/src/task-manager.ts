@@ -283,6 +283,77 @@ export class NotionTaskManager {
 	}
 
 	/**
+	 * Update the content (blocks) of an existing Notion page
+	 * This replaces all existing content with the new content
+	 * @param pageId - The ID of the page to update
+	 * @param content - The new content as a string (will be converted to paragraph blocks)
+	 * @returns The updated NotionPage
+	 */
+	async updatePageContent(
+		pageId: string,
+		content: string,
+	): Promise<NotionPage> {
+		try {
+			const client = await this.getClient();
+
+			// First, get all existing blocks in the page
+			const existingBlocks = await client.blocks.children.list({
+				block_id: pageId,
+			});
+
+			// Delete all existing blocks
+			for (const block of existingBlocks.results) {
+				if ("id" in block) {
+					await client.blocks.delete({
+						block_id: block.id,
+					});
+				}
+			}
+
+			// Split content into paragraphs and create blocks
+			const paragraphs = content.split("\n").filter((p) => p.trim() !== "");
+			const blocks = paragraphs.map((paragraph) => ({
+				object: "block" as const,
+				type: "paragraph" as const,
+				paragraph: {
+					rich_text: [
+						{
+							type: "text" as const,
+							text: {
+								content: paragraph,
+							},
+						},
+					],
+				},
+			}));
+
+			// Add new blocks to the page
+			if (blocks.length > 0) {
+				await client.blocks.children.append({
+					block_id: pageId,
+					children: blocks,
+				});
+			}
+
+			// Get the updated page to return
+			const response = await client.pages.retrieve({
+				page_id: pageId,
+			});
+
+			if (!isFullPage(response)) {
+				throw new Error("Failed to retrieve updated page: incomplete response");
+			}
+
+			return this.mapNotionPageToInterface(response);
+		} catch (error) {
+			if (isNotionClientError(error)) {
+				throw new Error(`Failed to update page content: ${error.message}`);
+			}
+			throw error;
+		}
+	}
+
+	/**
 	 * Check if the database response has the required properties
 	 */
 	private hasRequiredDatabaseProperties(
