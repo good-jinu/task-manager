@@ -2,7 +2,8 @@
 	import ExecutionItem from './ExecutionItem.svelte';
 	import { Card, Badge, EmptyState } from './ui';
 	import { Spinner } from '$lib/components/icons';
-	import type { AgentExecutionRecord, Database } from '$lib/types';
+	import type { AgentExecutionRecord } from '@notion-task-manager/db';
+    import type { Database } from '$lib/types';
 
 	interface Props {
 		executions: AgentExecutionRecord[];

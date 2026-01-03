@@ -1,9 +1,9 @@
 <script lang="ts">
-	import type { PageData } from './$types';
+	import type { PageProps } from './$types';
 	import { TaskForm, ExecutionHistory, ErrorAlert } from '$lib/components';
-	import type { AgentExecutionRecord } from '$lib/types';
+	import type { AgentExecutionRecord } from '@notion-task-manager/db';
 
-	let { data }: { data: PageData } = $props();
+	let { data }: PageProps = $props();
 
 	// UI state
 	let loading = $state(false);

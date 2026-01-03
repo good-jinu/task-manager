@@ -1,8 +1,9 @@
 <script lang="ts">
-	import type { AgentExecutionRecord, Database } from '$lib/types';
+	import type { AgentExecutionRecord } from '@notion-task-manager/db';
 	import { marked } from 'marked';
 	import { Card, Badge, Alert, LoadingSpinner, Button } from './ui';
 	import { KeyboardArrowDown, KeyboardArrowRight, ArrowRightAlt } from '$lib/components/icons';
+    import type { Database } from '$lib/types';
 
 	interface Props {
 		execution: AgentExecutionRecord;
