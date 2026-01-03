@@ -401,64 +401,53 @@ export class NotionTaskManager {
 		if (!block.type) return "";
 
 		const blockType = block.type;
-		let blockData: {
-			rich_text?: RichTextItemResponse[] | RichTextItemResponse;
-			expression?: string;
-			title?: string;
-		} = {};
-		if (blockType in block) {
-			blockData = block[blockType];
-		}
 
-		// Handle blocks that have rich_text property
-		if (blockData?.rich_text && Array.isArray(blockData.rich_text)) {
-			return blockData.rich_text
-				.map((richText: RichTextItemResponse) => richText.plain_text || "")
-				.join("");
-		}
+		// Helper function to extract text from rich_text
+		const extractRichText = (
+			richText: RichTextItemResponse[] | RichTextItemResponse | undefined,
+		): string => {
+			if (!richText) return "";
+			if (Array.isArray(richText)) {
+				return richText
+					.map((rt: RichTextItemResponse) => rt.plain_text || "")
+					.join("");
+			}
+			return richText.plain_text || "";
+		};
 
-		// Handle specific block types
+		// Handle blocks that have rich_text property by checking the block type directly
 		switch (blockType) {
 			case "paragraph":
+				return extractRichText(block.paragraph.rich_text);
 			case "heading_1":
+				return extractRichText(block.heading_1.rich_text);
 			case "heading_2":
+				return extractRichText(block.heading_2.rich_text);
 			case "heading_3":
+				return extractRichText(block.heading_3.rich_text);
 			case "bulleted_list_item":
+				return extractRichText(block.bulleted_list_item.rich_text);
 			case "numbered_list_item":
+				return extractRichText(block.numbered_list_item.rich_text);
 			case "quote":
+				return extractRichText(block.quote.rich_text);
 			case "callout":
+				return extractRichText(block.callout.rich_text);
 			case "toggle":
-				return (
-					blockData?.rich_text
-						?.map((richText: RichTextItemResponse) => richText.plain_text || "")
-						.join("") || ""
-				);
-
+				return extractRichText(block.toggle.rich_text);
 			case "to_do": {
-				const todoText =
-					blockData?.rich_text
-						?.map((richText: RichTextItemResponse) => richText.plain_text || "")
-						.join("") || "";
-				const checked = blockData?.checked ? "[x]" : "[ ]";
+				const todoText = extractRichText(block.to_do.rich_text);
+				const checked = block.to_do.checked ? "[x]" : "[ ]";
 				return `${checked} ${todoText}`;
 			}
-
 			case "code":
-				return (
-					blockData?.rich_text
-						?.map((richText: RichTextItemResponse) => richText.plain_text || "")
-						.join("") || ""
-				);
-
+				return extractRichText(block.code.rich_text);
 			case "equation":
-				return blockData?.expression || "";
-
+				return block.equation.expression || "";
 			case "child_page":
-				return blockData?.title || "";
-
+				return block.child_page.title || "";
 			case "child_database":
-				return blockData?.title || "";
-
+				return block.child_database.title || "";
 			default:
 				return "";
 		}
