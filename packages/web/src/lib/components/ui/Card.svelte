@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { HTMLAttributes } from 'svelte/elements';
+	import { cn } from '$lib/components/utils';
 
 	interface Props extends HTMLAttributes<HTMLDivElement> {
 		variant?: 'default' | 'elevated' | 'outlined';
@@ -33,7 +34,7 @@
 
 	const hoverClasses = $derived(hover ? 'hover:shadow-md transition-shadow' : '');
 
-	const classes = $derived(`${baseClasses} ${variantClasses[variant]} ${paddingClasses[padding]} ${hoverClasses} ${className}`);
+	const classes = $derived(cn(baseClasses, variantClasses[variant], paddingClasses[padding], hoverClasses, className));
 </script>
 
 <div class={classes} {...restProps}>

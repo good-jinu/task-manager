@@ -90,94 +90,96 @@
   --visited-foreground: oklch(0.98 0.01 300);
 }
 
-.dark {
-  /* Primary - Indigo theme for dark mode */
-  --primary: oklch(0.65 0.15 264);
-  --primary-foreground: oklch(0.15 0.01 264);
-  --primary1: oklch(0.75 0.12 264);
-  --primary2: oklch(0.55 0.18 264);
-  --primary3: oklch(0.45 0.20 264);
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Primary - Indigo theme for dark mode */
+    --primary: oklch(0.65 0.15 264);
+    --primary-foreground: oklch(0.15 0.01 264);
+    --primary1: oklch(0.75 0.12 264);
+    --primary2: oklch(0.55 0.18 264);
+    --primary3: oklch(0.45 0.20 264);
 
-  /* Secondary - Gray theme for dark mode */
-  --secondary: oklch(0.55 0.01 264);
-  --secondary-foreground: oklch(0.15 0.01 264);
-  --secondary1: oklch(0.65 0.01 264);
-  --secondary2: oklch(0.45 0.01 264);
-  --secondary3: oklch(0.35 0.01 264);
+    /* Secondary - Gray theme for dark mode */
+    --secondary: oklch(0.55 0.01 264);
+    --secondary-foreground: oklch(0.15 0.01 264);
+    --secondary1: oklch(0.65 0.01 264);
+    --secondary2: oklch(0.45 0.01 264);
+    --secondary3: oklch(0.35 0.01 264);
 
-  /* Accent - Blue theme for dark mode */
-  --accent: oklch(0.65 0.15 240);
-  --accent-foreground: oklch(0.15 0.01 240);
-  --accent1: oklch(0.75 0.12 240);
-  --accent2: oklch(0.55 0.18 240);
-  --accent3: oklch(0.45 0.20 240);
+    /* Accent - Blue theme for dark mode */
+    --accent: oklch(0.65 0.15 240);
+    --accent-foreground: oklch(0.15 0.01 240);
+    --accent1: oklch(0.75 0.12 240);
+    --accent2: oklch(0.55 0.18 240);
+    --accent3: oklch(0.45 0.20 240);
 
-  /* Success - Green theme for dark mode */
-  --success: oklch(0.65 0.15 142);
-  --success-foreground: oklch(0.15 0.01 142);
-  --success1: oklch(0.75 0.12 142);
-  --success2: oklch(0.55 0.18 142);
-  --success3: oklch(0.45 0.20 142);
+    /* Success - Green theme for dark mode */
+    --success: oklch(0.65 0.15 142);
+    --success-foreground: oklch(0.15 0.01 142);
+    --success1: oklch(0.75 0.12 142);
+    --success2: oklch(0.55 0.18 142);
+    --success3: oklch(0.45 0.20 142);
 
-  /* Warning - Yellow theme for dark mode */
-  --warning: oklch(0.41 0.11 46);
-  --warning-foreground: oklch(0.99 0.02 95);
-  --warning1: oklch(0.51 0.13 46);
-  --warning2: oklch(0.31 0.09 46);
-  --warning3: oklch(0.25 0.07 46);
+    /* Warning - Yellow theme for dark mode */
+    --warning: oklch(0.41 0.11 46);
+    --warning-foreground: oklch(0.99 0.02 95);
+    --warning1: oklch(0.51 0.13 46);
+    --warning2: oklch(0.31 0.09 46);
+    --warning3: oklch(0.25 0.07 46);
 
-  /* Error - Red theme for dark mode */
-  --error: oklch(0.65 0.22 25);
-  --error-foreground: oklch(0.15 0.01 25);
-  --error1: oklch(0.75 0.18 25);
-  --error2: oklch(0.55 0.25 25);
-  --error3: oklch(0.45 0.28 25);
+    /* Error - Red theme for dark mode */
+    --error: oklch(0.65 0.22 25);
+    --error-foreground: oklch(0.15 0.01 25);
+    --error1: oklch(0.75 0.18 25);
+    --error2: oklch(0.55 0.25 25);
+    --error3: oklch(0.45 0.28 25);
 
-  /* Info - Cyan theme for dark mode */
-  --info: oklch(0.65 0.15 200);
-  --info-foreground: oklch(0.15 0.01 200);
-  --info1: oklch(0.75 0.12 200);
-  --info2: oklch(0.55 0.18 200);
-  --info3: oklch(0.45 0.20 200);
+    /* Info - Cyan theme for dark mode */
+    --info: oklch(0.65 0.15 200);
+    --info-foreground: oklch(0.15 0.01 200);
+    --info1: oklch(0.75 0.12 200);
+    --info2: oklch(0.55 0.18 200);
+    --info3: oklch(0.45 0.20 200);
 
-  /* Surface - Background colors for dark mode */
-  --surface: oklch(0.18 0.01 264);
-  --surface1: oklch(0.20 0.01 264);
-  --surface2: oklch(0.22 0.01 264);
-  --surface3: oklch(0.24 0.01 264);
+    /* Surface - Background colors for dark mode */
+    --surface: oklch(0.18 0.01 264);
+    --surface1: oklch(0.20 0.01 264);
+    --surface2: oklch(0.22 0.01 264);
+    --surface3: oklch(0.24 0.01 264);
 
-  /* Background - Main background colors for dark mode */
-  --background: oklch(0.15 0.01 264);
-  --background1: oklch(0.17 0.01 264);
-  --background2: oklch(0.19 0.01 264);
+    /* Background - Main background colors for dark mode */
+    --background: oklch(0.15 0.01 264);
+    --background1: oklch(0.17 0.01 264);
+    --background2: oklch(0.19 0.01 264);
 
-  /* Foreground - Text colors for dark mode */
-  --foreground: oklch(0.95 0.01 264);
-  --foreground-secondary: oklch(0.65 0.01 264);
-  --foreground1: oklch(0.85 0.01 264);
-  --foreground2: oklch(0.75 0.01 264);
+    /* Foreground - Text colors for dark mode */
+    --foreground: oklch(0.95 0.01 264);
+    --foreground-secondary: oklch(0.65 0.01 264);
+    --foreground1: oklch(0.85 0.01 264);
+    --foreground2: oklch(0.75 0.01 264);
 
-  /* Subtle - Muted colors for dark mode */
-  --subtle: oklch(0.35 0.01 264);
-  --subtle1: oklch(0.40 0.01 264);
-  --subtle2: oklch(0.45 0.01 264);
+    /* Subtle - Muted colors for dark mode */
+    --subtle: oklch(0.35 0.01 264);
+    --subtle1: oklch(0.40 0.01 264);
+    --subtle2: oklch(0.45 0.01 264);
 
-  /* Overlay - For modals and overlays in dark mode */
-  --overlay: oklch(0.05 0.01 264 / 0.7);
-  --overlay1: oklch(0.05 0.01 264 / 0.5);
-  --overlay2: oklch(0.05 0.01 264 / 0.8);
+    /* Overlay - For modals and overlays in dark mode */
+    --overlay: oklch(0.05 0.01 264 / 0.7);
+    --overlay1: oklch(0.05 0.01 264 / 0.5);
+    --overlay2: oklch(0.05 0.01 264 / 0.8);
 
-  /* Focus - For focus states in dark mode */
-  --focus: oklch(0.65 0.15 264);
-  --focus-ring: oklch(0.65 0.15 264 / 0.3);
+    /* Focus - For focus states in dark mode */
+    --focus: oklch(0.65 0.15 264);
+    --focus-ring: oklch(0.65 0.15 264 / 0.3);
 
-  /* Muted - For disabled states in dark mode */
-  --muted: oklch(0.45 0.01 264);
-  --muted-foreground: oklch(0.55 0.01 264);
+    /* Muted - For disabled states in dark mode */
+    --muted: oklch(0.45 0.01 264);
+    --muted-foreground: oklch(0.55 0.01 264);
 
-  /* Visited - For visited links in dark mode */
-  --visited: oklch(0.65 0.15 300);
-  --visited-foreground: oklch(0.15 0.01 300);
+    /* Visited - For visited links in dark mode */
+    --visited: oklch(0.65 0.15 300);
+    --visited-foreground: oklch(0.15 0.01 300);
+}
 }
 
 @theme inline {

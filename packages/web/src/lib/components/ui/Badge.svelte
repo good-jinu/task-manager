@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { HTMLAttributes } from 'svelte/elements';
+	import { cn } from '$lib/components/utils';
 
 	interface Props extends HTMLAttributes<HTMLSpanElement> {
 		variant?: 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info';
@@ -31,7 +32,7 @@
 		md: 'px-2.5 py-1 text-sm'
 	};
 
-	const classes = $derived(`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`);
+	const classes = $derived(cn(baseClasses, variantClasses[variant], sizeClasses[size], className));
 </script>
 
 <span class={classes} {...restProps}>

@@ -2,6 +2,7 @@
 	import type { AgentExecutionRecord, Database } from '$lib/types';
 	import { marked } from 'marked';
 	import { Card, Badge, Alert, LoadingSpinner, Button } from './ui';
+	import { KeyboardArrowDown, KeyboardArrowRight, ArrowRightAlt } from '$lib/components/icons';
 
 	interface Props {
 		execution: AgentExecutionRecord;
@@ -96,8 +97,8 @@
 					{/if}
 				</div>
 				{#if execution.result.pageUrl}
-					<Button href={execution.result.pageUrl} variant="primary" size="sm" class="flex-shrink-0">
-						Open in Notion →
+					<Button href={execution.result.pageUrl} variant="primary" size="sm" class="flex-shrink-0 flex items-center gap-1">
+						Open in Notion <ArrowRightAlt class="w-3 h-3" />
 					</Button>
 				{/if}
 			</div>
@@ -111,16 +112,12 @@
 
 	{#if execution.steps && execution.steps.length > 0}
 		<div>
-			<Button variant="outline" size="sm" onclick={onToggleExpanded} class="text-primary hover:text-primary1">
+			<Button variant="outline" size="sm" onclick={onToggleExpanded} class="text-primary hover:text-primary1 flex items-center gap-1">
 				{#if expanded}
-					<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-					</svg>
+					<KeyboardArrowDown class="w-4 h-4" />
 					Hide steps ({execution.steps.length})
 				{:else}
-					<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-					</svg>
+					<KeyboardArrowRight class="w-4 h-4" />
 					Show steps ({execution.steps.length})
 				{/if}
 			</Button>

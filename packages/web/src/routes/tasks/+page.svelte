@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { Warning, Spinner, Database as DatabaseIcon, Document, ArrowRightAlt } from '$lib/components/icons';
 
 	// Use any for the arrays since dates come as strings from API
 	let databases: any[] = [];
@@ -158,9 +159,7 @@
 			{#if error}
 				<div class="bg-error3 border border-error2 text-error px-4 py-3 rounded-lg mb-6">
 					<div class="flex items-center">
-						<svg class="w-5 h-5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-							<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-						</svg>
+						<Warning class="w-5 h-5 mr-2 flex-shrink-0" />
 						<span class="text-sm">{error}</span>
 					</div>
 				</div>
@@ -175,9 +174,9 @@
 					</div>
 					<a
 						href="/search"
-						class="bg-accent hover:bg-accent1 text-accent-foreground font-medium py-2.5 px-4 rounded-lg transition-colors duration-200 text-sm text-center"
+						class="bg-accent hover:bg-accent1 text-accent-foreground font-medium py-2.5 px-4 rounded-lg transition-colors duration-200 text-sm text-center flex items-center justify-center gap-2"
 					>
-						Search Tasks →
+						Search Tasks <ArrowRightAlt class="w-4 h-4" />
 					</a>
 				</div>
 			</div>
@@ -210,17 +209,12 @@
 					
 					{#if loading}
 						<div class="flex items-center justify-center py-12">
-							<svg class="animate-spin h-8 w-8 text-primary mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-							</svg>
+							<Spinner class="h-8 w-8 text-primary mr-3" />
 							<span class="text-foreground-secondary">Loading databases...</span>
 						</div>
 					{:else if databases.length === 0}
 						<div class="text-center py-12">
-							<svg class="mx-auto h-12 w-12 text-muted mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m0 0V9a2 2 0 012-2h2m0 0V6a2 2 0 012-2h2.586a1 1 0 01.707.293l2.414 2.414A1 1 0 0016 7.414V9a2 2 0 01-2 2h-2m0 0v2a2 2 0 002 2h2a2 2 0 002-2v-2"></path>
-							</svg>
+							<DatabaseIcon class="mx-auto h-12 w-12 text-muted mb-4" />
 							<h3 class="text-lg font-medium text-foreground mb-2">No databases found</h3>
 							<p class="text-foreground-secondary text-sm">Make sure you have databases in your Notion workspace and have granted access to this integration.</p>
 						</div>
@@ -256,9 +250,9 @@
 								href={selectedDatabase.url} 
 								target="_blank" 
 								rel="noopener noreferrer"
-								class="text-primary hover:text-primary1 underline text-sm"
+								class="text-primary hover:text-primary1 underline text-sm flex items-center gap-1"
 							>
-								Open in Notion →
+								Open in Notion <ArrowRightAlt class="w-3 h-3" />
 							</a>
 						</div>
 						<button
@@ -273,17 +267,15 @@
 
 					{#if loading}
 						<div class="flex items-center justify-center py-8">
-							<svg class="animate-spin h-6 w-6 text-primary mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+							<Spinner class="h-6 w-6 text-primary mr-3" />
+
 								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-							</svg>
+
 							<span class="text-foreground-secondary">Loading pages...</span>
 						</div>
 					{:else if pages.length === 0}
 						<div class="text-center py-8">
-							<svg class="mx-auto h-10 w-10 text-muted mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-							</svg>
+							<Document class="mx-auto h-10 w-10 text-muted mb-3" />
 							<h4 class="text-base font-medium text-foreground mb-1">No pages found</h4>
 							<p class="text-foreground-secondary text-sm">This database doesn't contain any pages yet.</p>
 						</div>
@@ -297,9 +289,9 @@
 											href={page.url} 
 											target="_blank" 
 											rel="noopener noreferrer"
-											class="text-primary hover:text-primary1 text-sm underline flex-shrink-0"
+											class="text-primary hover:text-primary1 text-sm underline flex-shrink-0 flex items-center gap-1"
 										>
-											Open →
+											Open <ArrowRightAlt class="w-3 h-3" />
 										</a>
 									</div>
 

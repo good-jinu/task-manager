@@ -28,7 +28,9 @@
 		"@notion-task-manager/core": "workspace:*",
 		"@notion-task-manager/db": "workspace:*",
 		"@notion-task-manager/notion": "workspace:*",
+		"clsx": "^2.1.1",
 		"marked": "^17.0.1",
-		"svelte-kit-sst": "^2.43.5"
+		"svelte-kit-sst": "^2.43.5",
+		"tailwind-merge": "^3.4.0"
 	}
 }

@@ -11,14 +11,14 @@
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 
-<div class="min-h-screen bg-gray-50">
+<div class="min-h-screen bg-background">
 	<!-- Navigation Header -->
-	<nav class="bg-white shadow-sm border-b border-gray-200">
+	<nav class="bg-surface shadow-sm border-b border-subtle">
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 			<div class="flex justify-between h-16">
 				<div class="flex items-center">
 					<a href="/" class="flex-shrink-0 flex items-center">
-						<h1 class="text-xl font-bold text-gray-900">Notion Task Manager</h1>
+						<h1 class="text-xl font-bold text-foreground">Notion Task Manager</h1>
 					</a>
 				</div>
 				
@@ -28,19 +28,19 @@
 						<div class="flex items-center space-x-4">
 							<a 
 								href="/tasks" 
-								class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+								class="text-foreground-secondary hover:text-foreground px-3 py-2 rounded-md text-sm font-medium"
 							>
 								Databases
 							</a>
 							<a 
 								href="/agent" 
-								class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+								class="text-foreground-secondary hover:text-foreground px-3 py-2 rounded-md text-sm font-medium"
 							>
 								Agent
 							</a>
 							<a 
 								href="/search" 
-								class="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+								class="text-foreground-secondary hover:text-foreground px-3 py-2 rounded-md text-sm font-medium"
 							>
 								Search Tasks
 							</a>
@@ -52,12 +52,12 @@
 										class="h-8 w-8 rounded-full"
 									/>
 								{/if}
-								<span class="text-sm text-gray-700">
+								<span class="text-sm text-foreground-secondary">
 									{session.user.name || session.user.email}
 								</span>
 								<button
 									onclick={() => signOut()}
-									class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium"
+									class="text-muted-foreground hover:text-foreground-secondary px-3 py-2 rounded-md text-sm font-medium"
 								>
 									Sign Out
 								</button>
@@ -67,7 +67,7 @@
 						<!-- Unauthenticated user navigation -->
 						<a 
 							href="/user/signin" 
-							class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+							class="bg-primary hover:bg-primary1 text-primary-foreground px-4 py-2 rounded-md text-sm font-medium"
 						>
 							Sign In
 						</a>
