@@ -159,7 +159,7 @@ export class NotionTaskManager {
 	/**
 	 * Create a new page in a Notion database
 	 * @param databaseId - The ID of the database to create the page in
-	 * @param properties - The properties for the new page (must include title)
+	 * @param properties - The properties for the new page (must include title, optionally content)
 	 * @returns The created NotionPage
 	 */
 	async createPage(
@@ -173,9 +173,7 @@ export class NotionTaskManager {
 			// The title property is handled specially as a rich text array
 			const notionProperties: Record<
 				string,
-				| { title: Array<{ text: { content: string } }> }
-				| { rich_text: Array<{ text: { content: string } }> }
-				| unknown
+				{ title: Array<{ text: { content: string } }> }
 			> = {
 				title: {
 					title: [
@@ -188,22 +186,35 @@ export class NotionTaskManager {
 				},
 			};
 
-			// Add any additional properties (excluding title which we've already handled)
-			for (const [key, value] of Object.entries(properties)) {
-				if (key !== "title") {
-					notionProperties[key] = value;
-				}
-			}
+			// Build the content blocks if content is provided
+			const children = properties.content
+				? properties.content
+						.split("\n")
+						.filter((p) => p.trim() !== "")
+						.map((paragraph) => ({
+							object: "block" as const,
+							type: "paragraph" as const,
+							paragraph: {
+								rich_text: [
+									{
+										type: "text" as const,
+										text: {
+											content: paragraph,
+										},
+									},
+								],
+							},
+						}))
+				: [];
 
 			const response = await client.pages.create({
 				parent: {
 					database_id: databaseId,
 				},
-				// Type assertion needed because Notion SDK has strict property types
-				// but we're building a dynamic properties object
 				properties: notionProperties as Parameters<
 					typeof client.pages.create
 				>[0]["properties"],
+				...(children.length > 0 && { children }),
 			});
 
 			if (!isFullPage(response)) {
@@ -235,9 +246,7 @@ export class NotionTaskManager {
 			// Build the properties object for the Notion API
 			const notionProperties: Record<
 				string,
-				| { title: Array<{ text: { content: string } }> }
-				| { rich_text: Array<{ text: { content: string } }> }
-				| unknown
+				{ title: Array<{ text: { content: string } }> }
 			> = {};
 
 			// Handle title property specially
@@ -253,17 +262,8 @@ export class NotionTaskManager {
 				};
 			}
 
-			// Add any additional properties (excluding title which we've already handled)
-			for (const [key, value] of Object.entries(properties)) {
-				if (key !== "title") {
-					notionProperties[key] = value;
-				}
-			}
-
 			const response = await client.pages.update({
 				page_id: pageId,
-				// Type assertion needed because Notion SDK has strict property types
-				// but we're building a dynamic properties object
 				properties: notionProperties as Parameters<
 					typeof client.pages.update
 				>[0]["properties"],
@@ -271,6 +271,11 @@ export class NotionTaskManager {
 
 			if (!isFullPage(response)) {
 				throw new Error("Failed to update page: incomplete response");
+			}
+
+			// If content is provided, update the page content separately
+			if (properties.content !== undefined) {
+				await this.updatePageContent(pageId, properties.content);
 			}
 
 			return this.mapNotionPageToInterface(response);

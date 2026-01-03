@@ -31,5 +31,5 @@ export interface DatabaseConfig {
  */
 export interface PageProperties {
 	title: string;
-	[key: string]: unknown;
+	content?: string;
 }

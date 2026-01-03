@@ -57,20 +57,30 @@ export function createExecutorFactory(
 		return async (input: I) => {
 			const mergedInput = { ...toolCommonArgs, ...input };
 
+			// Helper function to safely serialize objects for DynamoDB
+			const safeSerialize = (obj: unknown): Record<string, unknown> => {
+				try {
+					return JSON.parse(JSON.stringify(obj));
+				} catch {
+					return { serialized: String(obj) };
+				}
+			};
+
 			try {
 				const output = await params.func(mergedInput);
 				onStepComplete?.({
 					stepId: crypto.randomUUID(),
 					toolName: params.func.name,
-					input: mergedInput as Record<string, unknown>,
-					output: output as Record<string, unknown>,
+					input: safeSerialize(input),
+					output: safeSerialize(output),
 					timestamp: new Date().toISOString(),
 				});
+				return output;
 			} catch (error) {
 				onStepComplete?.({
 					stepId: crypto.randomUUID(),
 					toolName: params.func.name,
-					input: mergedInput as Record<string, unknown>,
+					input: safeSerialize(input),
 					error: (error as Error).message,
 					timestamp: new Date().toISOString(),
 				});
@@ -92,11 +102,10 @@ export function createExecutorFactory(
 					"Search for existing pages in the Notion database that match the query. Always call this first to check for existing similar tasks before creating a new one.",
 				inputSchema: searchPagesInputSchema,
 				execute: async (input: SearchPagesInput) => {
-					return (
-						await funcWrapper({
-							func: executeSearchPages,
-						})
-					)({ input });
+					const wrapper = await funcWrapper({
+						func: executeSearchPages,
+					});
+					return await wrapper({ input });
 				},
 			};
 		}
@@ -107,11 +116,10 @@ export function createExecutorFactory(
 					"Create a new page in the Notion database. Only use this if search_pages found no similar existing pages.",
 				inputSchema: createPageInputSchema,
 				execute: async (input: CreatePageInput) => {
-					return (
-						await funcWrapper({
-							func: executeCreatePage,
-						})
-					)({ input });
+					const wrapper = await funcWrapper({
+						func: executeCreatePage,
+					});
+					return await wrapper({ input });
 				},
 			};
 		}
@@ -122,11 +130,10 @@ export function createExecutorFactory(
 					"Update the content of an existing page in the Notion database. Use this when search_pages found a similar page that should be updated with new information or additional content.",
 				inputSchema: updatePageInputSchema,
 				execute: async (input: UpdatePageInput) => {
-					return (
-						await funcWrapper({
-							func: executeUpdatePage,
-						})
-					)({ input });
+					const wrapper = await funcWrapper({
+						func: executeUpdatePage,
+					});
+					return await wrapper({ input });
 				},
 			};
 		}

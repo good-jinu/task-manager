@@ -3,10 +3,10 @@ import type { ToolCommonArgs } from "./common";
 
 export const createPageInputSchema = z.object({
 	title: z.string().describe("The title for the new page"),
-	properties: z
-		.record(z.unknown())
+	content: z
+		.string()
 		.optional()
-		.describe("Additional properties for the page"),
+		.describe("The content for the page as plain text"),
 });
 
 export type CreatePageInput = z.infer<typeof createPageInputSchema>;
@@ -33,7 +33,7 @@ export async function executeCreatePage(
 	try {
 		const page = await notionManager.createPage(databaseId, {
 			title: input.title,
-			...input.properties,
+			content: input.content,
 		});
 
 		const result = {
