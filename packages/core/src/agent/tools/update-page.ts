@@ -3,9 +3,13 @@ import type { ToolCommonArgs } from "./common";
 
 export const updatePageInputSchema = z.object({
 	pageId: z.string().describe("The ID of the page to update"),
+	title: z.string().optional().describe("New title for the page (optional)"),
 	content: z
 		.string()
-		.describe("New content for the page (replaces existing content)"),
+		.optional()
+		.describe(
+			"New content for the page in markdown format (optional, replaces existing content)",
+		),
 });
 
 export type UpdatePageInput = z.infer<typeof updatePageInputSchema>;
@@ -27,8 +31,9 @@ export async function executeUpdatePage(
 	}
 
 	try {
-		const page = await notionManager.updatePageContent(
+		const page = await notionManager.updatePageWithMarkdown(
 			input.pageId,
+			input.title,
 			input.content,
 		);
 
@@ -44,6 +49,6 @@ export async function executeUpdatePage(
 			error instanceof Error ? error.message : "Unknown error";
 
 		// Re-throw with enhanced error message for the agent to handle
-		throw new Error(`Failed to update page content: ${errorMessage}`);
+		throw new Error(`Failed to update page: ${errorMessage}`);
 	}
 }

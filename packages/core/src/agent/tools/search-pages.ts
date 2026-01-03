@@ -20,9 +20,7 @@ export interface SearchPagesOutput {
 	pages: Array<{
 		id: string;
 		title: string;
-		url: string;
 		content: string;
-		properties: Record<string, unknown>;
 	}>;
 }
 
@@ -66,18 +64,14 @@ export async function executeSearchPages(
 					return {
 						id: page.id,
 						title: page.title,
-						url: page.url,
 						content: content,
-						properties: page.properties as Record<string, unknown>,
 					};
 				} catch (_error) {
 					// If content fetch fails, return page without content
 					return {
 						id: page.id,
 						title: page.title,
-						url: page.url,
 						content: "",
-						properties: page.properties as Record<string, unknown>,
 					};
 				}
 			}),

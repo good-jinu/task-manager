@@ -5,6 +5,7 @@ import {
 	isNotionClientError,
 } from "@notionhq/client";
 import type {
+	BlockObjectRequest,
 	BlockObjectResponse,
 	DatabaseObjectResponse,
 	GetDatabaseResponse,
@@ -233,51 +234,54 @@ export class NotionTaskManager {
 	}
 
 	/**
-	 * Update an existing Notion page
+	 * Update an existing Notion page with title and markdown content
 	 * @param pageId - The ID of the page to update
-	 * @param properties - The properties to update (partial update supported)
+	 * @param title - The new title for the page (optional)
+	 * @param content - The new content as markdown (optional)
 	 * @returns The updated NotionPage
 	 */
-	async updatePage(
+	async updatePageWithMarkdown(
 		pageId: string,
-		properties: Partial<PageProperties>,
+		title?: string,
+		content?: string,
 	): Promise<NotionPage> {
 		try {
 			const client = await this.getClient();
 
-			// Build the properties object for the Notion API
-			const notionProperties: Record<
-				string,
-				{ title: Array<{ text: { content: string } }> }
-			> = {};
-
-			// Handle title property specially
-			if (properties.title !== undefined) {
-				notionProperties.title = {
-					title: [
-						{
-							text: {
-								content: properties.title,
+			// Update title if provided
+			if (title !== undefined) {
+				const notionProperties = {
+					title: {
+						title: [
+							{
+								text: {
+									content: title,
+								},
 							},
-						},
-					],
+						],
+					},
 				};
+
+				await client.pages.update({
+					page_id: pageId,
+					properties: notionProperties as Parameters<
+						typeof client.pages.update
+					>[0]["properties"],
+				});
 			}
 
-			const response = await client.pages.update({
+			// Update content if provided
+			if (content !== undefined) {
+				await this.updatePageContentFromMarkdown(pageId, content);
+			}
+
+			// Get the updated page to return
+			const response = await client.pages.retrieve({
 				page_id: pageId,
-				properties: notionProperties as Parameters<
-					typeof client.pages.update
-				>[0]["properties"],
 			});
 
 			if (!isFullPage(response)) {
-				throw new Error("Failed to update page: incomplete response");
-			}
-
-			// If content is provided, update the page content separately
-			if (properties.content !== undefined) {
-				await this.updatePageContent(pageId, properties.content);
+				throw new Error("Failed to retrieve updated page: incomplete response");
 			}
 
 			return this.mapNotionPageToInterface(response);
@@ -287,6 +291,242 @@ export class NotionTaskManager {
 			}
 			throw error;
 		}
+	}
+
+	/**
+	 * Update the content (blocks) of an existing Notion page from markdown
+	 * This replaces all existing content with the new content converted from markdown
+	 * @param pageId - The ID of the page to update
+	 * @param markdown - The new content as markdown string
+	 * @returns void
+	 */
+	async updatePageContentFromMarkdown(
+		pageId: string,
+		markdown: string,
+	): Promise<void> {
+		try {
+			const client = await this.getClient();
+
+			// First, get all existing blocks in the page
+			const existingBlocks = await client.blocks.children.list({
+				block_id: pageId,
+			});
+
+			// Delete all existing blocks
+			for (const block of existingBlocks.results) {
+				if ("id" in block) {
+					await client.blocks.delete({
+						block_id: block.id,
+					});
+				}
+			}
+
+			// Convert markdown to Notion blocks
+			const blocks = this.convertMarkdownToBlocks(markdown);
+
+			// Add new blocks to the page
+			if (blocks.length > 0) {
+				await client.blocks.children.append({
+					block_id: pageId,
+					children: blocks,
+				});
+			}
+		} catch (error) {
+			if (isNotionClientError(error)) {
+				throw new Error(
+					`Failed to update page content from markdown: ${error.message}`,
+				);
+			}
+			throw error;
+		}
+	}
+
+	/**
+	 * Convert markdown text to Notion blocks
+	 * @param markdown - The markdown content to convert
+	 * @returns Array of Notion block objects
+	 */
+	private convertMarkdownToBlocks(markdown: string): BlockObjectRequest[] {
+		const lines = markdown.split("\n");
+		const blocks: BlockObjectRequest[] = [];
+
+		for (let i = 0; i < lines.length; i++) {
+			const line = lines[i];
+
+			// Skip empty lines
+			if (line.trim() === "") {
+				continue;
+			}
+
+			// Handle headings
+			if (line.startsWith("### ")) {
+				blocks.push({
+					object: "block",
+					type: "heading_3",
+					heading_3: {
+						rich_text: [
+							{
+								type: "text",
+								text: {
+									content: line.substring(4),
+								},
+							},
+						],
+					},
+				});
+			} else if (line.startsWith("## ")) {
+				blocks.push({
+					object: "block",
+					type: "heading_2",
+					heading_2: {
+						rich_text: [
+							{
+								type: "text",
+								text: {
+									content: line.substring(3),
+								},
+							},
+						],
+					},
+				});
+			} else if (line.startsWith("# ")) {
+				blocks.push({
+					object: "block",
+					type: "heading_1",
+					heading_1: {
+						rich_text: [
+							{
+								type: "text",
+								text: {
+									content: line.substring(2),
+								},
+							},
+						],
+					},
+				});
+			}
+			// Handle bulleted lists
+			else if (line.startsWith("- ") || line.startsWith("* ")) {
+				blocks.push({
+					object: "block",
+					type: "bulleted_list_item",
+					bulleted_list_item: {
+						rich_text: [
+							{
+								type: "text",
+								text: {
+									content: line.substring(2),
+								},
+							},
+						],
+					},
+				});
+			}
+			// Handle numbered lists
+			else if (/^\d+\.\s/.test(line)) {
+				const match = line.match(/^\d+\.\s(.*)$/);
+				if (match) {
+					blocks.push({
+						object: "block",
+						type: "numbered_list_item",
+						numbered_list_item: {
+							rich_text: [
+								{
+									type: "text",
+									text: {
+										content: match[1],
+									},
+								},
+							],
+						},
+					});
+				}
+			}
+			// Handle todo items
+			else if (line.startsWith("- [ ] ") || line.startsWith("- [x] ")) {
+				const checked = line.startsWith("- [x] ");
+				const content = line.substring(6);
+				blocks.push({
+					object: "block",
+					type: "to_do",
+					to_do: {
+						rich_text: [
+							{
+								type: "text",
+								text: {
+									content: content,
+								},
+							},
+						],
+						checked: checked,
+					},
+				});
+			}
+			// Handle code blocks
+			else if (line.startsWith("```")) {
+				const language = line.substring(3).trim() || "plain text";
+				const codeLines: string[] = [];
+				i++; // Move to next line
+
+				// Collect code lines until closing ```
+				while (i < lines.length && !lines[i].startsWith("```")) {
+					codeLines.push(lines[i]);
+					i++;
+				}
+
+				blocks.push({
+					object: "block",
+					type: "code",
+					code: {
+						rich_text: [
+							{
+								type: "text",
+								text: {
+									content: codeLines.join("\n"),
+								},
+							},
+						],
+						language: language as "c" | "java" | "typescript",
+					},
+				});
+			}
+			// Handle quotes
+			else if (line.startsWith("> ")) {
+				blocks.push({
+					object: "block",
+					type: "quote",
+					quote: {
+						rich_text: [
+							{
+								type: "text",
+								text: {
+									content: line.substring(2),
+								},
+							},
+						],
+					},
+				});
+			}
+			// Handle regular paragraphs
+			else {
+				blocks.push({
+					object: "block",
+					type: "paragraph",
+					paragraph: {
+						rich_text: [
+							{
+								type: "text",
+								text: {
+									content: line,
+								},
+							},
+						],
+					},
+				});
+			}
+		}
+
+		return blocks;
 	}
 
 	/**

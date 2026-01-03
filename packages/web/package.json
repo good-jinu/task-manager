@@ -16,6 +16,7 @@
 		"@sveltejs/kit": "^2.49.1",
 		"@sveltejs/vite-plugin-svelte": "^6.2.1",
 		"@tailwindcss/vite": "^4.1.17",
+		"@types/marked": "^6.0.0",
 		"svelte": "^5.45.6",
 		"svelte-check": "^4.3.4",
 		"tailwindcss": "^4.1.17",
@@ -27,6 +28,7 @@
 		"@notion-task-manager/core": "workspace:*",
 		"@notion-task-manager/db": "workspace:*",
 		"@notion-task-manager/notion": "workspace:*",
+		"marked": "^17.0.1",
 		"svelte-kit-sst": "^2.43.5"
 	}
 }
