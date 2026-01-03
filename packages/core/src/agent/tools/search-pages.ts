@@ -21,6 +21,7 @@ export interface SearchPagesOutput {
 		id: string;
 		title: string;
 		url: string;
+		content: string;
 		properties: Record<string, unknown>;
 	}>;
 }
@@ -57,13 +58,33 @@ export async function executeSearchPages(
 		const uniquePages = Array.from(allPages.values());
 		const limitedPages = uniquePages.slice(0, input.maxResults || 10);
 
+		// Fetch content for each page
+		const pagesWithContent = await Promise.all(
+			limitedPages.map(async (page) => {
+				try {
+					const content = await notionManager.getPageContent(page.id);
+					return {
+						id: page.id,
+						title: page.title,
+						url: page.url,
+						content: content,
+						properties: page.properties as Record<string, unknown>,
+					};
+				} catch (_error) {
+					// If content fetch fails, return page without content
+					return {
+						id: page.id,
+						title: page.title,
+						url: page.url,
+						content: "",
+						properties: page.properties as Record<string, unknown>,
+					};
+				}
+			}),
+		);
+
 		const result = {
-			pages: limitedPages.map((page) => ({
-				id: page.id,
-				title: page.title,
-				url: page.url,
-				properties: page.properties as Record<string, unknown>,
-			})),
+			pages: pagesWithContent,
 		};
 
 		return result;

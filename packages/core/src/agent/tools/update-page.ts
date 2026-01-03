@@ -13,6 +13,7 @@ export type UpdatePageInput = z.infer<typeof updatePageInputSchema>;
 export interface UpdatePageOutput {
 	pageId: string;
 	pageUrl: string;
+	pageTitle: string;
 }
 
 export async function executeUpdatePage(
@@ -34,6 +35,7 @@ export async function executeUpdatePage(
 		const result = {
 			pageId: page.id,
 			pageUrl: page.url,
+			pageTitle: page.title,
 		};
 
 		return result;

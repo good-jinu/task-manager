@@ -38,10 +38,47 @@ export class TaskManagerAgent {
 	async execute(params: AgentExecuteParams): Promise<AgentExecutionResult> {
 		const { query, databaseId, notionManager, onStepComplete } = params;
 
+		// Track what actions were performed
+		let lastAction: "created" | "updated" | "none" = "none";
+		let lastPageId: string | undefined;
+		let lastPageUrl: string | undefined;
+		let lastPageTitle: string | undefined;
+
+		// Wrap onStepComplete to track actions
+		const wrappedOnStepComplete = async (step: ExecutionStep) => {
+			// Track the action based on tool name and output
+			if (step.toolName === "executeCreatePage" && step.output) {
+				lastAction = "created";
+				const output = step.output as {
+					pageId?: string;
+					pageUrl?: string;
+					pageTitle?: string;
+				};
+				lastPageId = output.pageId;
+				lastPageUrl = output.pageUrl;
+				lastPageTitle = output.pageTitle;
+			} else if (step.toolName === "executeUpdatePage" && step.output) {
+				lastAction = "updated";
+				const output = step.output as {
+					pageId?: string;
+					pageUrl?: string;
+					pageTitle?: string;
+				};
+				lastPageId = output.pageId;
+				lastPageUrl = output.pageUrl;
+				lastPageTitle = output.pageTitle;
+			}
+
+			// Call the original callback
+			if (onStepComplete) {
+				await onStepComplete(step);
+			}
+		};
+
 		const factory = createExecutorFactory(
 			notionManager,
 			databaseId,
-			onStepComplete,
+			wrappedOnStepComplete,
 		);
 
 		try {
@@ -84,7 +121,10 @@ First search for existing similar tasks, then decide whether to create a new tas
 			});
 
 			return {
-				action: "none",
+				action: lastAction,
+				pageId: lastPageId,
+				pageTitle: lastPageTitle,
+				pageUrl: lastPageUrl,
 				reasoning: result.text || "Task processed successfully",
 			};
 		} catch (error) {

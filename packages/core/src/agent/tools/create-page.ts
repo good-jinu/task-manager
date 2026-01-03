@@ -14,6 +14,7 @@ export type CreatePageInput = z.infer<typeof createPageInputSchema>;
 export interface CreatePageOutput {
 	pageId: string;
 	pageUrl: string;
+	pageTitle: string;
 }
 
 export async function executeCreatePage(
@@ -39,6 +40,7 @@ export async function executeCreatePage(
 		const result = {
 			pageId: page.id,
 			pageUrl: page.url,
+			pageTitle: page.title,
 		};
 
 		return result;

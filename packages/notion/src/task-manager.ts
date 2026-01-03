@@ -5,9 +5,11 @@ import {
 	isNotionClientError,
 } from "@notionhq/client";
 import type {
+	BlockObjectResponse,
 	DatabaseObjectResponse,
 	GetDatabaseResponse,
 	PageObjectResponse,
+	RichTextItemResponse,
 } from "@notionhq/client/build/src/api-endpoints";
 import type { NotionAuthClient } from "./auth-client";
 import type { NotionDatabase, NotionPage, PageProperties } from "./types";
@@ -355,6 +357,110 @@ export class NotionTaskManager {
 				throw new Error(`Failed to update page content: ${error.message}`);
 			}
 			throw error;
+		}
+	}
+
+	/**
+	 * Get the text content of a Notion page by retrieving its child blocks
+	 * @param pageId - The ID of the page to get content from
+	 * @returns The text content of the page as a string
+	 */
+	async getPageContent(pageId: string): Promise<string> {
+		try {
+			const client = await this.getClient();
+			const response = await client.blocks.children.list({
+				block_id: pageId,
+			});
+
+			const contentParts: string[] = [];
+
+			for (const block of response.results) {
+				if ("type" in block) {
+					const textContent = this.extractTextFromBlock(block);
+					if (textContent) {
+						contentParts.push(textContent);
+					}
+				}
+			}
+
+			return contentParts.join("\n");
+		} catch (error) {
+			if (isNotionClientError(error)) {
+				throw new Error(`Failed to get page content: ${error.message}`);
+			}
+			throw error;
+		}
+	}
+
+	/**
+	 * Extract text content from a Notion block
+	 * @param block - The block to extract text from
+	 * @returns The text content of the block
+	 */
+	private extractTextFromBlock(block: BlockObjectResponse): string {
+		if (!block.type) return "";
+
+		const blockType = block.type;
+		let blockData: {
+			rich_text?: RichTextItemResponse[] | RichTextItemResponse;
+			expression?: string;
+			title?: string;
+		} = {};
+		if (blockType in block) {
+			blockData = block[blockType];
+		}
+
+		// Handle blocks that have rich_text property
+		if (blockData?.rich_text && Array.isArray(blockData.rich_text)) {
+			return blockData.rich_text
+				.map((richText: RichTextItemResponse) => richText.plain_text || "")
+				.join("");
+		}
+
+		// Handle specific block types
+		switch (blockType) {
+			case "paragraph":
+			case "heading_1":
+			case "heading_2":
+			case "heading_3":
+			case "bulleted_list_item":
+			case "numbered_list_item":
+			case "quote":
+			case "callout":
+			case "toggle":
+				return (
+					blockData?.rich_text
+						?.map((richText: RichTextItemResponse) => richText.plain_text || "")
+						.join("") || ""
+				);
+
+			case "to_do": {
+				const todoText =
+					blockData?.rich_text
+						?.map((richText: RichTextItemResponse) => richText.plain_text || "")
+						.join("") || "";
+				const checked = blockData?.checked ? "[x]" : "[ ]";
+				return `${checked} ${todoText}`;
+			}
+
+			case "code":
+				return (
+					blockData?.rich_text
+						?.map((richText: RichTextItemResponse) => richText.plain_text || "")
+						.join("") || ""
+				);
+
+			case "equation":
+				return blockData?.expression || "";
+
+			case "child_page":
+				return blockData?.title || "";
+
+			case "child_database":
+				return blockData?.title || "";
+
+			default:
+				return "";
 		}
 	}
 
