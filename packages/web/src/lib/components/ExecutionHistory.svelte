@@ -18,7 +18,7 @@
 
 <Card variant="elevated">
 	<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6">
-		<h2 class="text-lg font-semibold text-foreground mb-2 sm:mb-0">Execution History</h2>
+		<h2 class="text-lg font-semibold text-foreground-base mb-2 sm:mb-0">Execution History</h2>
 		{#if hasPendingExecutions}
 			<Badge variant="warning" class="flex items-center">
 				<Spinner class="h-3 w-3 mr-2" />

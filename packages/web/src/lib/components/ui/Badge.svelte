@@ -18,13 +18,13 @@
 	const baseClasses = 'inline-flex items-center font-medium rounded-full';
 	
 	const variantClasses = {
-		default: 'bg-surface2 text-foreground-secondary',
-		primary: 'bg-primary3 text-primary',
-		secondary: 'bg-secondary3 text-secondary',
-		success: 'bg-success3 text-success',
-		warning: 'bg-warning3 text-warning',
-		error: 'bg-error3 text-error',
-		info: 'bg-info3 text-info'
+		default: 'bg-surface-muted text-foreground-secondary',
+		primary: 'bg-primary-icon-bg text-primary',
+		secondary: 'bg-secondary-icon-bg text-secondary',
+		success: 'bg-success-alert-bg text-success',
+		warning: 'bg-warning-alert-bg text-warning',
+		error: 'bg-error-alert-bg text-error',
+		info: 'bg-info-alert-bg text-info'
 	};
 
 	const sizeClasses = {

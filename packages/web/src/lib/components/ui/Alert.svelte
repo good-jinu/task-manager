@@ -21,10 +21,10 @@
 	}: Props = $props();
 
 	const variantClasses = {
-		info: 'bg-info3 border-info2 text-info',
-		success: 'bg-success3 border-success2 text-success',
-		warning: 'bg-warning3 border-warning2 text-warning',
-		error: 'bg-error3 border-error2 text-error'
+		info: 'bg-info-alert-bg border-info-border text-info',
+		success: 'bg-success-alert-bg border-success-border text-success',
+		warning: 'bg-warning-alert-bg border-warning-border text-warning',
+		error: 'bg-error-alert-bg border-error-border text-error'
 	};
 
 	const iconComponents = {

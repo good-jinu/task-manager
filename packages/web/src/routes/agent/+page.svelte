@@ -127,12 +127,12 @@
 	<meta name="description" content="AI-powered task management agent that intelligently creates or updates Notion tasks." />
 </svelte:head>
 
-<div class="min-h-screen bg-background">
+<div class="min-h-screen bg-page-bg">
 	<div class="container mx-auto px-4 py-6 sm:py-8">
 		<div class="max-w-6xl mx-auto">
 			<!-- Header -->
 			<div class="text-center mb-8">
-				<h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-3">Task Manager Agent</h1>
+				<h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground-base mb-3">Task Manager Agent</h1>
 				<p class="text-foreground-secondary text-sm sm:text-base max-w-2xl mx-auto">
 					Describe your task in natural language. The agent will search for similar existing tasks and either update them or create a new one.
 				</p>

@@ -20,9 +20,9 @@
 	const baseClasses = 'rounded-xl border';
 	
 	const variantClasses = {
-		default: 'bg-surface border-subtle',
-		elevated: 'bg-surface shadow-sm border-subtle',
-		outlined: 'bg-surface border-subtle1'
+		default: 'bg-card-bg border-subtle-base',
+		elevated: 'bg-card-bg shadow-sm border-subtle-base',
+		outlined: 'bg-card-bg border-subtle-hover'
 	};
 
 	const paddingClasses = {

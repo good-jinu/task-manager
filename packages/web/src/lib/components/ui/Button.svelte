@@ -30,13 +30,13 @@
 	const baseClasses = 'font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-focus inline-flex items-center justify-center';
 	
 	const variantClasses = {
-		primary: 'bg-primary hover:bg-primary1 text-primary-foreground',
-		secondary: 'bg-secondary hover:bg-secondary1 text-secondary-foreground',
-		accent: 'bg-accent hover:bg-accent1 text-accent-foreground',
-		success: 'bg-success hover:bg-success1 text-success-foreground',
-		warning: 'bg-warning hover:bg-warning1 text-warning-foreground',
-		error: 'bg-error hover:bg-error1 text-error-foreground',
-		outline: 'border border-subtle hover:border-subtle1 text-foreground1 hover:bg-surface1'
+		primary: 'bg-primary hover:bg-primary-button-hover text-primary-foreground',
+		secondary: 'bg-secondary hover:bg-secondary-button-hover text-secondary-foreground',
+		accent: 'bg-accent hover:bg-accent-button-hover text-accent-foreground',
+		success: 'bg-success hover:bg-success-button-hover text-success-foreground',
+		warning: 'bg-warning hover:bg-warning-button-hover text-warning-foreground',
+		error: 'bg-error hover:bg-error-button-hover text-error-foreground',
+		outline: 'border border-subtle-base hover:border-subtle-hover text-foreground-emphasis hover:bg-card-hover-bg'
 	};
 
 	const sizeClasses = {

@@ -40,10 +40,10 @@
 	<title>Authentication Error - Notion Task Manager</title>
 </svelte:head>
 
-<div class="min-h-screen flex items-center justify-center bg-background py-12 px-4 sm:px-6 lg:px-8">
+<div class="min-h-screen flex items-center justify-center bg-page-bg py-12 px-4 sm:px-6 lg:px-8">
 	<div class="max-w-md w-full space-y-8">
 		<div>
-			<h2 class="mt-6 text-center text-3xl font-extrabold text-foreground">
+			<h2 class="mt-6 text-center text-3xl font-extrabold text-foreground-base">
 				Authentication Error
 			</h2>
 			<Alert variant="error" title="Authentication Failed" class="mt-4">

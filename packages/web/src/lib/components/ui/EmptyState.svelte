@@ -37,9 +37,9 @@
 
 <div class={classes} {...restProps}>
 	{#if IconComponent}
-		<IconComponent class="mx-auto h-12 w-12 text-muted mb-4" />
+		<IconComponent class="mx-auto h-12 w-12 text-muted-foreground mb-4" />
 	{/if}
-	<h3 class="text-lg font-medium text-foreground mb-2">{title}</h3>
+	<h3 class="text-lg font-medium text-foreground-base mb-2">{title}</h3>
 	{#if description}
 		<p class="text-foreground-secondary text-sm mb-4">{description}</p>
 	{/if}
@@ -47,7 +47,7 @@
 		{#if action.href}
 			<a
 				href={action.href}
-				class="bg-primary hover:bg-primary1 text-primary-foreground font-medium py-2 px-4 rounded-lg transition-colors duration-200 inline-block"
+				class="bg-primary hover:bg-primary-button-hover text-primary-foreground font-medium py-2 px-4 rounded-lg transition-colors duration-200 inline-block"
 			>
 				{action.label}
 			</a>
@@ -55,7 +55,7 @@
 			<button
 				type="button"
 				onclick={action.onclick}
-				class="bg-primary hover:bg-primary1 text-primary-foreground font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+				class="bg-primary hover:bg-primary-button-hover text-primary-foreground font-medium py-2 px-4 rounded-lg transition-colors duration-200"
 			>
 				{action.label}
 			</button>

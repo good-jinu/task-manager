@@ -113,7 +113,7 @@ Example 2: User says "Fix login authentication timeout on iOS app"
 When searching, use multiple relevant keywords from the user's task description.
 When creating, use a clear, actionable title.
 When updating, append or integrate the new information into the existing page content.`,
-				prompt: `Process this task request and manage it in the Notion database (ID: ${databaseId}):
+				prompt: `Process this task request and manage it in the Notion database:
 
 "${query}"
 

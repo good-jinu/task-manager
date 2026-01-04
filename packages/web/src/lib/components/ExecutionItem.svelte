@@ -67,12 +67,12 @@
 	<div class="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-3 gap-2">
 		<div class="flex-1 min-w-0">
 			<div class="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-				<h3 class="text-sm font-medium text-foreground truncate pr-2">{execution.query}</h3>
+				<h3 class="text-sm font-medium text-foreground-base truncate pr-2">{execution.query}</h3>
 				<Badge variant={getStatusVariant(execution.status)} class="flex-shrink-0">
 					{getStatusIcon(execution.status)} {execution.status}
 				</Badge>
 			</div>
-			<div class="text-xs text-muted mb-1">Database: {getDatabaseName(execution.databaseId)}</div>
+			<div class="text-xs text-muted-foreground mb-1">Database: {getDatabaseName(execution.databaseId)}</div>
 		</div>
 		<div class="text-xs text-muted-foreground flex-shrink-0">{formatDateTime(execution.createdAt)}</div>
 	</div>
@@ -113,7 +113,7 @@
 
 	{#if execution.steps && execution.steps.length > 0}
 		<div>
-			<Button variant="outline" size="sm" onclick={onToggleExpanded} class="text-primary hover:text-primary1 flex items-center gap-1">
+			<Button variant="outline" size="sm" onclick={onToggleExpanded} class="text-primary hover:text-primary-button-hover flex items-center gap-1">
 				{#if expanded}
 					<KeyboardArrowDown class="w-4 h-4" />
 					Hide steps ({execution.steps.length})
@@ -126,9 +126,9 @@
 			{#if expanded}
 				<div class="mt-3 space-y-2">
 					{#each execution.steps as step, index}
-						<Card padding="sm" class="text-sm border-l-4 {step.error ? 'border-error1' : 'border-primary1'}">
+						<Card padding="sm" class="text-sm border-l-4 {step.error ? 'border-error-button-hover' : 'border-primary-button-hover'}">
 							<div class="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2 gap-1">
-								<span class="font-medium text-foreground1">{index + 1}. {getToolLabel(step.toolName)}</span>
+								<span class="font-medium text-foreground-emphasis">{index + 1}. {getToolLabel(step.toolName)}</span>
 								<span class="text-xs text-muted-foreground">{new Date(step.timestamp).toLocaleTimeString()}</span>
 							</div>
 							{#if step.input && Object.keys(step.input).length > 0}
