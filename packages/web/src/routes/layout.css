@@ -22,16 +22,21 @@
 
   /* Success */
   --success: oklch(0.55 0.15 142);
+  --success-foreground: oklch(0.98 0.01 142);
   --success-alert-bg: oklch(0.75 0.08 142);
   --success-border: oklch(0.6 0.13 142);
+  --success-button-hover: oklch(0.45 0.18 142);
 
   /* Warning */
   --warning: oklch(0.84 0.16 84);
+  --warning-foreground: oklch(0.15 0.01 84);
   --warning-alert-bg: oklch(0.92 0.10 84);
   --warning-border: oklch(0.78 0.15 84);
+  --warning-button-hover: oklch(0.78 0.18 84);
 
   /* Error */
   --error: oklch(0.55 0.22 25);
+  --error-foreground: oklch(0.98 0.01 25);
   --error-alert-bg: oklch(0.75 0.12 25);
   --error-button-hover: oklch(0.45 0.25 25);
   --error-border: oklch(0.6 0.2 25);
@@ -97,16 +102,21 @@
 
     /* Success */
     --success: oklch(0.65 0.15 142);
+    --success-foreground: oklch(0.15 0.01 142);
     --success-alert-bg: oklch(0.45 0.20 142);
     --success-border: oklch(0.6 0.15 142);
+    --success-button-hover: oklch(0.75 0.12 142);
 
     /* Warning */
     --warning: oklch(0.41 0.11 46);
+    --warning-foreground: oklch(0.95 0.01 46);
     --warning-alert-bg: oklch(0.25 0.07 46);
     --warning-border: oklch(0.45 0.12 46);
+    --warning-button-hover: oklch(0.35 0.13 46);
 
     /* Error */
     --error: oklch(0.65 0.22 25);
+    --error-foreground: oklch(0.15 0.01 25);
     --error-alert-bg: oklch(0.45 0.28 25);
     --error-button-hover: oklch(0.75 0.18 25);
     --error-border: oklch(0.6 0.22 25);
@@ -172,16 +182,21 @@
 
   /* Success Colors */
   --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-success-alert-bg: var(--success-alert-bg);
   --color-success-border: var(--success-border);
+  --color-success-button-hover: var(--success-button-hover);
 
   /* Warning Colors */
   --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-warning-alert-bg: var(--warning-alert-bg);
   --color-warning-border: var(--warning-border);
+  --color-warning-button-hover: var(--warning-button-hover);
 
   /* Error Colors */
   --color-error: var(--error);
+  --color-error-foreground: var(--error-foreground);
   --color-error-alert-bg: var(--error-alert-bg);
   --color-error-button-hover: var(--error-button-hover);
   --color-error-border: var(--error-border);
@@ -208,10 +223,12 @@
   --color-background-base: var(--background-base);
   --color-background-alt: var(--background-alt);
 
-  /* Foreground Colors */
+  /* Foreground Colors - These are the main text colors */
+  --color-foreground: var(--foreground-base);
   --color-foreground-base: var(--foreground-base);
   --color-foreground-secondary: var(--foreground-secondary);
   --color-foreground-emphasis: var(--foreground-emphasis);
+  --color-foreground-muted: var(--muted-foreground);
 
   /* Subtle Colors */
   --color-subtle-base: var(--subtle-base);
@@ -222,8 +239,66 @@
 
   /* Muted Colors */
   --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted-foreground);
 }
 
 body {
   background-color: var(--page-bg);
+  color: var(--foreground-base);
+}
+
+/* Default text color utilities */
+.text-default {
+  color: var(--foreground-base);
+}
+
+.text-secondary {
+  color: var(--foreground-secondary);
+}
+
+.text-emphasis {
+  color: var(--foreground-emphasis);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+/* Ensure headings have proper contrast */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--foreground-base);
+}
+
+/* Ensure paragraphs have proper contrast */
+p {
+  color: var(--foreground-base);
+}
+
+/* Ensure links have proper contrast */
+a {
+  color: var(--foreground-emphasis);
+}
+
+a:hover {
+  color: var(--foreground-base);
+}
+
+/* Ensure form inputs have proper text colors */
+input, textarea, select {
+  color: var(--foreground-base);
+  background-color: var(--surface-base);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--muted-foreground);
+}
+
+/* Ensure labels have proper contrast */
+label {
+  color: var(--foreground-base);
+}
+
+/* Ensure buttons inherit proper text colors when not using utility classes */
+button {
+  color: var(--foreground-base);
 }
