@@ -12,10 +12,10 @@ export const GET: RequestHandler = async (event) => {
 		const { id } = event.params;
 
 		// Try to get authenticated user, but allow guest users
-		let userId: string;
+		let _userId: string;
 		try {
 			const session = await requireAuth(event);
-			userId = session.user.id;
+			_userId = session.user.id;
 		} catch {
 			// Check for guest user ID in headers or cookies
 			const guestId =
@@ -28,7 +28,7 @@ export const GET: RequestHandler = async (event) => {
 					{ status: 401 },
 				);
 			}
-			userId = guestId;
+			_userId = guestId;
 		}
 
 		const taskService = new TaskService();
@@ -58,10 +58,10 @@ export const PUT: RequestHandler = async (event) => {
 		const updateData = await event.request.json();
 
 		// Try to get authenticated user, but allow guest users
-		let userId: string;
+		let _userId: string;
 		try {
 			const session = await requireAuth(event);
-			userId = session.user.id;
+			_userId = session.user.id;
 		} catch {
 			// Check for guest user ID in headers or cookies
 			const guestId =
@@ -74,7 +74,7 @@ export const PUT: RequestHandler = async (event) => {
 					{ status: 401 },
 				);
 			}
-			userId = guestId;
+			_userId = guestId;
 		}
 
 		const taskService = new TaskService();
@@ -108,10 +108,10 @@ export const DELETE: RequestHandler = async (event) => {
 		const { id } = event.params;
 
 		// Try to get authenticated user, but allow guest users
-		let userId: string;
+		let _userId: string;
 		try {
 			const session = await requireAuth(event);
-			userId = session.user.id;
+			_userId = session.user.id;
 		} catch {
 			// Check for guest user ID in headers or cookies
 			const guestId =
@@ -124,7 +124,7 @@ export const DELETE: RequestHandler = async (event) => {
 					{ status: 401 },
 				);
 			}
-			userId = guestId;
+			_userId = guestId;
 		}
 
 		const taskService = new TaskService();

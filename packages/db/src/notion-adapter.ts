@@ -105,7 +105,7 @@ export class NotionAdapter implements SyncAdapter {
 				archived: page.archived,
 				raw: page,
 			};
-		} catch (error) {
+		} catch (_error) {
 			// If page not found or access denied, return null
 			return null;
 		}
@@ -164,7 +164,7 @@ export class NotionAdapter implements SyncAdapter {
 						archived: page.archived,
 						raw: page,
 					});
-				} catch (error) {}
+				} catch (_error) {}
 			}
 
 			return externalTasks;

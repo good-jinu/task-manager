@@ -1,4 +1,4 @@
-import type { Task, TaskPriority, TaskStatus } from "@notion-task-manager/db";
+import type { Task, TaskPriority } from "@notion-task-manager/db";
 import { generateObject, generateText } from "ai";
 import { z } from "zod";
 import { getModel } from "./llm/provider";
@@ -69,7 +69,7 @@ const ParsedTaskSchema = z.object({
 	confidence: z.number().min(0).max(1),
 });
 
-const TaskRecommendationSchema = z.object({
+const _TaskRecommendationSchema = z.object({
 	taskId: z.string(),
 	reason: z.string().min(1),
 	urgencyScore: z.number().min(0).max(10),

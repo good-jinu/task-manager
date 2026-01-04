@@ -92,7 +92,8 @@ export class SyncService {
 
 		// Process queue items
 		while (this.syncQueue.length > 0) {
-			const queueItem = this.syncQueue.shift()!;
+			const queueItem = this.syncQueue.shift();
+			if (!queueItem) break;
 			result.processed++;
 
 			try {
@@ -570,20 +571,29 @@ export class SyncService {
 					conflictInfo.externalVersion,
 				);
 				await this.taskService.updateTask(taskId, externalMapped);
-				resolvedTask = (await this.taskService.getTask(taskId))!;
+				const updatedTask = await this.taskService.getTask(taskId);
+				if (!updatedTask) {
+					throw new Error(`Failed to retrieve updated task: ${taskId}`);
+				}
+				resolvedTask = updatedTask;
 				break;
 			}
 
-			case "manual":
+			case "manual": {
 				if (!resolution.mergedFields) {
 					throw new Error("Merged fields required for manual resolution");
 				}
 				// Apply merged fields
 				await this.taskService.updateTask(taskId, resolution.mergedFields);
-				resolvedTask = (await this.taskService.getTask(taskId))!;
+				const updatedTask = await this.taskService.getTask(taskId);
+				if (!updatedTask) {
+					throw new Error(`Failed to retrieve updated task: ${taskId}`);
+				}
+				resolvedTask = updatedTask;
 				// Push to external service
 				await adapter.pushTask(resolvedTask, integration);
 				break;
+			}
 
 			default:
 				throw new Error(`Unknown resolution strategy: ${resolution.strategy}`);

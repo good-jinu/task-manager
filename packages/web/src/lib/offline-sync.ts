@@ -1,5 +1,35 @@
+import type { CreateTaskInput, UpdateTaskInput } from "@notion-task-manager/db";
 import { writable } from "svelte/store";
 import { offlineStorage } from "./offline-storage.js";
+
+// Define types for better type safety
+interface QueueItem {
+	id: string;
+	operation: "create" | "update" | "delete";
+	endpoint: string;
+	data?: Record<string, unknown>;
+	timestamp: number;
+	retryCount: number;
+}
+
+interface TaskData {
+	id: string;
+	workspaceId: string;
+	title: string;
+	content?: string;
+	status: "todo" | "in-progress" | "done" | "archived";
+	priority?: "low" | "medium" | "high" | "urgent";
+	dueDate?: string;
+	archived: boolean;
+	createdAt: string;
+	updatedAt: string;
+	syncStatus: "synced" | "pending" | "conflict";
+	lastSyncAt?: string;
+}
+
+// Re-export the types from db package for convenience
+export type CreateTaskData = CreateTaskInput;
+export type UpdateTaskData = UpdateTaskInput;
 
 // Online/offline state store
 export const isOnline = writable(
@@ -76,7 +106,7 @@ class OfflineSyncService {
 		}
 	}
 
-	private async processQueueItem(item: any): Promise<void> {
+	private async processQueueItem(item: QueueItem): Promise<void> {
 		const response = await fetch(item.endpoint, {
 			method:
 				item.operation === "create"
@@ -95,7 +125,7 @@ class OfflineSyncService {
 		}
 	}
 
-	private async syncTask(task: any): Promise<void> {
+	private async syncTask(task: TaskData): Promise<void> {
 		try {
 			const response = await fetch(`/api/tasks/${task.id}`, {
 				method: "PUT",
@@ -126,7 +156,7 @@ class OfflineSyncService {
 	async queueTaskOperation(
 		operation: "create" | "update" | "delete",
 		taskId: string,
-		data?: any,
+		data?: Record<string, unknown>,
 	): Promise<void> {
 		const endpoint =
 			operation === "create" ? "/api/tasks" : `/api/tasks/${taskId}`;
@@ -144,17 +174,18 @@ class OfflineSyncService {
 	}
 
 	// Optimistic task operations
-	async createTaskOptimistic(taskData: any): Promise<string> {
+	async createTaskOptimistic(taskData: CreateTaskData): Promise<string> {
 		const taskId = crypto.randomUUID();
 		const now = new Date().toISOString();
 
-		const task = {
+		const task: TaskData = {
 			id: taskId,
 			...taskData,
+			status: taskData.status || "todo",
 			archived: false,
 			createdAt: now,
 			updatedAt: now,
-			syncStatus: navigator.onLine ? "pending" : ("pending" as const),
+			syncStatus: navigator.onLine ? "pending" : "pending",
 		};
 
 		// Save to local storage immediately
@@ -166,7 +197,10 @@ class OfflineSyncService {
 		return taskId;
 	}
 
-	async updateTaskOptimistic(taskId: string, updates: any): Promise<void> {
+	async updateTaskOptimistic(
+		taskId: string,
+		updates: UpdateTaskData,
+	): Promise<void> {
 		// Get current task from local storage
 		const currentTask = await offlineStorage.getTask(taskId);
 		if (!currentTask) return;

@@ -5,7 +5,12 @@ export const canInstallPWA = writable(false);
 export const isInstalled = writable(false);
 export const swUpdateAvailable = writable(false);
 
-let deferredPrompt: any = null;
+interface BeforeInstallPromptEvent extends Event {
+	prompt(): Promise<void>;
+	userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
+let deferredPrompt: BeforeInstallPromptEvent | null = null;
 
 export function initializePWA() {
 	if (typeof window === "undefined") return;
@@ -18,7 +23,7 @@ export function initializePWA() {
 	// Listen for beforeinstallprompt event
 	window.addEventListener("beforeinstallprompt", (e) => {
 		e.preventDefault();
-		deferredPrompt = e;
+		deferredPrompt = e as BeforeInstallPromptEvent;
 		canInstallPWA.set(true);
 	});
 
@@ -87,7 +92,7 @@ export async function installPWA(): Promise<boolean> {
 export function updateServiceWorker(): void {
 	if ("serviceWorker" in navigator) {
 		navigator.serviceWorker.getRegistration().then((registration) => {
-			if (registration && registration.waiting) {
+			if (registration?.waiting) {
 				registration.waiting.postMessage({ type: "SKIP_WAITING" });
 				swUpdateAvailable.set(false);
 			}

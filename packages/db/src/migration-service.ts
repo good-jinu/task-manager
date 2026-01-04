@@ -44,7 +44,7 @@ export class MigrationService {
 	private migrations = new Map<string, MigrationProgress>();
 
 	constructor(
-		private notionTaskManager: NotionTaskManagerInterface,
+		public notionTaskManager: NotionTaskManagerInterface | null,
 		private taskService: TaskService,
 		private workspaceService: WorkspaceService,
 		private syncMetadataService: SyncMetadataService,
@@ -61,6 +61,11 @@ export class MigrationService {
 	): Promise<MigrationResult> {
 		const migrationId = randomUUID();
 		let workspaceId = targetWorkspaceId;
+
+		// Check if notionTaskManager is available
+		if (!this.notionTaskManager) {
+			throw new Error("NotionTaskManager is not available");
+		}
 
 		try {
 			// Create workspace if not provided
@@ -207,6 +212,11 @@ export class MigrationService {
 	): Promise<MigrationResult> {
 		const migrationId = randomUUID();
 		let workspaceId = targetWorkspaceId;
+
+		// Check if notionTaskManager is available
+		if (!this.notionTaskManager) {
+			throw new Error("NotionTaskManager is not available");
+		}
 
 		try {
 			// Create workspace if not provided

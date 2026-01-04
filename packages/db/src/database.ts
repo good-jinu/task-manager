@@ -56,7 +56,7 @@ export class DatabaseClient {
 		} else {
 			// Initialize migration service without NotionTaskManager (will need to be provided later)
 			this.migration = new MigrationService(
-				null as any, // Will be set later when NotionTaskManager is available
+				null, // Will be set later when NotionTaskManager is available
 				this.tasks,
 				this.workspaces,
 				this.syncMetadata,
@@ -73,7 +73,7 @@ export class DatabaseClient {
 		this.sync.registerAdapter(notionAdapter);
 
 		// Update migration service with NotionTaskManager
-		(this.migration as any).notionTaskManager = notionTaskManager;
+		this.migration.notionTaskManager = notionTaskManager;
 	}
 }
 

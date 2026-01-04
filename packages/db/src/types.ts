@@ -123,7 +123,7 @@ export interface GuestUser {
 /**
  * Input types for creating new tasks
  */
-export interface CreateTaskInput {
+export interface CreateTaskInput extends Record<string, unknown> {
 	workspaceId: string;
 	title: string;
 	content?: string;
@@ -135,7 +135,7 @@ export interface CreateTaskInput {
 /**
  * Input types for updating existing tasks
  */
-export interface UpdateTaskInput {
+export interface UpdateTaskInput extends Record<string, unknown> {
 	title?: string;
 	content?: string;
 	status?: TaskStatus;

@@ -1,6 +1,11 @@
+import type { CreateTaskInput, UpdateTaskInput } from "@notion-task-manager/db";
 import { type Writable, writable } from "svelte/store";
 import { offlineStorage } from "./offline-storage.js";
-import { offlineSyncService } from "./offline-sync.js";
+import {
+	type CreateTaskData,
+	offlineSyncService,
+	type UpdateTaskData,
+} from "./offline-sync.js";
 
 export interface Task {
 	id: string;
@@ -14,23 +19,6 @@ export interface Task {
 	createdAt: string;
 	updatedAt: string;
 	syncStatus?: "synced" | "pending" | "conflict";
-}
-
-export interface CreateTaskInput {
-	workspaceId: string;
-	title: string;
-	content?: string;
-	status?: Task["status"];
-	priority?: Task["priority"];
-	dueDate?: string;
-}
-
-export interface UpdateTaskInput {
-	title?: string;
-	content?: string;
-	status?: Task["status"];
-	priority?: Task["priority"];
-	dueDate?: string;
 }
 
 class OptimisticTaskService {
@@ -115,7 +103,9 @@ class OptimisticTaskService {
 
 		try {
 			// Create task optimistically
-			const taskId = await offlineSyncService.createTaskOptimistic(input);
+			const taskId = await offlineSyncService.createTaskOptimistic(
+				input as CreateTaskData,
+			);
 
 			// Update local store immediately
 			const newTask: Task = {
@@ -143,7 +133,10 @@ class OptimisticTaskService {
 
 		try {
 			// Update optimistically
-			await offlineSyncService.updateTaskOptimistic(taskId, updates);
+			await offlineSyncService.updateTaskOptimistic(
+				taskId,
+				updates as UpdateTaskData,
+			);
 
 			// Update local store immediately
 			this.tasks.update((tasks) =>

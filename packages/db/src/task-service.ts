@@ -187,7 +187,7 @@ export class TaskService {
 		const { limit = 50, cursor } = options;
 
 		try {
-			const queryParams: any = {
+			const queryParams = {
 				TableName: this.tableName,
 				IndexName: "workspaceId-index",
 				KeyConditionExpression: "workspaceId = :workspaceId",
@@ -196,13 +196,12 @@ export class TaskService {
 				},
 				Limit: limit,
 				ScanIndexForward: false, // Most recent first
+				...(cursor && {
+					ExclusiveStartKey: JSON.parse(
+						Buffer.from(cursor, "base64").toString("utf-8"),
+					),
+				}),
 			};
-
-			if (cursor) {
-				queryParams.ExclusiveStartKey = JSON.parse(
-					Buffer.from(cursor, "base64").toString("utf-8"),
-				);
-			}
 
 			const result = await this.client.send(new QueryCommand(queryParams));
 
@@ -246,7 +245,7 @@ export class TaskService {
 		const { limit = 50, cursor } = options;
 
 		try {
-			const queryParams: any = {
+			const queryParams = {
 				TableName: this.tableName,
 				IndexName: "workspaceId-status-index",
 				KeyConditionExpression:
@@ -260,13 +259,12 @@ export class TaskService {
 				},
 				Limit: limit,
 				ScanIndexForward: false, // Most recent first
+				...(cursor && {
+					ExclusiveStartKey: JSON.parse(
+						Buffer.from(cursor, "base64").toString("utf-8"),
+					),
+				}),
 			};
-
-			if (cursor) {
-				queryParams.ExclusiveStartKey = JSON.parse(
-					Buffer.from(cursor, "base64").toString("utf-8"),
-				);
-			}
 
 			const result = await this.client.send(new QueryCommand(queryParams));
 

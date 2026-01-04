@@ -1,8 +1,8 @@
 import {
-	GuestUserService,
 	type PaginatedResult,
 	type Task,
 	TaskService,
+	type TaskStatus,
 	ValidationError,
 } from "@notion-task-manager/db";
 import type { RequestEvent } from "@sveltejs/kit";
@@ -22,8 +22,8 @@ export const GET = async (event: RequestEvent) => {
 	try {
 		const url = new URL(event.request.url);
 		const workspaceId = url.searchParams.get("workspaceId");
-		const status = url.searchParams.get("status") as any;
-		const limit = parseInt(url.searchParams.get("limit") || "50");
+		const status = url.searchParams.get("status") as TaskStatus | null;
+		const limit = parseInt(url.searchParams.get("limit") || "50", 10);
 		const cursor = url.searchParams.get("cursor") || undefined;
 
 		if (!workspaceId) {
@@ -31,10 +31,10 @@ export const GET = async (event: RequestEvent) => {
 		}
 
 		// Try to get authenticated user, but allow guest users
-		let userId: string;
+		let _userId: string;
 		try {
 			const session = await requireAuth(event);
-			userId = session.user.id;
+			_userId = session.user.id;
 		} catch {
 			// Check for guest user ID in headers or cookies
 			const guestId =
@@ -47,7 +47,7 @@ export const GET = async (event: RequestEvent) => {
 					{ status: 401 },
 				);
 			}
-			userId = guestId;
+			_userId = guestId;
 		}
 
 		const taskService = new TaskService();
@@ -89,10 +89,10 @@ export const POST = async (event: RequestEvent) => {
 		const taskData = await event.request.json();
 
 		// Try to get authenticated user, but allow guest users
-		let userId: string;
+		let _userId: string;
 		try {
 			const session = await requireAuth(event);
-			userId = session.user.id;
+			_userId = session.user.id;
 		} catch {
 			// Check for guest user ID in headers or cookies
 			const guestId =
@@ -105,7 +105,7 @@ export const POST = async (event: RequestEvent) => {
 					{ status: 401 },
 				);
 			}
-			userId = guestId;
+			_userId = guestId;
 		}
 
 		const taskService = new TaskService();

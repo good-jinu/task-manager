@@ -30,7 +30,7 @@ interface OfflineDBSchema extends DBSchema {
 			id: string;
 			operation: "create" | "update" | "delete";
 			endpoint: string;
-			data?: any;
+			data?: Record<string, unknown>;
 			timestamp: number;
 			retryCount: number;
 		};
@@ -78,31 +78,41 @@ class OfflineStorage {
 	// Task operations
 	async saveTask(task: OfflineDBSchema["tasks"]["value"]): Promise<void> {
 		if (!this.db) await this.init();
-		await this.db!.put("tasks", task);
+		await this.db?.put("tasks", task);
 	}
 
 	async getTask(
 		id: string,
 	): Promise<OfflineDBSchema["tasks"]["value"] | undefined> {
 		if (!this.db) await this.init();
-		return await this.db!.get("tasks", id);
+		return await this.db?.get("tasks", id);
 	}
 
 	async getTasks(
 		workspaceId: string,
 	): Promise<OfflineDBSchema["tasks"]["value"][]> {
 		if (!this.db) await this.init();
-		return await this.db!.getAllFromIndex("tasks", "workspaceId", workspaceId);
+		const result = await this.db?.getAllFromIndex(
+			"tasks",
+			"workspaceId",
+			workspaceId,
+		);
+		return result || [];
 	}
 
 	async deleteTask(id: string): Promise<void> {
 		if (!this.db) await this.init();
-		await this.db!.delete("tasks", id);
+		await this.db?.delete("tasks", id);
 	}
 
 	async getPendingTasks(): Promise<OfflineDBSchema["tasks"]["value"][]> {
 		if (!this.db) await this.init();
-		return await this.db!.getAllFromIndex("tasks", "syncStatus", "pending");
+		const result = await this.db?.getAllFromIndex(
+			"tasks",
+			"syncStatus",
+			"pending",
+		);
+		return result || [];
 	}
 
 	// Offline queue operations
@@ -119,25 +129,26 @@ class OfflineStorage {
 			timestamp: Date.now(),
 			retryCount: 0,
 		};
-		await this.db!.put("offlineQueue", queueItem);
+		await this.db?.put("offlineQueue", queueItem);
 	}
 
 	async getQueueItems(): Promise<OfflineDBSchema["offlineQueue"]["value"][]> {
 		if (!this.db) await this.init();
-		return await this.db!.getAll("offlineQueue");
+		const result = await this.db?.getAll("offlineQueue");
+		return result || [];
 	}
 
 	async removeFromQueue(id: string): Promise<void> {
 		if (!this.db) await this.init();
-		await this.db!.delete("offlineQueue", id);
+		await this.db?.delete("offlineQueue", id);
 	}
 
 	async incrementRetryCount(id: string): Promise<void> {
 		if (!this.db) await this.init();
-		const item = await this.db!.get("offlineQueue", id);
+		const item = await this.db?.get("offlineQueue", id);
 		if (item) {
 			item.retryCount++;
-			await this.db!.put("offlineQueue", item);
+			await this.db?.put("offlineQueue", item);
 		}
 	}
 
@@ -146,43 +157,43 @@ class OfflineStorage {
 		workspace: OfflineDBSchema["workspaces"]["value"],
 	): Promise<void> {
 		if (!this.db) await this.init();
-		await this.db!.put("workspaces", workspace);
+		await this.db?.put("workspaces", workspace);
 	}
 
 	async getWorkspaces(
 		userId: string,
 	): Promise<OfflineDBSchema["workspaces"]["value"][]> {
 		if (!this.db) await this.init();
-		const allWorkspaces = await this.db!.getAll("workspaces");
-		return allWorkspaces.filter((w) => w.userId === userId);
+		const allWorkspaces = await this.db?.getAll("workspaces");
+		return allWorkspaces?.filter((w) => w.userId === userId) || [];
 	}
 
 	// Sync operations
 	async markTaskAsSynced(taskId: string): Promise<void> {
 		if (!this.db) await this.init();
-		const task = await this.db!.get("tasks", taskId);
+		const task = await this.db?.get("tasks", taskId);
 		if (task) {
 			task.syncStatus = "synced";
 			task.lastSyncAt = new Date().toISOString();
-			await this.db!.put("tasks", task);
+			await this.db?.put("tasks", task);
 		}
 	}
 
 	async markTaskAsPending(taskId: string): Promise<void> {
 		if (!this.db) await this.init();
-		const task = await this.db!.get("tasks", taskId);
+		const task = await this.db?.get("tasks", taskId);
 		if (task) {
 			task.syncStatus = "pending";
-			await this.db!.put("tasks", task);
+			await this.db?.put("tasks", task);
 		}
 	}
 
 	// Clear all data (for logout/reset)
 	async clearAll(): Promise<void> {
 		if (!this.db) await this.init();
-		await this.db!.clear("tasks");
-		await this.db!.clear("offlineQueue");
-		await this.db!.clear("workspaces");
+		await this.db?.clear("tasks");
+		await this.db?.clear("offlineQueue");
+		await this.db?.clear("workspaces");
 	}
 }
 
