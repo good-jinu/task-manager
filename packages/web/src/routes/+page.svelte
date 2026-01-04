@@ -1,274 +1,225 @@
 <script lang="ts">
-	import { Database, Document, Sparkles } from '$lib/components/icons';
-	import './landing.css';
-	// No props needed for this page
+	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
+	import TaskInputSimple from '$lib/components/TaskInputSimple.svelte';
+	import AIAgentChatSimple from '$lib/components/AIAgentChatSimple.svelte';
+	import TaskListSimple from '$lib/components/TaskListSimple.svelte';
+	import LandingPage from '$lib/components/LandingPage.svelte';
+	import { Plus, Sparkles } from '$lib/components/icons';
+	import type { PageData } from './$types';
+
+	let { data }: { data: PageData } = $props();
+	
+	// Reactive session data
+	let session = $derived(data.session);
+	let isGuest = $derived(!session);
+	
+	// Component state
+	let tasks: any[] = $state([]);
+	let loading = $state(false);
+	let error = $state('');
+	let showAIChat = $state(false);
+	
+	// Quick actions for mobile
+	let showQuickActions = $state(false);
+
+	onMount(() => {
+		// Only load tasks if user is authenticated
+		if (session) {
+			loadTasks();
+		}
+	});
+
+	async function loadTasks() {
+		try {
+			loading = true;
+			error = '';
+			
+			const response = await fetch('/api/tasks');
+			const data = await response.json();
+			
+			if (response.ok) {
+				tasks = data.tasks || [];
+			} else {
+				error = data.error || 'Failed to load tasks';
+			}
+		} catch (err) {
+			error = 'Failed to load tasks';
+			console.error('Error loading tasks:', err);
+		} finally {
+			loading = false;
+		}
+	}
+
+	function handleTaskCreated(event: CustomEvent) {
+		const newTask = event.detail;
+		tasks = [newTask, ...tasks];
+	}
+
+	function handleTaskUpdated(event: CustomEvent) {
+		const updatedTask = event.detail;
+		tasks = tasks.map(task => 
+			task.id === updatedTask.id ? updatedTask : task
+		);
+	}
+
+	function handleTaskDeleted(event: CustomEvent) {
+		const deletedTaskId = event.detail;
+		tasks = tasks.filter(task => task.id !== deletedTaskId);
+	}
+
+	function handleError(event: CustomEvent) {
+		error = event.detail;
+	}
+
+	function toggleAIChat() {
+		showAIChat = !showAIChat;
+	}
+
+	function toggleQuickActions() {
+		showQuickActions = !showQuickActions;
+	}
 </script>
 
 <svelte:head>
-	<title>AI Task Manager - Intelligent Notion Integration</title>
-	<meta name="description" content="Transform your task management with AI. Natural language processing meets Notion databases for effortless task creation and updates." />
+	<title>{isGuest ? 'AI Task Manager - Intelligent Task Management' : 'Task Manager - AI-Powered Task Management'}</title>
+	<meta name="description" content={isGuest ? 'Transform your task management with AI. Natural language processing meets intelligent task organization.' : 'Manage your tasks with AI assistance. Create, organize, and complete tasks efficiently.'} />
 </svelte:head>
 
-<div class="min-h-screen bg-gradient-to-br from-primary-icon-bg via-card-bg to-info-icon-bg overflow-hidden">
-	<!-- Animated Background Elements -->
-	<div class="fixed inset-0 pointer-events-none">
-		<div class="absolute top-20 left-10 w-32 h-32 bg-accent/10 rounded-full blur-xl animate-float"></div>
-		<div class="absolute top-40 right-20 w-24 h-24 bg-success/10 rounded-full blur-lg animate-organic-bounce animate-delay-1"></div>
-		<div class="absolute bottom-32 left-1/4 w-40 h-40 bg-primary/5 rounded-full blur-2xl animate-float animate-delay-2"></div>
-		<div class="absolute bottom-20 right-1/3 w-28 h-28 bg-info/10 rounded-full blur-xl animate-organic-bounce animate-delay-3"></div>
-		<div class="absolute top-1/2 left-1/2 w-36 h-36 bg-accent/5 rounded-full blur-3xl animate-float animate-delay-4"></div>
-	</div>
-
-	<!-- Hero Section -->
-	<div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
-		<div class="text-center">
-			<!-- AI Badge -->
-			<div class="inline-flex items-center gap-2 bg-accent/10 border border-accent/20 rounded-full px-4 py-2 mb-6 animate-pulse-glow">
-				<Sparkles class="w-4 h-4 text-accent animate-pulse" />
-				<span class="text-sm font-medium text-accent">Powered by AI</span>
-			</div>
+{#if isGuest}
+	<!-- Landing Page for Unauthenticated Users -->
+	<LandingPage />
+{:else}
+	<!-- Main Tasks Interface for Authenticated Users -->
+	<div class="min-h-screen bg-page-bg">
+		<!-- Mobile-first single column layout -->
+		<div class="max-w-4xl mx-auto">
 			
-			<h1 class="text-4xl md:text-6xl font-bold mb-6 landing-text-gradient">
-				AI Task Manager
-			</h1>
-			<p class="text-xl md:text-2xl text-foreground-secondary mb-8 max-w-3xl mx-auto leading-relaxed">
-				Transform natural language into organized tasks. Our AI agent seamlessly integrates with your existing Notion databases, understanding context and managing tasks intelligently.
-			</p>
-			
-			<!-- Example Query Demo -->
-			<div class="bg-surface-base/80 backdrop-blur-sm border border-subtle-base rounded-2xl p-6 mb-8 max-w-2xl mx-auto shadow-lg">
-				<div class="text-sm text-foreground-secondary mb-2">Try saying:</div>
-				<div class="text-foreground-base font-medium italic">
-					"Fix Android UI crash on Samsung Galaxy One UI 7"
-				</div>
-				<div class="text-xs text-accent mt-2">→ AI searches existing tasks, creates or updates intelligently</div>
-			</div>
-			
-			<div class="flex flex-col sm:flex-row gap-4 justify-center">
-				<a
-					href="/user/signin"
-					class="landing-button-primary text-primary-foreground font-semibold py-4 px-8 rounded-xl text-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
-				>
-					Start with Your Notion
-				</a>
-				<a
-					href="#features"
-					class="border border-subtle-base hover:border-accent/50 text-foreground-emphasis font-semibold py-4 px-8 rounded-xl text-lg transition-all duration-300 hover:bg-accent/5"
-				>
-					See How It Works
-				</a>
-			</div>
-		</div>
-	</div>
-
-	<!-- AI Features Section -->
-	<div id="features" class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-		<div class="text-center mb-16">
-			<h2 class="text-3xl md:text-4xl font-bold text-foreground-base mb-4">
-				Intelligent Task Management
-			</h2>
-			<p class="text-xl text-foreground-secondary max-w-2xl mx-auto">
-				Experience the power of AI-driven task management that understands context and learns from your workflow.
-			</p>
-		</div>
-
-		<div class="grid md:grid-cols-3 gap-8">
-			<!-- Natural Language Processing -->
-			<div class="group text-center p-8 bg-surface-base/50 backdrop-blur-sm rounded-2xl border border-subtle-base hover:border-accent/30 landing-card-hover">
-				<div class="w-16 h-16 bg-gradient-to-br from-accent to-accent-button-hover rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:rotate-6 transition-transform duration-300">
-					<Sparkles class="w-8 h-8 text-accent-foreground" />
-				</div>
-				<h3 class="text-xl font-semibold text-foreground-base mb-3">Natural Language Processing</h3>
-				<p class="text-foreground-secondary leading-relaxed">
-					Simply describe your task in plain English. Our AI extracts keywords, priorities, and context automatically.
-				</p>
-				<div class="mt-4 text-xs text-accent font-mono bg-accent/10 rounded-lg p-2">
-					"Fix login timeout on iOS" → Parsed & Categorized
-				</div>
+			<!-- Task Input Section -->
+			<div class="mb-6">
+				<TaskInputSimple 
+					on:taskCreated={handleTaskCreated}
+					on:error={handleError}
+				/>
 			</div>
 
-			<!-- Smart Search & Matching -->
-			<div class="group text-center p-8 bg-surface-base/50 backdrop-blur-sm rounded-2xl border border-subtle-base hover:border-success/30 landing-card-hover">
-				<div class="w-16 h-16 bg-gradient-to-br from-success to-success-border rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:rotate-6 transition-transform duration-300">
-					<Database class="w-8 h-8 text-surface-base" />
-				</div>
-				<h3 class="text-xl font-semibold text-foreground-base mb-3">Smart Search & Matching</h3>
-				<p class="text-foreground-secondary leading-relaxed">
-					AI searches existing tasks using multiple keywords and semantic understanding to prevent duplicates.
-				</p>
-				<div class="mt-4 text-xs text-success font-mono bg-success/10 rounded-lg p-2">
-					Searches: ["android", "ui", "crash", "samsung"]
-				</div>
-			</div>
-
-			<!-- Seamless Notion Integration -->
-			<div class="group text-center p-8 bg-surface-base/50 backdrop-blur-sm rounded-2xl border border-subtle-base hover:border-primary/30 landing-card-hover">
-				<div class="w-16 h-16 bg-gradient-to-br from-primary to-primary-button-hover rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:rotate-6 transition-transform duration-300">
-					<Document class="w-8 h-8 text-primary-foreground" />
-				</div>
-				<h3 class="text-xl font-semibold text-foreground-base mb-3">Seamless Notion Integration</h3>
-				<p class="text-foreground-secondary leading-relaxed">
-					Works with your existing Notion databases. No migration needed - just connect and start managing tasks intelligently.
-				</p>
-				<div class="mt-4 text-xs text-primary font-mono bg-primary/10 rounded-lg p-2">
-					Updates existing pages or creates new ones
-				</div>
-			</div>
-		</div>
-	</div>
-
-	<!-- AI Agent Demo Section -->
-	<div class="bg-gradient-to-r from-section-bg to-surface-base py-20">
-		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-			<div class="text-center mb-16">
-				<h2 class="text-3xl md:text-4xl font-bold text-foreground-base mb-4">
-					See the AI Agent in Action
-				</h2>
-				<p class="text-xl text-foreground-secondary max-w-2xl mx-auto">
-					Watch how natural language transforms into organized, searchable tasks in your Notion database.
-				</p>
-			</div>
-
-			<div class="grid lg:grid-cols-2 gap-12 items-center">
-				<!-- Demo Input -->
-				<div class="space-y-6">
-					<div class="bg-surface-base border border-subtle-base rounded-2xl p-6 shadow-lg">
-						<div class="text-sm text-foreground-secondary mb-3">User Input:</div>
-						<div class="bg-accent/5 border border-accent/20 rounded-xl p-4 font-mono text-foreground-base">
-							"Android UI crash on Samsung Galaxy One UI 7"
+			<!-- AI Agent Chat - Collapsible -->
+			<div class="mb-6">
+				<div class="bg-card-bg border border-subtle-base rounded-xl overflow-hidden">
+					<button
+						onclick={toggleAIChat}
+						class="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-surface-raised transition-colors"
+					>
+						<div class="flex items-center gap-2">
+							<Sparkles class="w-5 h-5 text-accent" />
+							<span class="font-medium text-foreground-base">AI Assistant</span>
+							{#if !showAIChat}
+								<span class="text-sm text-foreground-secondary">Ask for help or suggestions</span>
+							{/if}
 						</div>
-					</div>
+						<div class="transform transition-transform {showAIChat ? 'rotate-180' : ''}">
+							<svg class="w-5 h-5 text-foreground-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+							</svg>
+						</div>
+					</button>
 					
-					<div class="flex items-center justify-center">
-						<div class="w-8 h-8 bg-accent rounded-full flex items-center justify-center animate-pulse">
-							<Sparkles class="w-4 h-4 text-accent-foreground" />
+					{#if showAIChat}
+						<div class="border-t border-subtle-base">
+							<AIAgentChatSimple />
 						</div>
-					</div>
-					
-					<!-- AI Processing -->
-					<div class="bg-surface-base border border-subtle-base rounded-2xl p-6 shadow-lg">
-						<div class="text-sm text-foreground-secondary mb-3">AI Processing:</div>
-						<div class="space-y-2 text-sm">
-							<div class="flex items-center gap-2">
-								<div class="w-2 h-2 bg-success rounded-full"></div>
-								<span class="text-foreground-base">Extracted keywords: android, ui, crash, samsung, galaxy, one ui 7</span>
-							</div>
-							<div class="flex items-center gap-2">
-								<div class="w-2 h-2 bg-success rounded-full"></div>
-								<span class="text-foreground-base">Searching existing tasks...</span>
-							</div>
-							<div class="flex items-center gap-2">
-								<div class="w-2 h-2 bg-success rounded-full"></div>
-								<span class="text-foreground-base">No similar task found - creating new task</span>
-							</div>
-						</div>
+					{/if}
+				</div>
+			</div>
+
+			<!-- Error Display -->
+			{#if error}
+				<div class="mb-6 bg-error-alert-bg border border-error-border text-error px-4 py-3 rounded-lg">
+					<div class="flex items-center">
+						<svg class="w-5 h-5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+							<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+						</svg>
+						<span class="text-sm">{error}</span>
 					</div>
 				</div>
+			{/if}
 
-				<!-- Demo Output -->
-				<div class="bg-surface-base border border-subtle-base rounded-2xl p-6 shadow-lg">
-					<div class="text-sm text-foreground-secondary mb-4">Created in Notion:</div>
-					<div class="space-y-4">
-						<div class="border border-subtle-base rounded-xl p-4">
-							<div class="font-semibold text-foreground-base mb-2">🐛 Android UI Crash - Samsung Galaxy One UI 7</div>
-							<div class="text-sm text-foreground-secondary space-y-1">
-								<div><strong>Priority:</strong> High</div>
-								<div><strong>Tags:</strong> Android, UI, Bug, Samsung</div>
-								<div><strong>Status:</strong> To Do</div>
-								<div><strong>Created:</strong> {new Date().toLocaleDateString()}</div>
-							</div>
+			<!-- Task List -->
+			<div class="mb-6">
+				<TaskListSimple 
+					{tasks}
+					{loading}
+					on:taskUpdated={handleTaskUpdated}
+					on:taskDeleted={handleTaskDeleted}
+					on:error={handleError}
+				/>
+			</div>
+
+			<!-- Quick Actions - Mobile Floating Action Button -->
+			<div class="fixed bottom-20 right-4 md:hidden z-40">
+				<div class="relative">
+					<!-- Quick Actions Menu -->
+					{#if showQuickActions}
+						<div class="absolute bottom-16 right-0 bg-surface-base border border-subtle-base rounded-xl shadow-lg p-2 min-w-[200px]">
+							<button
+								onclick={toggleAIChat}
+								class="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-surface-raised rounded-lg transition-colors"
+							>
+								<Sparkles class="w-5 h-5 text-accent" />
+								<span class="text-sm font-medium text-foreground-base">
+									{showAIChat ? 'Hide AI Assistant' : 'Show AI Assistant'}
+								</span>
+							</button>
+							<button
+								onclick={() => {
+									loadTasks();
+									showQuickActions = false;
+								}}
+								class="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-surface-raised rounded-lg transition-colors"
+							>
+								<svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+								</svg>
+								<span class="text-sm font-medium text-foreground-base">Refresh Tasks</span>
+							</button>
 						</div>
-						<div class="text-xs text-success bg-success/10 rounded-lg p-3">
-							✅ Task created successfully with intelligent categorization
-						</div>
+					{/if}
+
+					<!-- Main FAB -->
+					<button
+						onclick={toggleQuickActions}
+						class="w-14 h-14 bg-primary hover:bg-primary-button-hover text-primary-foreground rounded-full shadow-lg flex items-center justify-center transition-all duration-200 {showQuickActions ? 'rotate-45' : ''}"
+						aria-label="Quick Actions"
+					>
+						<Plus class="w-6 h-6" />
+					</button>
+				</div>
+			</div>
+
+			<!-- Desktop Quick Actions -->
+			<div class="hidden md:block">
+				<div class="bg-card-bg border border-subtle-base rounded-xl p-4">
+					<h3 class="font-medium text-foreground-base mb-3">Quick Actions</h3>
+					<div class="flex gap-2">
+						<button
+							onclick={toggleAIChat}
+							class="flex items-center gap-2 px-3 py-2 bg-accent/10 hover:bg-accent/20 text-accent rounded-lg transition-colors text-sm"
+						>
+							<Sparkles class="w-4 h-4" />
+							{showAIChat ? 'Hide AI Assistant' : 'Show AI Assistant'}
+						</button>
+						<button
+							onclick={loadTasks}
+							class="flex items-center gap-2 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors text-sm"
+						>
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+							</svg>
+							Refresh Tasks
+						</button>
 					</div>
 				</div>
 			</div>
 		</div>
 	</div>
-
-	<!-- Integration Benefits Section -->
-	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-		<div class="text-center mb-16">
-			<h2 class="text-3xl md:text-4xl font-bold text-foreground-base mb-4">
-				Why Choose AI Task Manager?
-			</h2>
-			<p class="text-xl text-foreground-secondary max-w-2xl mx-auto">
-				Built for teams and individuals who want intelligent task management without changing their workflow.
-			</p>
-		</div>
-
-		<div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-			<div class="text-center group">
-				<div class="w-20 h-20 bg-gradient-to-br from-primary/20 to-primary/10 rounded-3xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
-					<span class="text-2xl">🧠</span>
-				</div>
-				<h3 class="font-semibold text-foreground-base mb-2">Context Aware</h3>
-				<p class="text-sm text-foreground-secondary">Understands task relationships and project context</p>
-			</div>
-
-			<div class="text-center group">
-				<div class="w-20 h-20 bg-gradient-to-br from-success/20 to-success/10 rounded-3xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
-					<span class="text-2xl">⚡</span>
-				</div>
-				<h3 class="font-semibold text-foreground-base mb-2">Instant Setup</h3>
-				<p class="text-sm text-foreground-secondary">Works with existing Notion databases immediately</p>
-			</div>
-
-			<div class="text-center group">
-				<div class="w-20 h-20 bg-gradient-to-br from-accent/20 to-accent/10 rounded-3xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
-					<span class="text-2xl">🔄</span>
-				</div>
-				<h3 class="font-semibold text-foreground-base mb-2">Smart Updates</h3>
-				<p class="text-sm text-foreground-secondary">Automatically updates existing tasks instead of duplicating</p>
-			</div>
-
-			<div class="text-center group">
-				<div class="w-20 h-20 bg-gradient-to-br from-info/20 to-info/10 rounded-3xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">
-					<span class="text-2xl">🎯</span>
-				</div>
-				<h3 class="font-semibold text-foreground-base mb-2">Precise Matching</h3>
-				<p class="text-sm text-foreground-secondary">Advanced keyword extraction and semantic search</p>
-			</div>
-		</div>
-
-		<!-- Integration Highlight -->
-		<div class="mt-16 bg-gradient-to-r from-primary/5 to-accent/5 border border-primary/20 rounded-3xl p-8 text-center">
-			<h3 class="text-2xl font-bold text-foreground-base mb-4">
-				🚀 Zero Migration Required
-			</h3>
-			<p class="text-lg text-foreground-secondary max-w-3xl mx-auto">
-				Keep using your existing Notion workspace exactly as it is. Our AI agent integrates seamlessly with your current databases, properties, and workflow - no setup complexity, no data migration.
-			</p>
-		</div>
-	</div>
-
-	<!-- CTA Section -->
-	<div class="bg-gradient-to-r from-primary/10 via-accent/5 to-success/10 py-20">
-		<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-			<h2 class="text-3xl md:text-4xl font-bold text-foreground-base mb-6">
-				Ready to Experience AI-Powered Task Management?
-			</h2>
-			<p class="text-xl text-foreground-secondary mb-8 max-w-2xl mx-auto">
-				Join teams already using intelligent task management to streamline their Notion workflows and boost productivity.
-			</p>
-			<div class="flex flex-col sm:flex-row gap-4 justify-center">
-				<a
-					href="/user/signin"
-					class="landing-button-primary text-primary-foreground font-semibold py-4 px-8 rounded-xl text-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
-				>
-					Connect Your Notion Now
-				</a>
-				<a
-					href="#features"
-					class="border border-accent/30 hover:border-accent text-accent font-semibold py-4 px-8 rounded-xl text-lg transition-all duration-300 hover:bg-accent/5"
-				>
-					Watch Demo
-				</a>
-			</div>
-			<div class="mt-6 text-sm text-foreground-secondary">
-				✨ Free to try • 🔒 Secure OAuth • ⚡ Instant setup
-			</div>
-		</div>
-	</div>
-</div>
+{/if}
