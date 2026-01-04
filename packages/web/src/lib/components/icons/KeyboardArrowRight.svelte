@@ -2,7 +2,7 @@
 	import { cn } from '$lib/components/utils';
 	import type { HTMLAttributes } from 'svelte/elements';
 
-	let props: HTMLAttributes<SVGElement> = $props();
+	let {class: className, ...props}: HTMLAttributes<SVGElement> = $props();
 </script>
 
-<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" class={cn('', props.class)} {...props}><path fill="currentColor" d="M12.6 12L8 7.4L9.4 6l6 6l-6 6L8 16.6z"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" class={cn('', className)} {...props}><path fill="currentColor" d="M12.6 12L8 7.4L9.4 6l6 6l-6 6L8 16.6z"/></svg>

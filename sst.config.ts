@@ -107,7 +107,6 @@ export default $config({
 		const guestUsersTable = new sst.aws.Dynamo("GuestUsersTable", {
 			fields: {
 				id: "string", // Primary key (Generated guest ID)
-				expiresAt: "number", // TTL field for automatic cleanup
 			},
 			primaryIndex: { hashKey: "id" },
 			ttl: "expiresAt", // Enable TTL on expiresAt field
