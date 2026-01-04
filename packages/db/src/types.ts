@@ -225,3 +225,114 @@ export interface MigrationError {
 	notionPageId: string;
 	error: string;
 }
+
+/**
+ * Input types for creating new sync metadata
+ */
+export interface CreateSyncMetadataInput {
+	taskId: string;
+	integrationId: string;
+	externalId: string;
+	syncStatus?: SyncStatus;
+	lastExternalUpdate?: string;
+}
+
+/**
+ * Input types for updating existing sync metadata
+ */
+export interface UpdateSyncMetadataInput {
+	externalId?: string;
+	syncStatus?: SyncStatus;
+	lastSyncAt?: string;
+	lastExternalUpdate?: string;
+	retryCount?: number;
+	lastError?: string;
+}
+
+/**
+ * Sync result for individual operations
+ */
+export interface SyncResult {
+	success: boolean;
+	externalId?: string;
+	error?: string;
+}
+
+/**
+ * Batch sync result
+ */
+export interface BatchSyncResult {
+	successful: SyncResult[];
+	failed: SyncResult[];
+}
+
+/**
+ * External task data representation
+ */
+export interface ExternalTaskData {
+	externalId: string;
+	title: string;
+	content?: string;
+	status?: string;
+	priority?: string;
+	dueDate?: string;
+	lastModified: Date;
+	archived?: boolean;
+	raw: unknown;
+}
+
+/**
+ * Conflict resolution strategies
+ */
+export type ConflictStrategy = "internal-wins" | "external-wins" | "manual";
+
+/**
+ * Conflict information
+ */
+export interface ConflictInfo {
+	taskId: string;
+	integrationId: string;
+	internalVersion: Task;
+	externalVersion: ExternalTaskData;
+	fieldDifferences: FieldDifference[];
+}
+
+/**
+ * Field difference in conflicts
+ */
+export interface FieldDifference {
+	field: string;
+	internalValue: unknown;
+	externalValue: unknown;
+}
+
+/**
+ * Conflict resolution input
+ */
+export interface ConflictResolution {
+	strategy: ConflictStrategy;
+	selectedVersion?: "internal" | "external";
+	mergedFields?: Partial<Task>;
+}
+
+/**
+ * Sync process result
+ */
+export interface SyncProcessResult {
+	processed: number;
+	succeeded: number;
+	failed: number;
+	conflicts: number;
+}
+
+/**
+ * Sync queue operation
+ */
+export interface SyncQueueOperation {
+	taskId: string;
+	integrationId: string;
+	operation: "push" | "pull";
+	priority: number;
+	createdAt: string;
+	retryCount: number;
+}
