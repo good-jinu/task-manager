@@ -16,6 +16,8 @@
 	
 	// Component state
 	let tasks: any[] = $state([]);
+	let workspaces: any[] = $state([]);
+	let currentWorkspace: any = $state(null);
 	let loading = $state(false);
 	let error = $state('');
 	let showAIChat = $state(false);
@@ -24,18 +26,41 @@
 	let showQuickActions = $state(false);
 
 	onMount(() => {
-		// Only load tasks if user is authenticated
+		// Load workspaces and tasks if user is authenticated
 		if (session) {
-			loadTasks();
+			loadWorkspaces();
 		}
 	});
 
+	async function loadWorkspaces() {
+		try {
+			const response = await fetch('/api/workspaces');
+			const data = await response.json();
+			
+			if (response.ok) {
+				workspaces = data.data || [];
+				// Set current workspace to first one if available
+				if (workspaces.length > 0 && !currentWorkspace) {
+					currentWorkspace = workspaces[0];
+					await loadTasks();
+				}
+			} else {
+				error = data.error || 'Failed to load workspaces';
+			}
+		} catch (err) {
+			error = 'Failed to load workspaces';
+			console.error('Error loading workspaces:', err);
+		}
+	}
+
 	async function loadTasks() {
+		if (!currentWorkspace) return;
+		
 		try {
 			loading = true;
 			error = '';
 			
-			const response = await fetch('/api/tasks');
+			const response = await fetch(`/api/tasks?workspaceId=${currentWorkspace.id}`);
 			const data = await response.json();
 			
 			if (response.ok) {
@@ -98,6 +123,7 @@
 			<!-- Task Input Section -->
 			<div class="mb-6">
 				<TaskInputSimple 
+					workspaceId={currentWorkspace?.id}
 					on:taskCreated={handleTaskCreated}
 					on:error={handleError}
 				/>
@@ -126,7 +152,7 @@
 					
 					{#if showAIChat}
 						<div class="border-t border-subtle-base">
-							<AIAgentChatSimple />
+							<AIAgentChatSimple workspaceId={currentWorkspace?.id} />
 						</div>
 					{/if}
 				</div>

@@ -1,3 +1,4 @@
+import { AgentExecutionService } from "./agent-execution-service";
 import { DatabaseConfigService } from "./database-config-service";
 import { GuestUserService } from "./guest-user-service";
 import { IntegrationService } from "./integration-service";
@@ -16,6 +17,7 @@ import { WorkspaceService } from "./workspace-service";
 export class DatabaseClient {
 	public readonly users: UserService;
 	public readonly databaseConfigs: DatabaseConfigService;
+	public readonly agentExecutions: AgentExecutionService;
 	public readonly tasks: TaskService;
 	public readonly workspaces: WorkspaceService;
 	public readonly integrations: IntegrationService;
@@ -27,6 +29,7 @@ export class DatabaseClient {
 	constructor(notionTaskManager?: NotionTaskManagerInterface) {
 		this.users = new UserService();
 		this.databaseConfigs = new DatabaseConfigService();
+		this.agentExecutions = new AgentExecutionService();
 		this.tasks = new TaskService();
 		this.workspaces = new WorkspaceService();
 		this.integrations = new IntegrationService();

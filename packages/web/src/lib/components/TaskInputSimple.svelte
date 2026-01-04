@@ -2,6 +2,12 @@
 	import { createEventDispatcher } from 'svelte';
 	import { Sparkles, Spinner, Plus } from './icons';
 
+	interface Props {
+		workspaceId?: string;
+	}
+
+	let { workspaceId }: Props = $props();
+
 	const dispatch = createEventDispatcher();
 
 	// Component state
@@ -18,6 +24,7 @@
 			isSubmitting = true;
 
 			const taskData = {
+				workspaceId: workspaceId,
 				title: input.trim(),
 				priority: priority !== 'medium' ? priority : undefined,
 				dueDate: dueDate || undefined
@@ -64,12 +71,12 @@
 
 			const data = await response.json();
 
-			if (response.ok && data.task) {
+			if (response.ok && data.success && data.parsedTask) {
 				// Update form with AI suggestions
-				if (data.task.priority) priority = data.task.priority;
-				if (data.task.dueDate) dueDate = data.task.dueDate;
-				if (data.task.title && data.task.title !== input.trim()) {
-					input = data.task.title;
+				if (data.parsedTask.priority) priority = data.parsedTask.priority;
+				if (data.parsedTask.dueDate) dueDate = data.parsedTask.dueDate;
+				if (data.parsedTask.title && data.parsedTask.title !== input.trim()) {
+					input = data.parsedTask.title;
 				}
 				showAdvanced = true;
 			}
