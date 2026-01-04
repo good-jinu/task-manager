@@ -36,6 +36,9 @@ importers:
       '@ai-sdk/openai-compatible':
         specifier: ^2.0.1
         version: 2.0.1(zod@3.25.76)
+      '@notion-task-manager/db':
+        specifier: workspace:*
+        version: link:../db
       '@notion-task-manager/notion':
         specifier: workspace:*
         version: link:../notion
