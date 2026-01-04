@@ -54,6 +54,11 @@ export function getTableNames() {
 		users: (Resource as any).UsersTable.name,
 		databaseConfigs: (Resource as any).DatabaseConfigsTable.name,
 		agentExecutions: (Resource as any).AgentExecutionsTable.name,
+		tasks: (Resource as any).TasksTable.name,
+		workspaces: (Resource as any).WorkspacesTable.name,
+		integrations: (Resource as any).IntegrationsTable.name,
+		syncMetadata: (Resource as any).SyncMetadataTable.name,
+		guestUsers: (Resource as any).GuestUsersTable.name,
 		// biome-ignore-end lint/suspicious/noExplicitAny: Resource for any
 	};
 }

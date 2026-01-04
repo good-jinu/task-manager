@@ -18,13 +18,40 @@ export type {
 	DatabaseConfig,
 } from "./database-config-service";
 export { DatabaseConfigService } from "./database-config-service";
-// Export user types
+export { GuestUserService } from "./guest-user-service";
+export { IntegrationService } from "./integration-service";
+export { TaskService } from "./task-service";
+// Export user types and service
+// Export task types and service
+// Export workspace types and service
+// Export integration types and service
+// Export sync metadata types
+// Export guest user types and service
 export type {
+	CreateIntegrationInput,
+	CreateTaskInput,
 	CreateUserInput,
+	CreateWorkspaceInput,
+	ExternalIntegration,
+	GuestUser,
+	ListTasksOptions,
+	MigrationError,
+	MigrationProgress,
+	MigrationResult,
+	PaginatedResult,
+	SyncMetadata,
+	SyncStatus,
+	Task,
+	TaskPriority,
+	TaskStatus,
+	UpdateIntegrationInput,
+	UpdateTaskInput,
 	UpdateUserInput,
+	UpdateWorkspaceInput,
 	User,
+	Workspace,
 } from "./types";
 export { UserService } from "./user-service";
-
 // Export validation utilities
 export { ValidationError } from "./validation";
+export { WorkspaceService } from "./workspace-service";

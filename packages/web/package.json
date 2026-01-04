@@ -28,6 +28,7 @@
 		"@notion-task-manager/core": "workspace:*",
 		"@notion-task-manager/db": "workspace:*",
 		"@notion-task-manager/notion": "workspace:*",
+		"bits-ui": "^2.15.2",
 		"clsx": "^2.1.1",
 		"marked": "^17.0.1",
 		"svelte-kit-sst": "^2.43.5",

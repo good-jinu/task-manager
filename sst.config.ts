@@ -42,6 +42,77 @@ export default $config({
 			},
 		});
 
+		// New tables for task management migration
+		const tasksTable = new sst.aws.Dynamo("TasksTable", {
+			fields: {
+				id: "string", // Primary key (UUID)
+				workspaceId: "string", // Foreign key to workspace
+				status: "string", // Task status for filtering
+				createdAt: "string", // For sorting by creation time
+			},
+			primaryIndex: { hashKey: "id" },
+			globalIndexes: {
+				"workspaceId-index": { hashKey: "workspaceId", rangeKey: "createdAt" },
+				"workspaceId-status-index": {
+					hashKey: "workspaceId",
+					rangeKey: "status",
+				},
+			},
+		});
+
+		const workspacesTable = new sst.aws.Dynamo("WorkspacesTable", {
+			fields: {
+				id: "string", // Primary key (UUID)
+				userId: "string", // Owner user ID
+				createdAt: "string", // For sorting by creation time
+			},
+			primaryIndex: { hashKey: "id" },
+			globalIndexes: {
+				"userId-index": { hashKey: "userId", rangeKey: "createdAt" },
+			},
+		});
+
+		const integrationsTable = new sst.aws.Dynamo("IntegrationsTable", {
+			fields: {
+				id: "string", // Primary key (UUID)
+				workspaceId: "string", // Foreign key to workspace
+				provider: "string", // Integration provider (notion, etc.)
+			},
+			primaryIndex: { hashKey: "id" },
+			globalIndexes: {
+				"workspaceId-provider-index": {
+					hashKey: "workspaceId",
+					rangeKey: "provider",
+				},
+			},
+		});
+
+		const syncMetadataTable = new sst.aws.Dynamo("SyncMetadataTable", {
+			fields: {
+				taskId: "string", // Partition key (Foreign key to task)
+				integrationId: "string", // Sort key (Foreign key to integration)
+				syncStatus: "string", // For filtering by sync status
+				externalId: "string", // External task/page ID for reverse lookup
+			},
+			primaryIndex: { hashKey: "taskId", rangeKey: "integrationId" },
+			globalIndexes: {
+				"integrationId-status-index": {
+					hashKey: "integrationId",
+					rangeKey: "syncStatus",
+				},
+				"externalId-index": { hashKey: "externalId" },
+			},
+		});
+
+		const guestUsersTable = new sst.aws.Dynamo("GuestUsersTable", {
+			fields: {
+				id: "string", // Primary key (Generated guest ID)
+				expiresAt: "number", // TTL field for automatic cleanup
+			},
+			primaryIndex: { hashKey: "id" },
+			ttl: "expiresAt", // Enable TTL on expiresAt field
+		});
+
 		// Domain configuration from environment variables
 		const webDomain = process.env.WEB_DOMAIN;
 
@@ -49,7 +120,16 @@ export default $config({
 		const web = new sst.aws.SvelteKit("TaskManagerWeb", {
 			path: "packages/web",
 			...(webDomain ? { domain: { name: webDomain } } : {}),
-			link: [usersTable, databaseConfigsTable, agentExecutionsTable],
+			link: [
+				usersTable,
+				databaseConfigsTable,
+				agentExecutionsTable,
+				tasksTable,
+				workspacesTable,
+				integrationsTable,
+				syncMetadataTable,
+				guestUsersTable,
+			],
 			environment: {
 				// Authentication
 				AUTH_SECRET: process.env.AUTH_SECRET ?? "",
@@ -80,6 +160,11 @@ export default $config({
 			usersTable: usersTable.name,
 			databaseConfigsTable: databaseConfigsTable.name,
 			agentExecutionsTable: agentExecutionsTable.name,
+			tasksTable: tasksTable.name,
+			workspacesTable: workspacesTable.name,
+			integrationsTable: integrationsTable.name,
+			syncMetadataTable: syncMetadataTable.name,
+			guestUsersTable: guestUsersTable.name,
 		};
 	},
 });
