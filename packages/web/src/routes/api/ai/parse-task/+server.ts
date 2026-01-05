@@ -6,7 +6,7 @@ export const POST: RequestHandler = async (event) => {
 	try {
 		// Check if user is authenticated or guest
 		const session = await event.locals.auth();
-		const isGuest = !session?.user;
+		const _isGuest = !session?.user;
 
 		// Allow both authenticated users and guests to use AI parsing
 

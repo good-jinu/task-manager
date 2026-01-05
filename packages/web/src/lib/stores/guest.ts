@@ -58,7 +58,7 @@ export function checkExistingGuest(): boolean {
 
 	if (guestCookie) {
 		const guestId = guestCookie.split("=")[1];
-		if (guestId && guestId.startsWith("guest_")) {
+		if (guestId?.startsWith("guest_")) {
 			isGuestMode.set(true);
 			return true;
 		}

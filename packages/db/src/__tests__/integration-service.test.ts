@@ -65,12 +65,14 @@ const integrationArb = fc.record({
 
 describe("IntegrationService Property-Based Tests", () => {
 	let integrationService: IntegrationService;
-	let mockClient: any;
+	let mockClient: ReturnType<typeof vi.fn>;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
 		integrationService = new IntegrationService();
-		mockClient = (integrationService as any).client;
+		mockClient = (
+			integrationService as unknown as { client: ReturnType<typeof vi.fn> }
+		).client;
 	});
 
 	describe("Property 9: Integration Field Completeness", () => {

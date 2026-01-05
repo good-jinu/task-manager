@@ -98,12 +98,14 @@ const taskArb = fc.record({
 
 describe("TaskService Property-Based Tests", () => {
 	let taskService: TaskService;
-	let mockClient: any;
+	let mockClient: ReturnType<typeof vi.fn>;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
 		taskService = new TaskService();
-		mockClient = (taskService as any).client;
+		mockClient = (
+			taskService as unknown as { client: ReturnType<typeof vi.fn> }
+		).client;
 	});
 
 	describe("Property 1: Task Field Completeness", () => {

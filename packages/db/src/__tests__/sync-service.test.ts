@@ -130,9 +130,9 @@ describe("SyncService Property-Based Tests", () => {
 
 		// Create SyncService with mocked dependencies
 		syncService = new SyncService(
-			mockSyncMetadataService as any,
-			mockTaskService as any,
-			mockIntegrationService as any,
+			mockSyncMetadataService as unknown as SyncMetadataService,
+			mockTaskService as unknown as TaskService,
+			mockIntegrationService as unknown as IntegrationService,
 		);
 	});
 
@@ -480,14 +480,16 @@ describe("SyncService Property-Based Tests", () => {
 
 					if (result && result.syncStatus === "synced") {
 						expect(result.lastSyncAt).toBeDefined();
-						expect(new Date(result.lastSyncAt!).getTime()).toBeGreaterThan(0);
+						if (result.lastSyncAt) {
+							expect(new Date(result.lastSyncAt).getTime()).toBeGreaterThan(0);
 
-						if (originalMetadata.lastSyncAt) {
-							expect(
-								new Date(result.lastSyncAt!).getTime(),
-							).toBeGreaterThanOrEqual(
-								new Date(originalMetadata.lastSyncAt).getTime(),
-							);
+							if (originalMetadata.lastSyncAt) {
+								expect(
+									new Date(result.lastSyncAt).getTime(),
+								).toBeGreaterThanOrEqual(
+									new Date(originalMetadata.lastSyncAt).getTime(),
+								);
+							}
 						}
 					}
 				}),

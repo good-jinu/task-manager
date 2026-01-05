@@ -1,4 +1,11 @@
-import type { MigrationResult } from "@notion-task-manager/db";
+import type {
+	IntegrationService,
+	MigrationResult,
+	NotionTaskManagerInterface,
+	SyncMetadataService,
+	TaskService,
+	WorkspaceService,
+} from "@notion-task-manager/db";
 import { MigrationService } from "@notion-task-manager/db";
 import * as fc from "fast-check";
 import { describe, expect, it, vi } from "vitest";
@@ -61,7 +68,6 @@ function createMocks() {
 		listIntegrations: vi.fn(),
 	};
 	const mockNotionTaskManager = {
-		getTask: vi.fn(),
 		createPage: vi.fn(),
 		getPageContent: vi.fn().mockResolvedValue(""),
 		getDatabasePages: vi.fn(),
@@ -71,11 +77,11 @@ function createMocks() {
 	};
 
 	const migrationService = new MigrationService(
-		mockNotionTaskManager as any,
-		mockTaskService as any,
-		mockWorkspaceService as any,
-		mockSyncMetadataService as any,
-		mockIntegrationService as any,
+		mockNotionTaskManager as unknown as NotionTaskManagerInterface,
+		mockTaskService as unknown as TaskService,
+		mockWorkspaceService as unknown as WorkspaceService,
+		mockSyncMetadataService as unknown as SyncMetadataService,
+		mockIntegrationService as unknown as IntegrationService,
 	);
 
 	return {

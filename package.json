@@ -12,7 +12,8 @@
 		"dev-remove": "sst remove --stage development",
 		"prod-deploy": "sst deploy --stage production",
 		"prod-dev": "sst dev --stage production",
-		"prod-remove": "sst remove --stage production"
+		"prod-remove": "sst remove --stage production",
+		"test": "pnpm -r test"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2",

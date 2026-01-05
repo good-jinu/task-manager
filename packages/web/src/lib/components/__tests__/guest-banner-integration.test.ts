@@ -13,6 +13,7 @@ describe("Guest Banner Integration", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		// Reset document.cookie
+		// biome-ignore lint/suspicious/noDocumentCookie: This is for testing
 		document.cookie = "";
 	});
 
@@ -28,7 +29,8 @@ describe("Guest Banner Integration", () => {
 		};
 
 		// Mock guest registration API
-		(fetch as any).mockResolvedValueOnce({
+		const mockFetch = fetch as ReturnType<typeof vi.fn>;
+		mockFetch.mockResolvedValueOnce({
 			ok: true,
 			json: async () => ({
 				success: true,
@@ -63,7 +65,8 @@ describe("Guest Banner Integration", () => {
 		];
 
 		// Mock tasks API response
-		(fetch as any).mockResolvedValueOnce({
+		const mockFetch = fetch as ReturnType<typeof vi.fn>;
+		mockFetch.mockResolvedValueOnce({
 			ok: true,
 			json: async () => ({
 				success: true,
@@ -86,7 +89,8 @@ describe("Guest Banner Integration", () => {
 		const mockGuestId = "guest_123e4567-e89b-12d3-a456-426614174000";
 
 		// Mock migration API
-		(fetch as any).mockResolvedValueOnce({
+		const mockFetch = fetch as ReturnType<typeof vi.fn>;
+		mockFetch.mockResolvedValueOnce({
 			ok: true,
 			json: async () => ({
 				success: true,
@@ -118,7 +122,8 @@ describe("Guest Banner Integration", () => {
 
 	it("should handle API errors gracefully", async () => {
 		// Mock API error
-		(fetch as any).mockResolvedValueOnce({
+		const mockFetch = fetch as ReturnType<typeof vi.fn>;
+		mockFetch.mockResolvedValueOnce({
 			ok: false,
 			json: async () => ({
 				error: "Failed to load tasks",

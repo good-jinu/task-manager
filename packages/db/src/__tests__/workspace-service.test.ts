@@ -67,13 +67,15 @@ const workspaceArb = fc.record({
 
 describe("WorkspaceService Property-Based Tests", () => {
 	let workspaceService: WorkspaceService;
-	let mockClient: any;
-	let mockTaskService: any;
+	let mockClient: ReturnType<typeof vi.fn>;
+	let mockTaskService: Partial<TaskService>;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
 		workspaceService = new WorkspaceService();
-		mockClient = (workspaceService as any).client;
+		mockClient = (
+			workspaceService as unknown as { client: ReturnType<typeof vi.fn> }
+		).client;
 
 		// Create mock task service
 		mockTaskService = {
@@ -82,7 +84,9 @@ describe("WorkspaceService Property-Based Tests", () => {
 			deleteTask: vi.fn(),
 		};
 		// Inject mock task service
-		(workspaceService as any).taskService = mockTaskService;
+		(
+			workspaceService as unknown as { taskService: Partial<TaskService> }
+		).taskService = mockTaskService;
 	});
 
 	describe("Property 6: Workspace Field Completeness", () => {

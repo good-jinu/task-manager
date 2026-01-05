@@ -10,7 +10,8 @@ describe("AI Guest Integration", () => {
 
 	it("should allow guest users to access AI parse-task endpoint", async () => {
 		// Mock successful AI parsing response
-		(global.fetch as any).mockResolvedValueOnce({
+		const mockFetch = global.fetch as ReturnType<typeof vi.fn>;
+		mockFetch.mockResolvedValueOnce({
 			ok: true,
 			json: async () => ({
 				success: true,
@@ -41,7 +42,8 @@ describe("AI Guest Integration", () => {
 
 	it("should allow guest users to access AI suggestions endpoint with guest ID", async () => {
 		// Mock successful suggestions response
-		(global.fetch as any).mockResolvedValueOnce({
+		const mockFetch = global.fetch as ReturnType<typeof vi.fn>;
+		mockFetch.mockResolvedValueOnce({
 			ok: true,
 			json: async () => ({
 				success: true,
@@ -79,7 +81,8 @@ describe("AI Guest Integration", () => {
 
 	it("should allow guest users to access AI query endpoint with guest ID", async () => {
 		// Mock successful query response
-		(global.fetch as any).mockResolvedValueOnce({
+		const mockFetch = global.fetch as ReturnType<typeof vi.fn>;
+		mockFetch.mockResolvedValueOnce({
 			ok: true,
 			json: async () => ({
 				success: true,
@@ -118,7 +121,8 @@ describe("AI Guest Integration", () => {
 
 	it("should allow guest users to access AI recommendations endpoint with guest ID", async () => {
 		// Mock successful recommendations response
-		(global.fetch as any).mockResolvedValueOnce({
+		const mockFetch = global.fetch as ReturnType<typeof vi.fn>;
+		mockFetch.mockResolvedValueOnce({
 			ok: true,
 			json: async () => ({
 				success: true,
@@ -158,7 +162,8 @@ describe("AI Guest Integration", () => {
 
 	it("should handle missing guest ID gracefully", async () => {
 		// Mock error response for missing guest ID
-		(global.fetch as any).mockResolvedValueOnce({
+		const mockFetch = global.fetch as ReturnType<typeof vi.fn>;
+		mockFetch.mockResolvedValueOnce({
 			ok: false,
 			status: 401,
 			json: async () => ({
