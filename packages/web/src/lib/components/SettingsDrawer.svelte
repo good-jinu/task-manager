@@ -113,7 +113,10 @@
 {#if isOpen}
 	<div 
 		class="fixed inset-0 bg-black bg-opacity-50 z-40"
+		role="button"
+		tabindex="0"
 		onclick={onClose}
+		onkeydown={(e) => e.key === 'Enter' && onClose()}
 	></div>
 {/if}
 

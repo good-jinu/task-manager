@@ -1,12 +1,14 @@
 import { createAIAgentService } from "@notion-task-manager/core";
 import { json } from "@sveltejs/kit";
-import { requireAuth } from "$lib/auth";
 import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async (event) => {
 	try {
-		// Ensure user is authenticated
-		await requireAuth(event);
+		// Check if user is authenticated or guest
+		const session = await event.locals.auth();
+		const isGuest = !session?.user;
+
+		// Allow both authenticated users and guests to use AI parsing
 
 		const requestBody = await event.request.json();
 		const { input } = requestBody;

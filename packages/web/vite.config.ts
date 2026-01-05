@@ -7,7 +7,6 @@ export default defineConfig({
 	plugins: [
 		tailwindcss(),
 		sveltekit(),
-		// @ts-expect-error - Vite plugin version compatibility issue
 		SvelteKitPWA({
 			strategies: "generateSW",
 			registerType: "autoUpdate",

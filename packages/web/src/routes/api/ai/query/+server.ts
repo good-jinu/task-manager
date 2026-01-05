@@ -1,12 +1,31 @@
 import { createAIAgentService } from "@notion-task-manager/core";
 import { json } from "@sveltejs/kit";
-import { requireAuth } from "$lib/auth";
 import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async (event) => {
 	try {
-		// Ensure user is authenticated
-		await requireAuth(event);
+		// Check if user is authenticated or guest
+		let _userId: string;
+		try {
+			const session = await event.locals.auth();
+			if (!session?.user || !session.user.id) {
+				throw new Error("Not authenticated");
+			}
+			_userId = session.user.id;
+		} catch {
+			// Check for guest user ID in headers or cookies
+			const guestId =
+				event.request.headers.get("x-guest-id") ||
+				event.cookies.get("guest-id");
+
+			if (!guestId) {
+				return json(
+					{ error: "Authentication required or guest ID missing" },
+					{ status: 401 },
+				);
+			}
+			_userId = guestId;
+		}
 
 		const requestBody = await event.request.json();
 		const { workspaceId, query } = requestBody;

@@ -60,12 +60,26 @@
 					</div>
 				{:else}
 					<!-- Unauthenticated user navigation -->
-					<a 
-						href="/user/signin" 
-						class="bg-primary hover:bg-primary-button-hover text-primary-foreground px-4 py-2 rounded-md text-sm font-medium"
-					>
-						Sign In
-					</a>
+					<div class="flex items-center space-x-4">
+						<a 
+							href="/" 
+							class="text-foreground-secondary hover:text-foreground-base px-3 py-2 rounded-md text-sm font-medium"
+						>
+							Tasks
+						</a>
+						<a 
+							href="/agent" 
+							class="text-foreground-secondary hover:text-foreground-base px-3 py-2 rounded-md text-sm font-medium"
+						>
+							AI Agent
+						</a>
+						<a 
+							href="/user/signin" 
+							class="bg-primary hover:bg-primary-button-hover text-primary-foreground px-4 py-2 rounded-md text-sm font-medium"
+						>
+							Sign In
+						</a>
+					</div>
 				{/if}
 			</div>
 		</div>

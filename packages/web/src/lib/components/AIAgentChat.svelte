@@ -32,7 +32,7 @@
 	let messages = $state<ChatMessage[]>([]);
 	let input = $state('');
 	let isProcessing = $state(false);
-	let chatContainer: HTMLDivElement;
+	let chatContainer = $state<HTMLDivElement | null>(null);
 
 	// Initialize with welcome message
 	$effect(() => {
@@ -50,7 +50,9 @@
 	$effect(() => {
 		if (chatContainer && messages.length > 0) {
 			setTimeout(() => {
-				chatContainer.scrollTop = chatContainer.scrollHeight;
+				if (chatContainer) {
+					chatContainer.scrollTop = chatContainer.scrollHeight;
+				}
 			}, 100);
 		}
 	});

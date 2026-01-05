@@ -4,6 +4,8 @@
 	import Header from './Header.svelte';
 	import GuestBanner from '../GuestBanner.svelte';
 	import { page } from '$app/stores';
+	import { isGuestMode, guestUser, getGuestTaskCount } from '$lib/stores/guest';
+	import { onMount } from 'svelte';
 
 	let { 
 		children, 
@@ -22,7 +24,27 @@
 	
 	// Don't show guest banner on landing page (main page for unauthenticated users)
 	let currentPath = $derived($page.url.pathname);
-	let shouldShowGuestBanner = $derived(isGuest && showGuestBanner && currentPath !== '/');
+	let shouldShowGuestBanner = $derived(isGuest && showGuestBanner && currentPath !== '/' && $isGuestMode);
+	
+	// Guest task count for banner
+	let guestTaskCount = $state(0);
+
+	onMount(async () => {
+		if ($isGuestMode && !session) {
+			try {
+				guestTaskCount = await getGuestTaskCount();
+			} catch (err) {
+				console.error('Failed to load guest task count in ResponsiveContainer:', err);
+			}
+		}
+	});
+
+	// Update task count when guest user changes
+	$effect(() => {
+		if ($guestUser?.taskCount !== undefined) {
+			guestTaskCount = $guestUser.taskCount;
+		}
+	});
 </script>
 
 <div class="min-h-screen bg-page-bg">
@@ -33,7 +55,14 @@
 
 	<!-- Guest Banner - Only show for unauthenticated users on non-landing pages -->
 	{#if shouldShowGuestBanner}
-		<GuestBanner />
+		<GuestBanner 
+			taskCount={guestTaskCount}
+			daysRemaining={7}
+			onSignUp={() => {
+				// Navigate to sign in page
+				window.location.href = '/user/signin';
+			}}
+		/>
 	{/if}
 
 	<!-- Main Content Container -->

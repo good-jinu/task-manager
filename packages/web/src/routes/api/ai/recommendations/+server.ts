@@ -1,18 +1,42 @@
 import { createAIAgentService } from "@notion-task-manager/core";
 import { json } from "@sveltejs/kit";
-import { requireAuth } from "$lib/auth";
 import { getUserFromDatabase } from "$lib/user";
 import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async (event) => {
 	try {
-		// Ensure user is authenticated
-		const session = await requireAuth(event);
+		// Check if user is authenticated or guest
+		let _userId: string;
+		let isGuest = false;
+		try {
+			const session = await event.locals.auth();
+			if (!session?.user || !session.user.id) {
+				throw new Error("Not authenticated");
+			}
+			_userId = session.user.id;
+		} catch {
+			// Check for guest user ID in headers or cookies
+			const guestId =
+				event.request.headers.get("x-guest-id") ||
+				event.cookies.get("guest-id");
 
-		// Get user data from database
-		const user = await getUserFromDatabase(session.user.id);
-		if (!user) {
-			return json({ error: "User not found in database" }, { status: 404 });
+			if (!guestId) {
+				return json(
+					{ error: "Authentication required or guest ID missing" },
+					{ status: 401 },
+				);
+			}
+			_userId = guestId;
+			isGuest = true;
+		}
+
+		// For authenticated users, get user data from database
+		// For guest users, we'll use the guest ID directly
+		if (!isGuest) {
+			const user = await getUserFromDatabase(_userId);
+			if (!user) {
+				return json({ error: "User not found in database" }, { status: 404 });
+			}
 		}
 
 		const requestBody = await event.request.json();
@@ -36,7 +60,7 @@ export const POST: RequestHandler = async (event) => {
 		// Get task recommendations
 		const recommendations = await aiService.getTaskRecommendations(
 			workspaceId.trim(),
-			user.id,
+			_userId,
 		);
 
 		return json({

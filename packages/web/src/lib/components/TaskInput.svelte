@@ -168,10 +168,10 @@
 		{#if showAdvanced}
 			<div class="mt-4 pt-4 border-t border-gray-100 space-y-4">
 				<!-- Priority selection -->
-				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-2">
+				<fieldset>
+					<legend class="block text-sm font-medium text-gray-700 mb-2">
 						Priority
-					</label>
+					</legend>
 					<div class="flex flex-wrap gap-2">
 						<button
 							type="button"
@@ -201,7 +201,7 @@
 							</button>
 						{/each}
 					</div>
-				</div>
+				</fieldset>
 
 				<!-- Due date -->
 				<div>

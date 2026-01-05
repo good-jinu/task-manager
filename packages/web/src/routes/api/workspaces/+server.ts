@@ -1,23 +1,42 @@
 import { ValidationError, WorkspaceService } from "@notion-task-manager/db";
 import { json } from "@sveltejs/kit";
-import { requireAuth } from "$lib/auth";
 import type { RequestHandler } from "./$types";
 
 /**
  * GET /api/workspaces
- * Returns all workspaces for the authenticated user
+ * Returns all workspaces for the authenticated user or guest user
  */
 export const GET: RequestHandler = async (event) => {
 	try {
-		// Require authentication for workspace operations
-		const session = await requireAuth(event);
+		// Check if user is authenticated or guest
+		let _userId: string;
+		try {
+			const session = await event.locals.auth();
+			if (!session?.user || !session.user.id) {
+				throw new Error("Not authenticated");
+			}
+			_userId = session.user.id;
+		} catch {
+			// Check for guest user ID in headers or cookies
+			const guestId =
+				event.request.headers.get("x-guest-id") ||
+				event.cookies.get("guest-id");
+
+			if (!guestId) {
+				return json(
+					{ error: "Authentication required or guest ID missing" },
+					{ status: 401 },
+				);
+			}
+			_userId = guestId;
+		}
 
 		const workspaceService = new WorkspaceService();
-		const workspaces = await workspaceService.listWorkspaces(session.user.id);
+		const workspaces = await workspaceService.listWorkspaces(_userId);
 
 		return json({
 			success: true,
-			data: workspaces,
+			workspaces: workspaces,
 		});
 	} catch (error) {
 		console.error("Failed to get workspaces:", error);
@@ -33,17 +52,38 @@ export const GET: RequestHandler = async (event) => {
 
 /**
  * POST /api/workspaces
- * Creates a new workspace for the authenticated user
+ * Creates a new workspace for the authenticated user or guest user
  */
 export const POST: RequestHandler = async (event) => {
 	try {
-		// Require authentication for workspace operations
-		const session = await requireAuth(event);
+		// Check if user is authenticated or guest
+		let _userId: string;
+		try {
+			const session = await event.locals.auth();
+			if (!session?.user || !session.user.id) {
+				throw new Error("Not authenticated");
+			}
+			_userId = session.user.id;
+		} catch {
+			// Check for guest user ID in headers or cookies
+			const guestId =
+				event.request.headers.get("x-guest-id") ||
+				event.cookies.get("guest-id");
+
+			if (!guestId) {
+				return json(
+					{ error: "Authentication required or guest ID missing" },
+					{ status: 401 },
+				);
+			}
+			_userId = guestId;
+		}
+
 		const workspaceData = await event.request.json();
 
 		const workspaceService = new WorkspaceService();
 		const workspace = await workspaceService.createWorkspace(
-			session.user.id,
+			_userId,
 			workspaceData,
 		);
 
