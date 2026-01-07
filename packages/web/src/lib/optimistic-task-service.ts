@@ -1,11 +1,11 @@
 import type { CreateTaskInput, UpdateTaskInput } from "@notion-task-manager/db";
 import { type Writable, writable } from "svelte/store";
-import { offlineStorage } from "./offline-storage.js";
+import { offlineStorage } from "./offline-storage";
 import {
 	type CreateTaskData,
 	offlineSyncService,
 	type UpdateTaskData,
-} from "./offline-sync.js";
+} from "./offline-sync";
 
 export interface Task {
 	id: string;

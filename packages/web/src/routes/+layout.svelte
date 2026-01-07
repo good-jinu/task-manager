@@ -4,7 +4,7 @@ import "./layout.css";
 import { onMount } from "svelte";
 import favicon from "$lib/assets/favicon.svg";
 import ResponsiveContainer from "$lib/components/layout/ResponsiveContainer.svelte";
-import { offlineSyncService } from "$lib/offline-sync.js";
+import { offlineSyncService } from "$lib/offline-sync";
 import { initializePWA } from "$lib/pwa-install";
 import type { LayoutData } from "./$types";
 

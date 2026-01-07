@@ -19,8 +19,10 @@ import {
 	Settings,
 	Sparkles,
 } from "$lib/components/icons";
+import RecoveryNotification from "$lib/components/RecoveryNotification.svelte";
 import TaskInputSimple from "$lib/components/TaskInputSimple.svelte";
 import TaskListSimple from "$lib/components/TaskListSimple.svelte";
+import { GuestRecoveryService } from "$lib/services/guestRecovery";
 import {
 	checkExistingGuest,
 	getGuestTaskCount,
@@ -30,6 +32,10 @@ import {
 	registerGuestUser,
 	updateGuestTaskCount,
 } from "$lib/stores/guest";
+import {
+	loadGuestDataLocally,
+	saveGuestDataLocally,
+} from "$lib/stores/guestPersistence";
 import type { PageData } from "$lib/types/page-data";
 import { deleteCookie } from "$lib/utils/cookies";
 
@@ -48,6 +54,19 @@ let error = $state("");
 let showAIChat = $state(false);
 let guestTaskCount = $state(0);
 let showAccountDialog = $state(false);
+
+// Recovery notification state
+let showRecoveryNotification = $state(false);
+let recoveryNotification = $state<{
+	type: "success" | "info" | "warning";
+	title: string;
+	message: string;
+	taskCount?: number;
+}>({
+	type: "info",
+	title: "",
+	message: "",
+});
 
 // Agent functionality state
 let expandedExecutions = $state<Set<string>>(new Set());
@@ -108,80 +127,63 @@ onMount(async () => {
 async function handleAutoGuestRegistration() {
 	try {
 		loading = true;
-		console.log("Starting guest registration...");
+		console.log("Starting guest registration with recovery...");
 
-		// Check if user is already a guest
-		const hasExistingGuest = checkExistingGuest();
-		console.log("Has existing guest:", hasExistingGuest);
+		const recoveryService = new GuestRecoveryService();
+		const recoveryResult = await recoveryService.recoverGuestSession();
 
-		if (hasExistingGuest) {
-			// Load existing guest workspace
-			await loadGuestWorkspace();
+		if (recoveryResult.success && recoveryResult.workspace) {
+			currentWorkspace = recoveryResult.workspace;
+			tasks = recoveryResult.tasks;
+			guestTaskCount = tasks.length;
+
+			// Update guest store
+			isGuestMode.set(true);
+			guestUser.set({
+				id: "guest", // We'll get the actual ID from the cookie
+				workspace: currentWorkspace,
+				isRegistered: false,
+			});
+
+			// Show recovery notification if data was recovered
+			if (
+				recoveryResult.recoveredFromLocal &&
+				recoveryResult.tasks.length > 0
+			) {
+				recoveryNotification = {
+					type: "success",
+					title: "Tasks Recovered!",
+					message: "We found your previous tasks and restored them.",
+					taskCount: recoveryResult.tasks.length,
+				};
+				showRecoveryNotification = true;
+
+				// Auto-hide after 8 seconds
+				setTimeout(() => {
+					showRecoveryNotification = false;
+				}, 8000);
+			} else if (recoveryResult.recoveredFromLocal) {
+				recoveryNotification = {
+					type: "info",
+					title: "Session Restored",
+					message: "Your workspace has been restored.",
+				};
+				showRecoveryNotification = true;
+
+				setTimeout(() => {
+					showRecoveryNotification = false;
+				}, 5000);
+			}
+
+			console.log("Guest session recovered successfully:", currentWorkspace);
 		} else {
-			// Auto-register new guest user with long expiration (e.g., 1 year)
-			console.log("Registering new guest user...");
-			const guest = await registerGuestUser();
-			console.log("Guest registered:", guest);
-			currentWorkspace = guest.workspace;
-			console.log("Current workspace set:", currentWorkspace);
-			await loadTasks();
+			error = recoveryResult.message || "Failed to initialize workspace";
 		}
 	} catch (err) {
 		console.error("Failed to setup guest session:", err);
 		error = "Failed to initialize workspace";
 	} finally {
 		loading = false;
-	}
-}
-
-async function loadGuestWorkspace() {
-	try {
-		console.log("Loading guest workspace...");
-		// For existing guests, we need to fetch their workspace from the backend
-		// The guest-id cookie should be automatically sent with the request
-		const response = await fetch("/api/workspaces");
-		const data = await response.json();
-		console.log("Workspaces response:", data);
-
-		if (response.ok && data.workspaces && data.workspaces.length > 0) {
-			// Use the first workspace (guest users should only have one)
-			currentWorkspace = data.workspaces[0];
-			console.log("Guest workspace loaded:", currentWorkspace);
-			await loadTasks();
-		} else if (response.status === 401) {
-			// Guest user expired or doesn't exist - clear cookie and register new guest
-			console.warn(
-				"Guest user expired, clearing cookie and registering new guest...",
-			);
-			// Clear the expired guest cookie using modern API
-			await deleteCookie("guest-id", { path: "/" });
-			isGuestMode.set(false);
-			guestUser.set(null);
-
-			// Register a new guest user
-			const guest = await registerGuestUser();
-			currentWorkspace = guest.workspace;
-			console.log("New guest registered with workspace:", currentWorkspace);
-			await loadTasks();
-		} else {
-			// Other error - try to re-register the guest
-			console.warn("No workspace found for existing guest, re-registering...");
-			const guest = await registerGuestUser();
-			currentWorkspace = guest.workspace;
-			console.log("Re-registered guest workspace:", currentWorkspace);
-			await loadTasks();
-		}
-	} catch (err) {
-		console.error("Failed to load guest workspace:", err);
-		// Fallback: re-register the guest
-		try {
-			const guest = await registerGuestUser();
-			currentWorkspace = guest.workspace;
-			await loadTasks();
-		} catch (registerErr) {
-			console.error("Failed to re-register guest:", registerErr);
-			error = "Failed to load workspace";
-		}
 	}
 }
 
@@ -264,6 +266,14 @@ function handleTaskCreated(newTask: Task) {
 	// Update guest store if in guest mode
 	if ($isGuestMode && !isAuthenticated) {
 		updateGuestTaskCount(tasks.length);
+		// Save to local storage for persistence
+		if (currentWorkspace) {
+			saveGuestDataLocally({
+				guestId: "guest", // This should be the actual guest ID from cookie
+				workspaceId: currentWorkspace.id,
+				tasks: tasks,
+			});
+		}
 	}
 }
 
@@ -271,6 +281,15 @@ function handleTaskUpdated(updatedTask: Task) {
 	tasks = tasks.map((task) =>
 		task.id === updatedTask.id ? updatedTask : task,
 	);
+
+	// Update local storage for guest users
+	if ($isGuestMode && !isAuthenticated && currentWorkspace) {
+		saveGuestDataLocally({
+			guestId: "guest",
+			workspaceId: currentWorkspace.id,
+			tasks: tasks,
+		});
+	}
 }
 
 function handleTaskDeleted(deletedTaskId: string) {
@@ -280,6 +299,14 @@ function handleTaskDeleted(deletedTaskId: string) {
 	// Update guest store if in guest mode
 	if ($isGuestMode && !isAuthenticated) {
 		updateGuestTaskCount(tasks.length);
+		// Save to local storage for persistence
+		if (currentWorkspace) {
+			saveGuestDataLocally({
+				guestId: "guest",
+				workspaceId: currentWorkspace.id,
+				tasks: tasks,
+			});
+		}
 	}
 }
 
@@ -623,4 +650,14 @@ function toggleExpanded(executionId: string) {
 	guestTasks={tasks}
 	onClose={() => showAccountDialog = false}
 	onCreateAccount={handleAccountCreation}
+/>
+
+<!-- Recovery Notification -->
+<RecoveryNotification
+	show={showRecoveryNotification}
+	type={recoveryNotification.type}
+	title={recoveryNotification.title}
+	message={recoveryNotification.message}
+	taskCount={recoveryNotification.taskCount}
+	onClose={() => showRecoveryNotification = false}
 />
