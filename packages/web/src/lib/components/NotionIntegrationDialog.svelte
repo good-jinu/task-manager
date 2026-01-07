@@ -1,97 +1,97 @@
 <script lang="ts">
-	import type { ExternalIntegration } from '@notion-task-manager/db';
-	import { Button, Card } from './ui';
-	import { Close, Database, Spinner, Check, ArrowRightAlt } from './icons';
-	import { cn } from './utils';
+import type { ExternalIntegration } from "@notion-task-manager/db";
+import { ArrowRightAlt, Check, Close, Database, Spinner } from "./icons";
+import { Button, Card } from "./ui";
+import { cn } from "./utils";
 
-	interface NotionDatabase {
-		id: string;
-		name: string;
-		url?: string;
+interface NotionDatabase {
+	id: string;
+	name: string;
+	url?: string;
+}
+
+interface Props {
+	isOpen: boolean;
+	workspaceId: string;
+	availableDatabases?: NotionDatabase[];
+	loading?: boolean;
+	onClose: () => void;
+	onConnect: (databaseId: string, importExisting: boolean) => Promise<void>;
+	class?: string;
+}
+
+let {
+	isOpen,
+	workspaceId,
+	availableDatabases = [],
+	loading = false,
+	onClose,
+	onConnect,
+	class: className = "",
+}: Props = $props();
+
+let selectedDatabaseId = $state("");
+let importExisting = $state(true);
+let isConnecting = $state(false);
+let step = $state<"select" | "connecting" | "success">("select");
+
+// Reset state when dialog opens/closes
+$effect(() => {
+	if (isOpen) {
+		step = "select";
+		selectedDatabaseId = "";
+		importExisting = true;
+		isConnecting = false;
 	}
+});
 
-	interface Props {
-		isOpen: boolean;
-		workspaceId: string;
-		availableDatabases?: NotionDatabase[];
-		loading?: boolean;
-		onClose: () => void;
-		onConnect: (databaseId: string, importExisting: boolean) => Promise<void>;
-		class?: string;
-	}
+async function handleConnect() {
+	if (!selectedDatabaseId || isConnecting) return;
 
-	let {
-		isOpen,
-		workspaceId,
-		availableDatabases = [],
-		loading = false,
-		onClose,
-		onConnect,
-		class: className = ''
-	}: Props = $props();
+	isConnecting = true;
+	step = "connecting";
 
-	let selectedDatabaseId = $state('');
-	let importExisting = $state(true);
-	let isConnecting = $state(false);
-	let step = $state<'select' | 'connecting' | 'success'>('select');
+	try {
+		await onConnect(selectedDatabaseId, importExisting);
+		step = "success";
 
-	// Reset state when dialog opens/closes
-	$effect(() => {
-		if (isOpen) {
-			step = 'select';
-			selectedDatabaseId = '';
-			importExisting = true;
-			isConnecting = false;
-		}
-	});
-
-	async function handleConnect() {
-		if (!selectedDatabaseId || isConnecting) return;
-
-		isConnecting = true;
-		step = 'connecting';
-
-		try {
-			await onConnect(selectedDatabaseId, importExisting);
-			step = 'success';
-			
-			// Auto-close after success
-			setTimeout(() => {
-				onClose();
-			}, 2000);
-		} catch (error) {
-			console.error('Connection failed:', error);
-			step = 'select';
-			// Could show error message here
-		} finally {
-			isConnecting = false;
-		}
-	}
-
-	function handleClose() {
-		if (!isConnecting) {
+		// Auto-close after success
+		setTimeout(() => {
 			onClose();
-		}
+		}, 2000);
+	} catch (error) {
+		console.error("Connection failed:", error);
+		step = "select";
+		// Could show error message here
+	} finally {
+		isConnecting = false;
+	}
+}
+
+function handleClose() {
+	if (!isConnecting) {
+		onClose();
+	}
+}
+
+// Prevent background scroll when dialog is open
+$effect(() => {
+	if (typeof document === "undefined") return;
+
+	if (isOpen) {
+		document.body.style.overflow = "hidden";
+	} else {
+		document.body.style.overflow = "";
 	}
 
-	// Prevent background scroll when dialog is open
-	$effect(() => {
-		if (typeof document === 'undefined') return;
-		
-		if (isOpen) {
-			document.body.style.overflow = 'hidden';
-		} else {
-			document.body.style.overflow = '';
-		}
+	return () => {
+		document.body.style.overflow = "";
+	};
+});
 
-		return () => {
-			document.body.style.overflow = '';
-		};
-	});
-
-	const selectedDatabase = $derived(
-		availableDatabases.find(db => db.id === selectedDatabaseId)
-	);
+const selectedDatabase = $derived(
+	availableDatabases.find((db) => db.id === selectedDatabaseId),
+);
 </script>
 
 {#if isOpen}

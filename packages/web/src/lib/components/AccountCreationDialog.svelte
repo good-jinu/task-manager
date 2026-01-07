@@ -1,81 +1,81 @@
 <script lang="ts">
-	import type { Task } from '@notion-task-manager/db';
-	import { Button, Card } from './ui';
-	import { Close, Check, ArrowRightAlt, Spinner } from './icons';
-	import { cn } from './utils';
+import type { Task } from "@notion-task-manager/db";
+import { ArrowRightAlt, Check, Close, Spinner } from "./icons";
+import { Button, Card } from "./ui";
+import { cn } from "./utils";
 
-	interface Props {
-		isOpen: boolean;
-		guestTasks?: Task[];
-		onClose: () => void;
-		onCreateAccount: (migrateData: boolean) => Promise<void>;
-		class?: string;
+interface Props {
+	isOpen: boolean;
+	guestTasks?: Task[];
+	onClose: () => void;
+	onCreateAccount: (migrateData: boolean) => Promise<void>;
+	class?: string;
+}
+
+let {
+	isOpen,
+	guestTasks = [],
+	onClose,
+	onCreateAccount,
+	class: className = "",
+}: Props = $props();
+
+let migrateData = $state(true);
+let isCreating = $state(false);
+let step = $state<"confirm" | "creating" | "success">("confirm");
+
+// Reset state when dialog opens/closes
+$effect(() => {
+	if (isOpen) {
+		step = "confirm";
+		migrateData = true;
+		isCreating = false;
 	}
+});
 
-	let {
-		isOpen,
-		guestTasks = [],
-		onClose,
-		onCreateAccount,
-		class: className = ''
-	}: Props = $props();
+async function handleCreateAccount() {
+	if (isCreating) return;
 
-	let migrateData = $state(true);
-	let isCreating = $state(false);
-	let step = $state<'confirm' | 'creating' | 'success'>('confirm');
+	isCreating = true;
+	step = "creating";
 
-	// Reset state when dialog opens/closes
-	$effect(() => {
-		if (isOpen) {
-			step = 'confirm';
-			migrateData = true;
-			isCreating = false;
-		}
-	});
+	try {
+		await onCreateAccount(migrateData);
+		step = "success";
 
-	async function handleCreateAccount() {
-		if (isCreating) return;
-
-		isCreating = true;
-		step = 'creating';
-
-		try {
-			await onCreateAccount(migrateData);
-			step = 'success';
-			
-			// Auto-close after success
-			setTimeout(() => {
-				onClose();
-			}, 2000);
-		} catch (error) {
-			console.error('Account creation failed:', error);
-			step = 'confirm';
-			// Could show error message here
-		} finally {
-			isCreating = false;
-		}
-	}
-
-	function handleClose() {
-		if (!isCreating) {
+		// Auto-close after success
+		setTimeout(() => {
 			onClose();
-		}
+		}, 2000);
+	} catch (error) {
+		console.error("Account creation failed:", error);
+		step = "confirm";
+		// Could show error message here
+	} finally {
+		isCreating = false;
+	}
+}
+
+function handleClose() {
+	if (!isCreating) {
+		onClose();
+	}
+}
+
+// Prevent background scroll when dialog is open
+$effect(() => {
+	if (typeof document === "undefined") return;
+
+	if (isOpen) {
+		document.body.style.overflow = "hidden";
+	} else {
+		document.body.style.overflow = "";
 	}
 
-	// Prevent background scroll when dialog is open
-	$effect(() => {
-		if (typeof document === 'undefined') return;
-		
-		if (isOpen) {
-			document.body.style.overflow = 'hidden';
-		} else {
-			document.body.style.overflow = '';
-		}
-
-		return () => {
-			document.body.style.overflow = '';
-		};
-	});
+	return () => {
+		document.body.style.overflow = "";
+	};
+});
 </script>
 
 {#if isOpen}

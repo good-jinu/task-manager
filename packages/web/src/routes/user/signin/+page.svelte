@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { signIn } from '@auth/sveltekit/client';
-	import { Button, Card } from '$lib/components/ui';
-	import { Lock } from '$lib/components/icons';
+import { signIn } from "@auth/sveltekit/client";
+import { Lock } from "$lib/components/icons";
+import { Button, Card } from "$lib/components/ui";
 </script>
 
 <svelte:head>

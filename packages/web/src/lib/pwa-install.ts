@@ -1,38 +1,10 @@
 import { writable } from "svelte/store";
 
-// PWA installation state
-export const canInstallPWA = writable(false);
-export const isInstalled = writable(false);
+// Service worker update state
 export const swUpdateAvailable = writable(false);
-
-interface BeforeInstallPromptEvent extends Event {
-	prompt(): Promise<void>;
-	userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
-
-let deferredPrompt: BeforeInstallPromptEvent | null = null;
 
 export function initializePWA() {
 	if (typeof window === "undefined") return;
-
-	// Check if already installed
-	if (window.matchMedia("(display-mode: standalone)").matches) {
-		isInstalled.set(true);
-	}
-
-	// Listen for beforeinstallprompt event
-	window.addEventListener("beforeinstallprompt", (e) => {
-		e.preventDefault();
-		deferredPrompt = e as BeforeInstallPromptEvent;
-		canInstallPWA.set(true);
-	});
-
-	// Listen for app installed event
-	window.addEventListener("appinstalled", () => {
-		isInstalled.set(true);
-		canInstallPWA.set(false);
-		deferredPrompt = null;
-	});
 
 	// Register service worker manually for better control
 	if ("serviceWorker" in navigator) {
@@ -66,26 +38,6 @@ export function initializePWA() {
 				console.log("Service Worker activated");
 			}
 		});
-	}
-}
-
-export async function installPWA(): Promise<boolean> {
-	if (!deferredPrompt) return false;
-
-	try {
-		deferredPrompt.prompt();
-		const { outcome } = await deferredPrompt.userChoice;
-
-		if (outcome === "accepted") {
-			canInstallPWA.set(false);
-			deferredPrompt = null;
-			return true;
-		}
-
-		return false;
-	} catch (error) {
-		console.error("PWA installation failed:", error);
-		return false;
 	}
 }
 

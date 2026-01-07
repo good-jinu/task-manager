@@ -32,6 +32,8 @@ export const GET = async (event: RequestEvent) => {
 
 		// Try to get authenticated user, but allow guest users
 		let _userId: string;
+		let isGuest = false;
+
 		try {
 			const session = await requireAuth(event);
 			_userId = session.user.id;
@@ -48,6 +50,24 @@ export const GET = async (event: RequestEvent) => {
 				);
 			}
 			_userId = guestId;
+			isGuest = true;
+		}
+
+		// For guest users, validate that the guest user still exists
+		if (isGuest) {
+			try {
+				const { GuestUserService } = await import("@notion-task-manager/db");
+				const guestUserService = new GuestUserService();
+				const guestUser = await guestUserService.getGuestUser(_userId);
+
+				if (!guestUser) {
+					// Guest user expired or doesn't exist
+					return json({ error: "Guest user expired" }, { status: 401 });
+				}
+			} catch (guestError) {
+				console.error("Failed to validate guest user:", guestError);
+				return json({ error: "Guest user validation failed" }, { status: 401 });
+			}
 		}
 
 		const taskService = new TaskService();
@@ -90,6 +110,8 @@ export const POST = async (event: RequestEvent) => {
 
 		// Try to get authenticated user, but allow guest users
 		let _userId: string;
+		let isGuest = false;
+
 		try {
 			const session = await requireAuth(event);
 			_userId = session.user.id;
@@ -106,6 +128,24 @@ export const POST = async (event: RequestEvent) => {
 				);
 			}
 			_userId = guestId;
+			isGuest = true;
+		}
+
+		// For guest users, validate that the guest user still exists
+		if (isGuest) {
+			try {
+				const { GuestUserService } = await import("@notion-task-manager/db");
+				const guestUserService = new GuestUserService();
+				const guestUser = await guestUserService.getGuestUser(_userId);
+
+				if (!guestUser) {
+					// Guest user expired or doesn't exist
+					return json({ error: "Guest user expired" }, { status: 401 });
+				}
+			} catch (guestError) {
+				console.error("Failed to validate guest user:", guestError);
+				return json({ error: "Guest user validation failed" }, { status: 401 });
+			}
 		}
 
 		const taskService = new TaskService();

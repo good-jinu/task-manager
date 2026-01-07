@@ -1,97 +1,97 @@
 <script lang="ts">
-	import type { Task, TaskStatus } from '@notion-task-manager/db';
-	import { Check, Task as TaskIcon, ArrowRightAlt } from './icons';
-	import { Badge } from './ui';
-	import { cn } from './utils';
+import type { Task, TaskStatus } from "@notion-task-manager/db";
+import { ArrowRightAlt, Check, Task as TaskIcon } from "./icons";
+import { Badge } from "./ui";
+import { cn } from "./utils";
 
-	interface Props {
-		task: Task;
-		onStatusChange?: (taskId: string, status: TaskStatus) => Promise<void>;
-		onEdit?: (task: Task) => void;
-		onDelete?: (taskId: string) => Promise<void>;
-		class?: string;
+interface Props {
+	task: Task;
+	onStatusChange?: (taskId: string, status: TaskStatus) => Promise<void>;
+	onEdit?: (task: Task) => void;
+	onDelete?: (taskId: string) => Promise<void>;
+	class?: string;
+}
+
+let {
+	task,
+	onStatusChange,
+	onEdit,
+	onDelete,
+	class: className = "",
+}: Props = $props();
+
+let isUpdating = $state(false);
+let swipeOffset = $state(0);
+let isDragging = $state(false);
+let startX = $state(0);
+
+// Touch event handlers for swipe gestures
+function handleTouchStart(e: TouchEvent) {
+	startX = e.touches[0].clientX;
+	isDragging = true;
+}
+
+function handleTouchMove(e: TouchEvent) {
+	if (!isDragging) return;
+
+	const currentX = e.touches[0].clientX;
+	const diff = currentX - startX;
+
+	// Only allow left swipe (negative offset)
+	swipeOffset = Math.min(0, Math.max(-120, diff));
+}
+
+function handleTouchEnd() {
+	isDragging = false;
+
+	// If swiped more than 60px, show actions
+	if (swipeOffset < -60) {
+		swipeOffset = -120;
+	} else {
+		swipeOffset = 0;
 	}
+}
 
-	let {
-		task,
-		onStatusChange,
-		onEdit,
-		onDelete,
-		class: className = ''
-	}: Props = $props();
+async function handleStatusToggle() {
+	if (!onStatusChange || isUpdating) return;
 
-	let isUpdating = $state(false);
-	let swipeOffset = $state(0);
-	let isDragging = $state(false);
-	let startX = $state(0);
-
-	// Touch event handlers for swipe gestures
-	function handleTouchStart(e: TouchEvent) {
-		startX = e.touches[0].clientX;
-		isDragging = true;
+	isUpdating = true;
+	try {
+		const newStatus: TaskStatus = task.status === "done" ? "todo" : "done";
+		await onStatusChange(task.id, newStatus);
+	} finally {
+		isUpdating = false;
 	}
+}
 
-	function handleTouchMove(e: TouchEvent) {
-		if (!isDragging) return;
-		
-		const currentX = e.touches[0].clientX;
-		const diff = currentX - startX;
-		
-		// Only allow left swipe (negative offset)
-		swipeOffset = Math.min(0, Math.max(-120, diff));
+async function handleDelete() {
+	if (!onDelete || isUpdating) return;
+
+	isUpdating = true;
+	try {
+		await onDelete(task.id);
+	} finally {
+		isUpdating = false;
 	}
+}
 
-	function handleTouchEnd() {
-		isDragging = false;
-		
-		// If swiped more than 60px, show actions
-		if (swipeOffset < -60) {
-			swipeOffset = -120;
-		} else {
-			swipeOffset = 0;
-		}
-	}
+function handleEdit() {
+	if (!onEdit) return;
+	onEdit(task);
+	swipeOffset = 0; // Close swipe actions
+}
 
-	async function handleStatusToggle() {
-		if (!onStatusChange || isUpdating) return;
-		
-		isUpdating = true;
-		try {
-			const newStatus: TaskStatus = task.status === 'done' ? 'todo' : 'done';
-			await onStatusChange(task.id, newStatus);
-		} finally {
-			isUpdating = false;
-		}
-	}
+// Priority colors
+const priorityColors = {
+	low: "bg-blue-100 text-blue-800",
+	medium: "bg-yellow-100 text-yellow-800",
+	high: "bg-orange-100 text-orange-800",
+	urgent: "bg-red-100 text-red-800",
+};
 
-	async function handleDelete() {
-		if (!onDelete || isUpdating) return;
-		
-		isUpdating = true;
-		try {
-			await onDelete(task.id);
-		} finally {
-			isUpdating = false;
-		}
-	}
-
-	function handleEdit() {
-		if (!onEdit) return;
-		onEdit(task);
-		swipeOffset = 0; // Close swipe actions
-	}
-
-	// Priority colors
-	const priorityColors = {
-		low: 'bg-blue-100 text-blue-800',
-		medium: 'bg-yellow-100 text-yellow-800',
-		high: 'bg-orange-100 text-orange-800',
-		urgent: 'bg-red-100 text-red-800'
-	};
-
-	// Status styles
-	const isCompleted = $derived(task.status === 'done');
-	const isArchived = $derived(task.archived || task.status === 'archived');
+// Status styles
+const isCompleted = $derived(task.status === "done");
+const isArchived = $derived(task.archived || task.status === "archived");
 </script>
 
 <div 

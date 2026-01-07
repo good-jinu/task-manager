@@ -1,84 +1,90 @@
 <script lang="ts">
-	import type { ExternalIntegration } from '@notion-task-manager/db';
-	import { Badge } from './ui';
-	import { Database, Spinner, Success, Error, Warning } from './icons';
-	import { cn } from './utils';
+import type { ExternalIntegration } from "@notion-task-manager/db";
+import {
+	Database,
+	Error as ErrorIcon,
+	Spinner,
+	Success,
+	Warning,
+} from "./icons";
+import { Badge } from "./ui";
+import { cn } from "./utils";
 
-	interface Props {
-		integration?: ExternalIntegration;
-		loading?: boolean;
-		onToggle: (enabled: boolean) => Promise<void>;
-		onConfigure?: () => void;
-		class?: string;
+interface Props {
+	integration?: ExternalIntegration;
+	loading?: boolean;
+	onToggle: (enabled: boolean) => Promise<void>;
+	onConfigure?: () => void;
+	class?: string;
+}
+
+let {
+	integration,
+	loading = false,
+	onToggle,
+	onConfigure,
+	class: className = "",
+}: Props = $props();
+
+let isToggling = $state(false);
+
+async function handleToggle() {
+	if (isToggling || loading) return;
+
+	isToggling = true;
+	try {
+		const newState = !integration?.syncEnabled;
+		await onToggle(newState);
+	} finally {
+		isToggling = false;
 	}
+}
 
-	let {
-		integration,
-		loading = false,
-		onToggle,
-		onConfigure,
-		class: className = ''
-	}: Props = $props();
-
-	let isToggling = $state(false);
-
-	async function handleToggle() {
-		if (isToggling || loading) return;
-
-		isToggling = true;
-		try {
-			const newState = !integration?.syncEnabled;
-			await onToggle(newState);
-		} finally {
-			isToggling = false;
-		}
+function handleConfigure() {
+	if (onConfigure) {
+		onConfigure();
 	}
+}
 
-	function handleConfigure() {
-		if (onConfigure) {
-			onConfigure();
-		}
-	}
+// Determine status
+const status = $derived(() => {
+	if (!integration) return "disconnected";
+	if (!integration.syncEnabled) return "disabled";
 
-	// Determine status
-	const status = $derived(() => {
-		if (!integration) return 'disconnected';
-		if (!integration.syncEnabled) return 'disabled';
-		
-		// In a real implementation, you'd check sync metadata for actual status
-		// For now, we'll assume 'synced' if enabled
-		return 'synced';
-	});
+	// In a real implementation, you'd check sync metadata for actual status
+	// For now, we'll assume 'synced' if enabled
+	return "synced";
+});
 
-	const statusConfig = {
-		disconnected: {
-			label: 'Not Connected',
-			color: 'bg-gray-100 text-gray-800',
-			icon: Database
-		},
-		disabled: {
-			label: 'Disabled',
-			color: 'bg-gray-100 text-gray-800',
-			icon: Database
-		},
-		synced: {
-			label: 'Synced',
-			color: 'bg-green-100 text-green-800',
-			icon: Success
-		},
-		pending: {
-			label: 'Syncing',
-			color: 'bg-yellow-100 text-yellow-800',
-			icon: Spinner
-		},
-		error: {
-			label: 'Error',
-			color: 'bg-red-100 text-red-800',
-			icon: Error
-		}
-	};
+const statusConfig = {
+	disconnected: {
+		label: "Not Connected",
+		color: "bg-gray-100 text-gray-800",
+		icon: Database,
+	},
+	disabled: {
+		label: "Disabled",
+		color: "bg-gray-100 text-gray-800",
+		icon: Database,
+	},
+	synced: {
+		label: "Synced",
+		color: "bg-green-100 text-green-800",
+		icon: Success,
+	},
+	pending: {
+		label: "Syncing",
+		color: "bg-yellow-100 text-yellow-800",
+		icon: Spinner,
+	},
+	error: {
+		label: "Error",
+		color: "bg-red-100 text-red-800",
+		icon: ErrorIcon,
+	},
+};
 
-	const currentStatus = $derived(statusConfig[status()]);
+const currentStatus = $derived(statusConfig[status()]);
 </script>
 
 <div class={cn('flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg', className)}>

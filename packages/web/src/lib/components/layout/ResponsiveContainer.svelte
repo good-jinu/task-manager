@@ -1,50 +1,56 @@
 <script lang="ts">
-	import type { Session } from '@auth/sveltekit';
-	import BottomNavigation from './BottomNavigation.svelte';
-	import Header from './Header.svelte';
-	import GuestBanner from '../GuestBanner.svelte';
-	import { page } from '$app/stores';
-	import { isGuestMode, guestUser, getGuestTaskCount } from '$lib/stores/guest';
-	import { onMount } from 'svelte';
+import type { Session } from "@auth/sveltekit";
+import type { Snippet } from "svelte";
+import { onMount } from "svelte";
+import { page } from "$app/stores";
+import { getGuestTaskCount, guestUser, isGuestMode } from "$lib/stores/guest";
+import GuestBanner from "../GuestBanner.svelte";
+import BottomNavigation from "./BottomNavigation.svelte";
+import Header from "./Header.svelte";
 
-	let { 
-		children, 
-		session,
-		showGuestBanner = true,
-		class: className = ""
-	}: { 
-		children: any; 
-		session: Session | null;
-		showGuestBanner?: boolean;
-		class?: string;
-	} = $props();
+let {
+	children,
+	session,
+	showGuestBanner = true,
+	class: className = "",
+}: {
+	children: Snippet;
+	session: Session | null;
+	showGuestBanner?: boolean;
+	class?: string;
+} = $props();
 
-	// Check if user is a guest (not authenticated)
-	let isGuest = $derived(!session);
-	
-	// Don't show guest banner on landing page (main page for unauthenticated users)
-	let currentPath = $derived($page.url.pathname);
-	let shouldShowGuestBanner = $derived(isGuest && showGuestBanner && currentPath !== '/' && $isGuestMode);
-	
-	// Guest task count for banner
-	let guestTaskCount = $state(0);
+// Check if user is a guest (not authenticated)
+let isGuest = $derived(!session);
 
-	onMount(async () => {
-		if ($isGuestMode && !session) {
-			try {
-				guestTaskCount = await getGuestTaskCount();
-			} catch (err) {
-				console.error('Failed to load guest task count in ResponsiveContainer:', err);
-			}
+// Don't show guest banner on landing page (main page for unauthenticated users)
+let currentPath = $derived($page.url.pathname);
+let shouldShowGuestBanner = $derived(
+	isGuest && showGuestBanner && currentPath !== "/" && $isGuestMode,
+);
+
+// Guest task count for banner
+let guestTaskCount = $state(0);
+
+onMount(async () => {
+	if ($isGuestMode && !session) {
+		try {
+			guestTaskCount = await getGuestTaskCount();
+		} catch (err) {
+			console.error(
+				"Failed to load guest task count in ResponsiveContainer:",
+				err,
+			);
 		}
-	});
+	}
+});
 
-	// Update task count when guest user changes
-	$effect(() => {
-		if ($guestUser?.taskCount !== undefined) {
-			guestTaskCount = $guestUser.taskCount;
-		}
-	});
+// Update task count when guest user changes
+$effect(() => {
+	if ($guestUser?.taskCount !== undefined) {
+		guestTaskCount = $guestUser.taskCount;
+	}
+});
 </script>
 
 <div class="min-h-screen bg-page-bg">

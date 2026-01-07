@@ -1,19 +1,25 @@
 <script lang="ts">
-	import ExecutionItem from './ExecutionItem.svelte';
-	import { Card, Badge, EmptyState } from './ui';
-	import { Spinner } from '$lib/components/icons';
-	import type { AgentExecutionRecord } from '@notion-task-manager/db';
-    import type { Database } from '$lib/types';
+import type { AgentExecutionRecord } from "@notion-task-manager/db";
+import { Spinner } from "$lib/components/icons";
+import type { Database } from "$lib/types";
+import ExecutionItem from "./ExecutionItem.svelte";
+import { Badge, Card, EmptyState } from "./ui";
 
-	interface Props {
-		executions: AgentExecutionRecord[];
-		databases: Database[];
-		hasPendingExecutions: boolean;
-		expandedExecutions: Set<string>;
-		onToggleExpanded: (executionId: string) => void;
-	}
+interface Props {
+	executions: AgentExecutionRecord[];
+	databases: Database[];
+	hasPendingExecutions: boolean;
+	expandedExecutions: Set<string>;
+	onToggleExpanded: (executionId: string) => void;
+}
 
-	let { executions, databases, hasPendingExecutions, expandedExecutions, onToggleExpanded }: Props = $props();
+let {
+	executions,
+	databases,
+	hasPendingExecutions,
+	expandedExecutions,
+	onToggleExpanded,
+}: Props = $props();
 </script>
 
 <Card variant="elevated">

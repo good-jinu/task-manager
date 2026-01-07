@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { Alert } from './ui';
+import { Alert } from "./ui";
 
-	interface Props {
-		error: string;
-	}
+interface Props {
+	error: string;
+}
 
-	let { error }: Props = $props();
+let { error }: Props = $props();
 </script>
 
 {#if error}

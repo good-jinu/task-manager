@@ -10,6 +10,8 @@ export const GET: RequestHandler = async (event) => {
 	try {
 		// Check if user is authenticated or guest
 		let _userId: string;
+		let isGuest = false;
+
 		try {
 			const session = await event.locals.auth();
 			if (!session?.user || !session.user.id) {
@@ -29,9 +31,28 @@ export const GET: RequestHandler = async (event) => {
 				);
 			}
 			_userId = guestId;
+			isGuest = true;
 		}
 
 		const workspaceService = new WorkspaceService();
+
+		// For guest users, validate that the guest user still exists
+		if (isGuest) {
+			try {
+				const { GuestUserService } = await import("@notion-task-manager/db");
+				const guestUserService = new GuestUserService();
+				const guestUser = await guestUserService.getGuestUser(_userId);
+
+				if (!guestUser) {
+					// Guest user expired or doesn't exist
+					return json({ error: "Guest user expired" }, { status: 401 });
+				}
+			} catch (guestError) {
+				console.error("Failed to validate guest user:", guestError);
+				return json({ error: "Guest user validation failed" }, { status: 401 });
+			}
+		}
+
 		const workspaces = await workspaceService.listWorkspaces(_userId);
 
 		return json({

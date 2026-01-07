@@ -1,101 +1,101 @@
 <script lang="ts">
-	import type { CreateTaskInput, TaskPriority } from '@notion-task-manager/db';
-	import { Button } from './ui';
-	import { Sparkles, Spinner } from './icons';
-	import { cn } from './utils';
+import type { CreateTaskInput, TaskPriority } from "@notion-task-manager/db";
+import { Sparkles, Spinner } from "./icons";
+import { Button } from "./ui";
+import { cn } from "./utils";
 
-	interface Props {
-		workspaceId: string;
-		onSubmit: (input: CreateTaskInput) => Promise<void>;
-		onAIAssist?: (input: string) => Promise<CreateTaskInput | null>;
-		placeholder?: string;
-		class?: string;
+interface Props {
+	workspaceId: string;
+	onSubmit: (input: CreateTaskInput) => Promise<void>;
+	onAIAssist?: (input: string) => Promise<CreateTaskInput | null>;
+	placeholder?: string;
+	class?: string;
+}
+
+let {
+	workspaceId,
+	onSubmit,
+	onAIAssist,
+	placeholder = "What needs to be done?",
+	class: className = "",
+}: Props = $props();
+
+let input = $state("");
+let priority = $state<TaskPriority | undefined>(undefined);
+let dueDate = $state("");
+let isSubmitting = $state(false);
+let isAIProcessing = $state(false);
+let showAdvanced = $state(false);
+
+async function handleSubmit() {
+	if (!input.trim() || isSubmitting) return;
+
+	isSubmitting = true;
+	try {
+		const taskInput: CreateTaskInput = {
+			workspaceId,
+			title: input.trim(),
+			priority: priority || undefined,
+			dueDate: dueDate || undefined,
+		};
+
+		await onSubmit(taskInput);
+
+		// Reset form
+		input = "";
+		priority = undefined;
+		dueDate = "";
+		showAdvanced = false;
+	} finally {
+		isSubmitting = false;
 	}
+}
 
-	let {
-		workspaceId,
-		onSubmit,
-		onAIAssist,
-		placeholder = "What needs to be done?",
-		class: className = ''
-	}: Props = $props();
+async function handleAIAssist() {
+	if (!onAIAssist || !input.trim() || isAIProcessing) return;
 
-	let input = $state('');
-	let priority = $state<TaskPriority | undefined>(undefined);
-	let dueDate = $state('');
-	let isSubmitting = $state(false);
-	let isAIProcessing = $state(false);
-	let showAdvanced = $state(false);
+	isAIProcessing = true;
+	try {
+		const aiResult = await onAIAssist(input.trim());
+		if (aiResult) {
+			// Update form with AI suggestions
+			input = aiResult.title;
+			priority = aiResult.priority;
+			dueDate = aiResult.dueDate || "";
+			showAdvanced = !!(aiResult.priority || aiResult.dueDate);
 
-	async function handleSubmit() {
-		if (!input.trim() || isSubmitting) return;
-
-		isSubmitting = true;
-		try {
-			const taskInput: CreateTaskInput = {
-				workspaceId,
-				title: input.trim(),
-				priority: priority || undefined,
-				dueDate: dueDate || undefined
-			};
-
-			await onSubmit(taskInput);
-			
-			// Reset form
-			input = '';
-			priority = undefined;
-			dueDate = '';
-			showAdvanced = false;
-		} finally {
-			isSubmitting = false;
+			// Show a brief success indicator
+			setTimeout(() => {
+				// Could add a toast notification here
+			}, 100);
 		}
+	} catch (error) {
+		console.error("AI assist failed:", error);
+		// Could show error toast here
+	} finally {
+		isAIProcessing = false;
 	}
+}
 
-	async function handleAIAssist() {
-		if (!onAIAssist || !input.trim() || isAIProcessing) return;
-
-		isAIProcessing = true;
-		try {
-			const aiResult = await onAIAssist(input.trim());
-			if (aiResult) {
-				// Update form with AI suggestions
-				input = aiResult.title;
-				priority = aiResult.priority;
-				dueDate = aiResult.dueDate || '';
-				showAdvanced = !!(aiResult.priority || aiResult.dueDate);
-				
-				// Show a brief success indicator
-				setTimeout(() => {
-					// Could add a toast notification here
-				}, 100);
-			}
-		} catch (error) {
-			console.error('AI assist failed:', error);
-			// Could show error toast here
-		} finally {
-			isAIProcessing = false;
-		}
+function handleKeydown(e: KeyboardEvent) {
+	if (e.key === "Enter" && !e.shiftKey) {
+		e.preventDefault();
+		handleSubmit();
 	}
+}
 
-	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Enter' && !e.shiftKey) {
-			e.preventDefault();
-			handleSubmit();
-		}
-	}
+// Auto-resize textarea
+function autoResize(textarea: HTMLTextAreaElement) {
+	textarea.style.height = "auto";
+	textarea.style.height = `${textarea.scrollHeight}px`;
+}
 
-	// Auto-resize textarea
-	function autoResize(textarea: HTMLTextAreaElement) {
-		textarea.style.height = 'auto';
-		textarea.style.height = textarea.scrollHeight + 'px';
-	}
-
-	const priorities: { value: TaskPriority; label: string; color: string }[] = [
-		{ value: 'low', label: 'Low', color: 'text-blue-600' },
-		{ value: 'medium', label: 'Medium', color: 'text-yellow-600' },
-		{ value: 'high', label: 'High', color: 'text-orange-600' },
-		{ value: 'urgent', label: 'Urgent', color: 'text-red-600' }
-	];
+const priorities: { value: TaskPriority; label: string; color: string }[] = [
+	{ value: "low", label: "Low", color: "text-blue-600" },
+	{ value: "medium", label: "Medium", color: "text-yellow-600" },
+	{ value: "high", label: "High", color: "text-orange-600" },
+	{ value: "urgent", label: "Urgent", color: "text-red-600" },
+];
 </script>
 
 <div class={cn('bg-white border border-gray-200 rounded-lg p-4', className)}>

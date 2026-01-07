@@ -1,37 +1,39 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import type { Session } from '@auth/sveltekit';
-	import { Home, Settings, User, Plus } from '$lib/components/icons';
+import type { Session } from "@auth/sveltekit";
+import { page } from "$app/stores";
+import { Home, Plus, Settings, User } from "$lib/components/icons";
 
-	let { session }: { session: Session | null } = $props();
-	
-	// Get current path for active state
-	let currentPath = $derived($page.url.pathname);
-	
-	// Navigation items - computed as derived to react to state changes
-	const navItems = $derived([
-		{
-			href: '/',
-			icon: Home,
-			label: 'Tasks',
-			active: currentPath === '/' || currentPath.startsWith('/tasks'),
-			requiresAuth: false
-		},
-		{
-			href: '/agent',
-			icon: Plus,
-			label: 'AI Agent',
-			active: currentPath.startsWith('/agent'),
-			requiresAuth: false
-		},
-		{
-			href: session ? '/settings' : '/user/signin',
-			icon: session ? Settings : User,
-			label: session ? 'Settings' : 'Sign In',
-			active: currentPath.startsWith('/settings') || (!session && currentPath.startsWith('/user')),
-			requiresAuth: false
-		}
-	]);
+let { session }: { session: Session | null } = $props();
+
+// Get current path for active state
+let currentPath = $derived($page.url.pathname);
+
+// Navigation items - computed as derived to react to state changes
+const navItems = $derived([
+	{
+		href: "/",
+		icon: Home,
+		label: "Tasks",
+		active: currentPath === "/" || currentPath.startsWith("/tasks"),
+		requiresAuth: false,
+	},
+	{
+		href: "/agent",
+		icon: Plus,
+		label: "AI Agent",
+		active: currentPath.startsWith("/agent"),
+		requiresAuth: false,
+	},
+	{
+		href: session ? "/settings" : "/user/signin",
+		icon: session ? Settings : User,
+		label: session ? "Settings" : "Sign In",
+		active:
+			currentPath.startsWith("/settings") ||
+			(!session && currentPath.startsWith("/user")),
+		requiresAuth: false,
+	},
+]);
 </script>
 
 <!-- Bottom Navigation - Mobile Only -->

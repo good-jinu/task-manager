@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { signOut } from '@auth/sveltekit/client';
-	import type { Session } from '@auth/sveltekit';
-	import { Settings } from '$lib/components/icons';
+import type { Session } from "@auth/sveltekit";
+import { signOut } from "@auth/sveltekit/client";
+import { Settings } from "$lib/components/icons";
 
-	let { session }: { session: Session | null } = $props();
+let { session }: { session: Session | null } = $props();
 </script>
 
 <!-- Desktop Header -->

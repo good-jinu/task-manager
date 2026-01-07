@@ -1,112 +1,118 @@
 <script lang="ts">
-	import type { ExternalIntegration } from '@notion-task-manager/db';
-	import IntegrationToggle from './IntegrationToggle.svelte';
-	import NotionIntegrationDialog from './NotionIntegrationDialog.svelte';
-	import { Button } from './ui';
-	import { Close, Database, KeyboardArrowRight } from './icons';
-	import { cn } from './utils';
+import type { ExternalIntegration } from "@notion-task-manager/db";
+import IntegrationToggle from "./IntegrationToggle.svelte";
+import { Close, Database, KeyboardArrowRight } from "./icons";
+import NotionIntegrationDialog from "./NotionIntegrationDialog.svelte";
+import { Button } from "./ui";
+import { cn } from "./utils";
 
-	interface NotionDatabase {
-		id: string;
-		name: string;
-		url?: string;
+interface NotionDatabase {
+	id: string;
+	name: string;
+	url?: string;
+}
+
+interface Props {
+	isOpen: boolean;
+	workspaceId: string;
+	integrations?: ExternalIntegration[];
+	onClose: () => void;
+	onToggleIntegration: (provider: string, enabled: boolean) => Promise<void>;
+	onConnectNotion: (
+		databaseId: string,
+		importExisting: boolean,
+	) => Promise<void>;
+	onDisconnectIntegration: (integrationId: string) => Promise<void>;
+	class?: string;
+}
+
+let {
+	isOpen,
+	workspaceId,
+	integrations = [],
+	onClose,
+	onToggleIntegration,
+	onConnectNotion,
+	onDisconnectIntegration,
+	class: className = "",
+}: Props = $props();
+
+let showNotionDialog = $state(false);
+let availableDatabases = $state<NotionDatabase[]>([]);
+let loadingDatabases = $state(false);
+
+// Find Notion integration
+const notionIntegration = $derived(
+	integrations.find((i) => i.provider === "notion"),
+);
+
+// Prevent background scroll when drawer is open
+$effect(() => {
+	if (typeof document === "undefined") return;
+
+	if (isOpen) {
+		document.body.style.overflow = "hidden";
+	} else {
+		document.body.style.overflow = "";
 	}
 
-	interface Props {
-		isOpen: boolean;
-		workspaceId: string;
-		integrations?: ExternalIntegration[];
-		onClose: () => void;
-		onToggleIntegration: (provider: string, enabled: boolean) => Promise<void>;
-		onConnectNotion: (databaseId: string, importExisting: boolean) => Promise<void>;
-		onDisconnectIntegration: (integrationId: string) => Promise<void>;
-		class?: string;
-	}
+	return () => {
+		document.body.style.overflow = "";
+	};
+});
 
-	let {
-		isOpen,
-		workspaceId,
-		integrations = [],
-		onClose,
-		onToggleIntegration,
-		onConnectNotion,
-		onDisconnectIntegration,
-		class: className = ''
-	}: Props = $props();
-
-	let showNotionDialog = $state(false);
-	let availableDatabases = $state<NotionDatabase[]>([]);
-	let loadingDatabases = $state(false);
-
-	// Find Notion integration
-	const notionIntegration = $derived(
-		integrations.find(i => i.provider === 'notion')
-	);
-
-	// Prevent background scroll when drawer is open
-	$effect(() => {
-		if (typeof document === 'undefined') return;
-		
-		if (isOpen) {
-			document.body.style.overflow = 'hidden';
-		} else {
-			document.body.style.overflow = '';
-		}
-
-		return () => {
-			document.body.style.overflow = '';
-		};
-	});
-
-	async function handleNotionToggle(enabled: boolean) {
-		if (enabled && !notionIntegration) {
-			// Need to connect - show dialog
-			await loadNotionDatabases();
-			showNotionDialog = true;
-		} else if (notionIntegration) {
-			// Toggle existing integration
-			await onToggleIntegration('notion', enabled);
-		}
-	}
-
-	async function loadNotionDatabases() {
-		loadingDatabases = true;
-		try {
-			// In a real implementation, this would fetch from Notion API
-			// For now, we'll simulate some databases
-			await new Promise(resolve => setTimeout(resolve, 1000));
-			availableDatabases = [
-				{ id: 'db1', name: 'Personal Tasks', url: 'https://notion.so/...' },
-				{ id: 'db2', name: 'Work Projects', url: 'https://notion.so/...' },
-				{ id: 'db3', name: 'Ideas & Notes', url: 'https://notion.so/...' }
-			];
-		} catch (error) {
-			console.error('Failed to load databases:', error);
-			availableDatabases = [];
-		} finally {
-			loadingDatabases = false;
-		}
-	}
-
-	function handleConfigureNotion() {
-		loadNotionDatabases();
+async function handleNotionToggle(enabled: boolean) {
+	if (enabled && !notionIntegration) {
+		// Need to connect - show dialog
+		await loadNotionDatabases();
 		showNotionDialog = true;
+	} else if (notionIntegration) {
+		// Toggle existing integration
+		await onToggleIntegration("notion", enabled);
 	}
+}
 
-	async function handleDisconnectNotion() {
-		if (notionIntegration) {
-			await onDisconnectIntegration(notionIntegration.id);
-		}
+async function loadNotionDatabases() {
+	loadingDatabases = true;
+	try {
+		// In a real implementation, this would fetch from Notion API
+		// For now, we'll simulate some databases
+		await new Promise((resolve) => setTimeout(resolve, 1000));
+		availableDatabases = [
+			{ id: "db1", name: "Personal Tasks", url: "https://notion.so/..." },
+			{ id: "db2", name: "Work Projects", url: "https://notion.so/..." },
+			{ id: "db3", name: "Ideas & Notes", url: "https://notion.so/..." },
+		];
+	} catch (error) {
+		console.error("Failed to load databases:", error);
+		availableDatabases = [];
+	} finally {
+		loadingDatabases = false;
 	}
+}
 
-	function handleCloseNotionDialog() {
-		showNotionDialog = false;
-	}
+function handleConfigureNotion() {
+	loadNotionDatabases();
+	showNotionDialog = true;
+}
 
-	async function handleConnectNotionDatabase(databaseId: string, importExisting: boolean) {
-		await onConnectNotion(databaseId, importExisting);
-		showNotionDialog = false;
+async function handleDisconnectNotion() {
+	if (notionIntegration) {
+		await onDisconnectIntegration(notionIntegration.id);
 	}
+}
+
+function handleCloseNotionDialog() {
+	showNotionDialog = false;
+}
+
+async function handleConnectNotionDatabase(
+	databaseId: string,
+	importExisting: boolean,
+) {
+	await onConnectNotion(databaseId, importExisting);
+	showNotionDialog = false;
+}
 </script>
 
 <!-- Backdrop -->

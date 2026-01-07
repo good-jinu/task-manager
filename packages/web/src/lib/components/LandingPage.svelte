@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Database, Document, Sparkles } from '$lib/components/icons';
+import { Database, Document, Sparkles } from "$lib/components/icons";
 </script>
 
 <div class="min-h-screen bg-gradient-to-br from-primary-icon-bg via-card-bg to-info-icon-bg overflow-hidden">

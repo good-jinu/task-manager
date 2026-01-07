@@ -1,203 +1,214 @@
 <script lang="ts">
-	import type { PageProps } from './$types';
-	import { TaskForm, ExecutionHistory, ErrorAlert } from '$lib/components';
-	import GuestBanner from '$lib/components/GuestBanner.svelte';
-	import AccountCreationDialog from '$lib/components/AccountCreationDialog.svelte';
-	import { guestUser, isGuestMode, registerGuestUser, checkExistingGuest, migrateGuestTasks, getGuestTaskCount } from '$lib/stores/guest';
-	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
-	import type { AgentExecutionRecord } from '@notion-task-manager/db';
+import type { AgentExecutionRecord } from "@notion-task-manager/db";
+import { onMount } from "svelte";
+import { goto } from "$app/navigation";
+import { ErrorAlert, ExecutionHistory, TaskForm } from "$lib/components";
+import AccountCreationDialog from "$lib/components/AccountCreationDialog.svelte";
+import GuestBanner from "$lib/components/GuestBanner.svelte";
+import {
+	checkExistingGuest,
+	getGuestTaskCount,
+	guestUser,
+	isGuestMode,
+	migrateGuestTasks,
+	registerGuestUser,
+} from "$lib/stores/guest";
+import type { PageData } from "$lib/types/page-data";
 
-	let { data }: PageProps = $props();
+let { data }: { data: PageData } = $props();
 
-	// UI state
-	let loading = $state(false);
-	let error = $state('');
-	let expandedExecutions = $state<Set<string>>(new Set());
-	let showAccountDialog = $state(false);
-	let guestTaskCount = $state(0);
+// UI state
+let loading = $state(false);
+let error = $state("");
+let expandedExecutions = $state<Set<string>>(new Set());
+let showAccountDialog = $state(false);
+let guestTaskCount = $state(0);
 
-	// Execution history state - initialize from server data and allow updates
-	let localExecutions = $state<AgentExecutionRecord[]>([]);
-	let initialized = $state(false);
+// Execution history state - initialize from server data and allow updates
+let localExecutions = $state<AgentExecutionRecord[]>([]);
+let initialized = $state(false);
 
-	// Check authentication status
-	let isAuthenticated = $derived((data as any).isAuthenticated || false);
-	let showGuestPrompt = $derived(!isAuthenticated && !$isGuestMode);
+// Check authentication status
+let isAuthenticated = $derived(data.isAuthenticated || false);
+let showGuestPrompt = $derived(!isAuthenticated && !$isGuestMode);
 
-	// Initialize from server data on first render
-	$effect(() => {
-		if (!initialized && (data as any).executions) {
-			localExecutions = (data as any).executions as AgentExecutionRecord[];
-			initialized = true;
-		}
-	});
+// Initialize from server data on first render
+$effect(() => {
+	if (!initialized && data.executions) {
+		localExecutions = data.executions;
+		initialized = true;
+	}
+});
 
-	// Use derived for the actual executions to display
-	let executions = $derived(localExecutions);
+// Use derived for the actual executions to display
+let executions = $derived(localExecutions);
 
-	// Get databases from page data
-	let databases = $derived((data as any).databases || []);
+// Get databases from page data
+let databases = $derived(data.databases || []);
 
-	// Check if there are any pending executions
-	let hasPendingExecutions = $derived(executions.some(e => e.status === 'pending'));
+// Check if there are any pending executions
+let hasPendingExecutions = $derived(
+	executions.some((e) => e.status === "pending"),
+);
 
-	// Auto-refresh interval for pending executions
-	let autoRefreshInterval: ReturnType<typeof setInterval> | null = null;
+// Auto-refresh interval for pending executions
+let autoRefreshInterval: ReturnType<typeof setInterval> | null = null;
 
-	onMount(() => {
-		// Check for existing guest session if not authenticated
-		if (!isAuthenticated) {
-			checkExistingGuest();
-		}
-		
-		// Load guest task count if in guest mode
-		if ($isGuestMode) {
-			loadGuestTaskCount();
-		}
-	});
-
-	async function loadGuestTaskCount() {
-		try {
-			guestTaskCount = await getGuestTaskCount();
-		} catch (err) {
-			console.error('Failed to load guest task count:', err);
-		}
+onMount(() => {
+	// Check for existing guest session if not authenticated
+	if (!isAuthenticated) {
+		checkExistingGuest();
 	}
 
-	// Start auto-refresh when there are pending executions
-	$effect(() => {
-		if (hasPendingExecutions && !autoRefreshInterval) {
-			autoRefreshInterval = setInterval(() => {
-				refreshExecutions();
-			}, 10000); // Refresh every 10 seconds
-		} else if (!hasPendingExecutions && autoRefreshInterval) {
+	// Load guest task count if in guest mode
+	if ($isGuestMode) {
+		loadGuestTaskCount();
+	}
+});
+
+async function loadGuestTaskCount() {
+	try {
+		guestTaskCount = await getGuestTaskCount();
+	} catch (err) {
+		console.error("Failed to load guest task count:", err);
+	}
+}
+
+// Start auto-refresh when there are pending executions
+$effect(() => {
+	if (hasPendingExecutions && !autoRefreshInterval) {
+		autoRefreshInterval = setInterval(() => {
+			refreshExecutions();
+		}, 10000); // Refresh every 10 seconds
+	} else if (!hasPendingExecutions && autoRefreshInterval) {
+		clearInterval(autoRefreshInterval);
+		autoRefreshInterval = null;
+	}
+
+	return () => {
+		if (autoRefreshInterval) {
 			clearInterval(autoRefreshInterval);
 			autoRefreshInterval = null;
 		}
+	};
+});
 
-		return () => {
-			if (autoRefreshInterval) {
-				clearInterval(autoRefreshInterval);
-				autoRefreshInterval = null;
-			}
-		};
-	});
+async function handleGuestRegistration() {
+	try {
+		loading = true;
+		await registerGuestUser();
+	} catch (err) {
+		console.error("Failed to register guest:", err);
+		error = "Failed to start guest session";
+	} finally {
+		loading = false;
+	}
+}
 
-	async function handleGuestRegistration() {
-		try {
-			loading = true;
-			await registerGuestUser();
-		} catch (err) {
-			console.error('Failed to register guest:', err);
-			error = 'Failed to start guest session';
-		} finally {
-			loading = false;
-		}
+async function handleGuestSignUp() {
+	showAccountDialog = true;
+}
+
+async function handleAccountCreation(migrateData: boolean) {
+	if (!$guestUser) {
+		// If no guest user, just redirect to sign in
+		goto("/user/signin");
+		return;
 	}
 
-	async function handleGuestSignUp() {
-		showAccountDialog = true;
-	}
-
-	async function handleAccountCreation(migrateData: boolean) {
-		if (!$guestUser) {
-			// If no guest user, just redirect to sign in
-			goto('/user/signin');
-			return;
+	try {
+		if (migrateData) {
+			// Migrate guest tasks first
+			await migrateGuestTasks($guestUser.id);
 		}
 
-		try {
-			if (migrateData) {
-				// Migrate guest tasks first
-				await migrateGuestTasks($guestUser.id);
-			}
-			
-			// Redirect to sign in page
-			goto('/user/signin');
-		} catch (err) {
-			console.error('Failed to handle account creation:', err);
-			throw err; // Let the dialog handle the error
-		}
+		// Redirect to sign in page
+		goto("/user/signin");
+	} catch (err) {
+		console.error("Failed to handle account creation:", err);
+		throw err; // Let the dialog handle the error
 	}
+}
 
-	async function handleTaskSubmit(query: string, databaseId: string) {
-		try {
-			loading = true;
-			error = '';
+async function handleTaskSubmit(query: string, databaseId: string) {
+	try {
+		loading = true;
+		error = "";
 
-			// For guest users, we'll use a simple AI parsing endpoint instead of the full agent
-			const endpoint = isAuthenticated ? '/api/agent/execute' : '/api/ai/parse-task';
-			const body = isAuthenticated 
-				? { query: query, databaseId: databaseId }
-				: { input: query };
+		// For guest users, we'll use a simple AI parsing endpoint instead of the full agent
+		const endpoint = isAuthenticated
+			? "/api/agent/execute"
+			: "/api/ai/parse-task";
+		const body = isAuthenticated
+			? { query: query, databaseId: databaseId }
+			: { input: query };
 
-			const response = await fetch(endpoint, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify(body)
-			});
+		const response = await fetch(endpoint, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(body),
+		});
 
-			const result = await response.json();
+		const result = await response.json();
 
-			if (response.ok && result.success) {
-				if (isAuthenticated) {
-					// Authenticated user - add to execution history
-					const newExecution: AgentExecutionRecord = {
-						userId: '',
-						executionId: result.executionId,
-						status: 'pending',
-						query: query,
-						databaseId: databaseId,
-						steps: [],
-						createdAt: new Date().toISOString(),
-						updatedAt: new Date().toISOString()
-					};
-					localExecutions = [newExecution, ...localExecutions];
-				} else {
-					// Guest user - show success message
-					error = ''; // Clear any previous errors
-					// You might want to show a success message here
-				}
+		if (response.ok && result.success) {
+			if (isAuthenticated) {
+				// Authenticated user - add to execution history
+				const newExecution: AgentExecutionRecord = {
+					userId: "",
+					executionId: result.executionId,
+					status: "pending",
+					query: query,
+					databaseId: databaseId,
+					steps: [],
+					createdAt: new Date().toISOString(),
+					updatedAt: new Date().toISOString(),
+				};
+				localExecutions = [newExecution, ...localExecutions];
 			} else {
-				error = result.error || 'Submission failed';
+				// Guest user - show success message
+				error = ""; // Clear any previous errors
+				// You might want to show a success message here
 			}
-		} catch (err) {
-			console.error('Submission error:', err);
-			error = 'An error occurred while submitting. Please try again.';
-		} finally {
-			loading = false;
-		}
-	}
-
-	async function refreshExecutions() {
-		try {
-			const response = await fetch('/api/agent/executions?limit=10');
-			const result = await response.json();
-
-			if (response.ok && result.executions) {
-				localExecutions = result.executions;
-			}
-		} catch (err) {
-			console.error('Failed to refresh executions:', err);
-		}
-	}
-
-	function handleClearForm() {
-		error = '';
-	}
-
-	function toggleExpanded(executionId: string) {
-		const newSet = new Set(expandedExecutions);
-		if (newSet.has(executionId)) {
-			newSet.delete(executionId);
 		} else {
-			newSet.add(executionId);
+			error = result.error || "Submission failed";
 		}
-		expandedExecutions = newSet;
+	} catch (err) {
+		console.error("Submission error:", err);
+		error = "An error occurred while submitting. Please try again.";
+	} finally {
+		loading = false;
 	}
+}
+
+async function refreshExecutions() {
+	try {
+		const response = await fetch("/api/agent/executions?limit=10");
+		const result = await response.json();
+
+		if (response.ok && result.executions) {
+			localExecutions = result.executions;
+		}
+	} catch (err) {
+		console.error("Failed to refresh executions:", err);
+	}
+}
+
+function handleClearForm() {
+	error = "";
+}
+
+function toggleExpanded(executionId: string) {
+	const newSet = new Set(expandedExecutions);
+	if (newSet.has(executionId)) {
+		newSet.delete(executionId);
+	} else {
+		newSet.add(executionId);
+	}
+	expandedExecutions = newSet;
+}
 </script>
 
 <svelte:head>

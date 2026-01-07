@@ -1,99 +1,121 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { optimisticTaskService, type Task } from '$lib/optimistic-task-service.js';
-	import { isOnline } from '$lib/offline-sync.js';
-	import OfflineIndicator from './OfflineIndicator.svelte';
-	import { Button, Card, Badge } from '$lib/components/ui/index.js';
-	import { Check, Clock, AlertCircle, Trash2 } from '$lib/components/icons/index.js';
+import { onMount } from "svelte";
+import {
+	AlertCircle,
+	Check,
+	Clock,
+	Trash2,
+} from "$lib/components/icons/index.js";
+import { Badge, Button, Card } from "$lib/components/ui/index.js";
+import { isOnline } from "$lib/offline-sync.js";
+import {
+	optimisticTaskService,
+	type Task,
+} from "$lib/optimistic-task-service.js";
+import OfflineIndicator from "./OfflineIndicator.svelte";
 
-	interface Props {
-		workspaceId: string;
-	}
+interface Props {
+	workspaceId: string;
+}
 
-	let { workspaceId }: Props = $props();
+let { workspaceId }: Props = $props();
 
-	let tasks = $state<Task[]>([]);
-	let loading = $state(false);
-	let error = $state<string | null>(null);
-	let online = $derived($isOnline);
+let tasks = $state<Task[]>([]);
+let loading = $state(false);
+let error = $state<string | null>(null);
+let online = $derived($isOnline);
 
-	let newTaskTitle = $state('');
-	let isCreating = $state(false);
+let newTaskTitle = $state("");
+let isCreating = $state(false);
 
-	// Subscribe to service state
-	onMount(() => {
-		const unsubscribeTasks = optimisticTaskService.tasks.subscribe(value => {
-			tasks = value;
-		});
-		
-		const unsubscribeLoading = optimisticTaskService.loading.subscribe(value => {
-			loading = value;
-		});
-		
-		const unsubscribeError = optimisticTaskService.error.subscribe(value => {
-			error = value;
-		});
-
-		optimisticTaskService.loadTasks(workspaceId);
-
-		return () => {
-			unsubscribeTasks();
-			unsubscribeLoading();
-			unsubscribeError();
-		};
+// Subscribe to service state
+onMount(() => {
+	const unsubscribeTasks = optimisticTaskService.tasks.subscribe((value) => {
+		tasks = value;
 	});
 
-	async function createTask() {
-		if (!newTaskTitle.trim() || isCreating) return;
+	const unsubscribeLoading = optimisticTaskService.loading.subscribe(
+		(value) => {
+			loading = value;
+		},
+	);
 
-		isCreating = true;
-		try {
-			await optimisticTaskService.createTask({
-				workspaceId,
-				title: newTaskTitle.trim(),
-			});
-			newTaskTitle = '';
-		} catch (error) {
-			console.error('Failed to create task:', error);
-		} finally {
-			isCreating = false;
-		}
-	}
+	const unsubscribeError = optimisticTaskService.error.subscribe((value) => {
+		error = value;
+	});
 
-	async function toggleTask(task: Task) {
-		try {
-			await optimisticTaskService.toggleTaskStatus(task.id);
-		} catch (error) {
-			console.error('Failed to toggle task:', error);
-		}
-	}
+	optimisticTaskService.loadTasks(workspaceId);
 
-	async function deleteTask(taskId: string) {
-		try {
-			await optimisticTaskService.deleteTask(taskId);
-		} catch (error) {
-			console.error('Failed to delete task:', error);
-		}
-	}
+	return () => {
+		unsubscribeTasks();
+		unsubscribeLoading();
+		unsubscribeError();
+	};
+});
 
-	function getSyncStatusBadge(syncStatus?: string) {
-		switch (syncStatus) {
-			case 'pending':
-				return { text: 'Syncing', class: 'bg-yellow-100 text-yellow-800', icon: Clock };
-			case 'conflict':
-				return { text: 'Conflict', class: 'bg-red-100 text-red-800', icon: AlertCircle };
-			case 'synced':
-				return { text: 'Synced', class: 'bg-green-100 text-green-800', icon: Check };
-			default:
-				return null;
-		}
-	}
+async function createTask() {
+	if (!newTaskTitle.trim() || isCreating) return;
 
-	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter') {
-			createTask();
-		}
+	isCreating = true;
+	try {
+		await optimisticTaskService.createTask({
+			workspaceId,
+			title: newTaskTitle.trim(),
+		});
+		newTaskTitle = "";
+	} catch (error) {
+		console.error("Failed to create task:", error);
+	} finally {
+		isCreating = false;
 	}
+}
+
+async function toggleTask(task: Task) {
+	try {
+		await optimisticTaskService.toggleTaskStatus(task.id);
+	} catch (error) {
+		console.error("Failed to toggle task:", error);
+	}
+}
+
+async function deleteTask(taskId: string) {
+	try {
+		await optimisticTaskService.deleteTask(taskId);
+	} catch (error) {
+		console.error("Failed to delete task:", error);
+	}
+}
+
+function getSyncStatusBadge(syncStatus?: string) {
+	switch (syncStatus) {
+		case "pending":
+			return {
+				text: "Syncing",
+				class: "bg-yellow-100 text-yellow-800",
+				icon: Clock,
+			};
+		case "conflict":
+			return {
+				text: "Conflict",
+				class: "bg-red-100 text-red-800",
+				icon: AlertCircle,
+			};
+		case "synced":
+			return {
+				text: "Synced",
+				class: "bg-green-100 text-green-800",
+				icon: Check,
+			};
+		default:
+			return null;
+	}
+}
+
+function handleKeydown(event: KeyboardEvent) {
+	if (event.key === "Enter") {
+		createTask();
+	}
+}
 </script>
 
 <div class="space-y-4">

@@ -1,94 +1,97 @@
 <script lang="ts">
-	import { Sparkles, Spinner } from './icons';
+import type { ChatMessage } from "../types/chat";
+import { Sparkles, Spinner } from "./icons";
 
-	interface Props {
-		workspaceId?: string;
-	}
+interface Props {
+	workspaceId?: string;
+}
 
-	let { workspaceId }: Props = $props();
+let { workspaceId }: Props = $props();
 
-	// Component state
-	let messages: any[] = $state([]);
-	let input = $state('');
-	let isLoading = $state(false);
+// Component state
+let messages = $state<ChatMessage[]>([]);
+let input = $state("");
+let isLoading = $state(false);
 
-	async function handleSubmit() {
-		if (!input.trim() || isLoading) return;
+async function handleSubmit() {
+	if (!input.trim() || isLoading) return;
 
-		const userMessage = {
-			id: Date.now().toString(),
-			role: 'user',
-			content: input.trim(),
-			timestamp: new Date()
-		};
+	const userMessage: ChatMessage = {
+		id: Date.now().toString(),
+		role: "user" as const,
+		content: input.trim(),
+		timestamp: new Date(),
+	};
 
-		messages = [...messages, userMessage];
-		const currentInput = input;
-		input = '';
-		isLoading = true;
+	messages = [...messages, userMessage];
+	const currentInput = input;
+	input = "";
+	isLoading = true;
 
-		try {
-			// Use workspaceId if available, otherwise try to get default workspace
-			let queryWorkspaceId = workspaceId;
-			if (!queryWorkspaceId) {
-				// Try to get user's default workspace
-				const workspacesResponse = await fetch('/api/workspaces');
-				if (workspacesResponse.ok) {
-					const workspacesData = await workspacesResponse.json();
-					if (workspacesData.workspaces && workspacesData.workspaces.length > 0) {
-						queryWorkspaceId = workspacesData.workspaces[0].id;
-					}
+	try {
+		// Use workspaceId if available, otherwise try to get default workspace
+		let queryWorkspaceId = workspaceId;
+		if (!queryWorkspaceId) {
+			// Try to get user's default workspace
+			const workspacesResponse = await fetch("/api/workspaces");
+			if (workspacesResponse.ok) {
+				const workspacesData = await workspacesResponse.json();
+				if (workspacesData.workspaces && workspacesData.workspaces.length > 0) {
+					queryWorkspaceId = workspacesData.workspaces[0].id;
 				}
 			}
-
-			if (!queryWorkspaceId) {
-				throw new Error('No workspace available');
-			}
-
-			const response = await fetch('/api/ai/query', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({ 
-					query: currentInput,
-					workspaceId: queryWorkspaceId
-				})
-			});
-
-			const data = await response.json();
-
-			const assistantMessage = {
-				id: (Date.now() + 1).toString(),
-				role: 'assistant',
-				content: data.success ? 
-					(data.tasks && data.tasks.length > 0 ? 
-						`I found ${data.tasks.length} task${data.tasks.length === 1 ? '' : 's'} matching your query.` : 
-						'I couldn\'t find any tasks matching your query.') :
-					(data.error || 'I apologize, but I encountered an error processing your request.'),
-				timestamp: new Date(),
-				tasks: data.tasks || []
-			};
-
-			messages = [...messages, assistantMessage];
-		} catch (err) {
-			const errorMessage = {
-				id: (Date.now() + 1).toString(),
-				role: 'assistant',
-				content: 'I apologize, but I encountered an error processing your request. Please make sure you have a workspace set up.',
-				timestamp: new Date()
-			};
-
-			messages = [...messages, errorMessage];
-			console.error('AI chat error:', err);
-		} finally {
-			isLoading = false;
 		}
-	}
 
-	function formatTime(date: Date): string {
-		return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+		if (!queryWorkspaceId) {
+			throw new Error("No workspace available");
+		}
+
+		const response = await fetch("/api/ai/query", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				query: currentInput,
+				workspaceId: queryWorkspaceId,
+			}),
+		});
+
+		const data = await response.json();
+
+		const assistantMessage: ChatMessage = {
+			id: (Date.now() + 1).toString(),
+			role: "assistant" as const,
+			content: data.success
+				? data.tasks && data.tasks.length > 0
+					? `I found ${data.tasks.length} task${data.tasks.length === 1 ? "" : "s"} matching your query.`
+					: "I couldn't find any tasks matching your query."
+				: data.error ||
+					"I apologize, but I encountered an error processing your request.",
+			timestamp: new Date(),
+			tasks: data.tasks || [],
+		};
+
+		messages = [...messages, assistantMessage];
+	} catch (err) {
+		const errorMessage: ChatMessage = {
+			id: (Date.now() + 1).toString(),
+			role: "assistant" as const,
+			content:
+				"I apologize, but I encountered an error processing your request. Please make sure you have a workspace set up.",
+			timestamp: new Date(),
+		};
+
+		messages = [...messages, errorMessage];
+		console.error("AI chat error:", err);
+	} finally {
+		isLoading = false;
 	}
+}
+
+function formatTime(date: Date): string {
+	return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
 </script>
 
 <div class="p-4">

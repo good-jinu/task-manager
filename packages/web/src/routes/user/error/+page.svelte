@@ -1,39 +1,39 @@
 <script lang="ts">
-	import { page } from '$app/state';
-	import { Button, Card, Alert } from '$lib/components/ui';
-	
-	$: error = page.url.searchParams.get('error');
-	
-	function getErrorMessage(error: string | null): string {
-		switch (error) {
-			case 'Configuration':
-				return 'There is a problem with the server configuration.';
-			case 'AccessDenied':
-				return 'Access denied. You do not have permission to sign in.';
-			case 'Verification':
-				return 'The verification token has expired or has already been used.';
-			case 'OAuthSignin':
-				return 'Error in constructing an authorization URL.';
-			case 'OAuthCallback':
-				return 'Error in handling the response from an OAuth provider.';
-			case 'OAuthCreateAccount':
-				return 'Could not create OAuth provider user in the database.';
-			case 'EmailCreateAccount':
-				return 'Could not create email provider user in the database.';
-			case 'Callback':
-				return 'Error in the OAuth callback handler route.';
-			case 'OAuthAccountNotLinked':
-				return 'The email on the account is already linked, but not with this OAuth account.';
-			case 'EmailSignin':
-				return 'Sending the e-mail with the verification token failed.';
-			case 'CredentialsSignin':
-				return 'The authorize callback returned null in the Credentials provider.';
-			case 'SessionRequired':
-				return 'The content of this page requires you to be signed in at all times.';
-			default:
-				return 'An unexpected error occurred during authentication.';
-		}
+import { page } from "$app/state";
+import { Alert, Button, Card } from "$lib/components/ui";
+
+$: error = page.url.searchParams.get("error");
+
+function getErrorMessage(error: string | null): string {
+	switch (error) {
+		case "Configuration":
+			return "There is a problem with the server configuration.";
+		case "AccessDenied":
+			return "Access denied. You do not have permission to sign in.";
+		case "Verification":
+			return "The verification token has expired or has already been used.";
+		case "OAuthSignin":
+			return "Error in constructing an authorization URL.";
+		case "OAuthCallback":
+			return "Error in handling the response from an OAuth provider.";
+		case "OAuthCreateAccount":
+			return "Could not create OAuth provider user in the database.";
+		case "EmailCreateAccount":
+			return "Could not create email provider user in the database.";
+		case "Callback":
+			return "Error in the OAuth callback handler route.";
+		case "OAuthAccountNotLinked":
+			return "The email on the account is already linked, but not with this OAuth account.";
+		case "EmailSignin":
+			return "Sending the e-mail with the verification token failed.";
+		case "CredentialsSignin":
+			return "The authorize callback returned null in the Credentials provider.";
+		case "SessionRequired":
+			return "The content of this page requires you to be signed in at all times.";
+		default:
+			return "An unexpected error occurred during authentication.";
 	}
+}
 </script>
 
 <svelte:head>

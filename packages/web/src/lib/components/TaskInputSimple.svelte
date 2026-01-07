@@ -1,96 +1,107 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
-	import { Sparkles, Spinner, Plus } from './icons';
+import type { Task } from "@notion-task-manager/db";
+import { Plus, Sparkles, Spinner } from "./icons";
 
-	interface Props {
-		workspaceId?: string;
+let {
+	workspaceId,
+	ontaskcreated,
+	onerror,
+}: {
+	workspaceId?: string;
+	ontaskcreated?: (task: Task) => void;
+	onerror?: (error: string) => void;
+} = $props();
+
+// Component state
+let input = $state("");
+let isSubmitting = $state(false);
+let showAdvanced = $state(false);
+let priority = $state("medium");
+let dueDate = $state("");
+
+async function handleSubmit() {
+	if (!input.trim() || isSubmitting) return;
+
+	console.log("TaskInputSimple: workspaceId =", workspaceId);
+
+	if (!workspaceId) {
+		onerror?.("Workspace not ready. Please wait a moment and try again.");
+		return;
 	}
 
-	let { workspaceId }: Props = $props();
+	try {
+		isSubmitting = true;
 
-	const dispatch = createEventDispatcher();
+		const taskData = {
+			workspaceId: workspaceId,
+			title: input.trim(),
+			priority: priority !== "medium" ? priority : undefined,
+			dueDate: dueDate || undefined,
+		};
 
-	// Component state
-	let input = $state('');
-	let isSubmitting = $state(false);
-	let showAdvanced = $state(false);
-	let priority = $state('medium');
-	let dueDate = $state('');
+		console.log("TaskInputSimple: sending taskData =", taskData);
 
-	async function handleSubmit() {
-		if (!input.trim() || isSubmitting) return;
+		const response = await fetch("/api/tasks", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(taskData),
+		});
 
-		try {
-			isSubmitting = true;
+		const data = await response.json();
 
-			const taskData = {
-				workspaceId: workspaceId,
-				title: input.trim(),
-				priority: priority !== 'medium' ? priority : undefined,
-				dueDate: dueDate || undefined
-			};
+		if (response.ok) {
+			ontaskcreated?.(data.data);
+			input = "";
+			priority = "medium";
+			dueDate = "";
+			showAdvanced = false;
+		} else {
+			onerror?.(data.error || "Failed to create task");
+		}
+	} catch (err) {
+		onerror?.("Failed to create task");
+		console.error("Error creating task:", err);
+	} finally {
+		isSubmitting = false;
+	}
+}
 
-			const response = await fetch('/api/tasks', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify(taskData)
-			});
+async function handleAIAssist() {
+	if (!input.trim()) return;
 
-			const data = await response.json();
+	try {
+		const response = await fetch("/api/ai/parse-task", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({ input: input.trim() }),
+		});
 
-			if (response.ok) {
-				dispatch('taskCreated', data.task);
-				input = '';
-				priority = 'medium';
-				dueDate = '';
-				showAdvanced = false;
-			} else {
-				dispatch('error', data.error || 'Failed to create task');
+		const data = await response.json();
+
+		if (response.ok && data.success && data.parsedTask) {
+			// Update form with AI suggestions
+			if (data.parsedTask.priority) priority = data.parsedTask.priority;
+			if (data.parsedTask.dueDate) dueDate = data.parsedTask.dueDate;
+			if (data.parsedTask.title && data.parsedTask.title !== input.trim()) {
+				input = data.parsedTask.title;
 			}
-		} catch (err) {
-			dispatch('error', 'Failed to create task');
-			console.error('Error creating task:', err);
-		} finally {
-			isSubmitting = false;
+			showAdvanced = true;
 		}
+	} catch (err) {
+		console.error("AI assist error:", err);
 	}
+}
 
-	async function handleAIAssist() {
-		if (!input.trim()) return;
-
-		try {
-			const response = await fetch('/api/ai/parse-task', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({ input: input.trim() })
-			});
-
-			const data = await response.json();
-
-			if (response.ok && data.success && data.parsedTask) {
-				// Update form with AI suggestions
-				if (data.parsedTask.priority) priority = data.parsedTask.priority;
-				if (data.parsedTask.dueDate) dueDate = data.parsedTask.dueDate;
-				if (data.parsedTask.title && data.parsedTask.title !== input.trim()) {
-					input = data.parsedTask.title;
-				}
-				showAdvanced = true;
-			}
-		} catch (err) {
-			console.error('AI assist error:', err);
-		}
+function handleKeydown(event: KeyboardEvent) {
+	if (event.key === "Enter" && !event.shiftKey) {
+		event.preventDefault();
+		handleSubmit();
 	}
-
-	function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter' && !event.shiftKey) {
-			event.preventDefault();
-			handleSubmit();
-		}
-	}
+}
 </script>
 
 <div class="bg-card-bg border border-subtle-base rounded-xl p-4">

@@ -7,7 +7,12 @@ import {
 } from "@aws-sdk/lib-dynamodb";
 import { getDynamoDBClient, getTableNames } from "./client";
 import { TaskService } from "./task-service";
-import type { GuestUser, MigrationError, MigrationResult } from "./types";
+import type {
+	GuestUser,
+	MigrationError,
+	MigrationResult,
+	Workspace,
+} from "./types";
 import { validateUserId } from "./validation";
 import { WorkspaceService } from "./workspace-service";
 
@@ -90,7 +95,7 @@ export class GuestUserService {
 	/**
 	 * Creates a default workspace for a guest user
 	 */
-	async createGuestWorkspace(guestId: string): Promise<string> {
+	async createGuestWorkspace(guestId: string): Promise<Workspace> {
 		if (
 			!guestId ||
 			typeof guestId !== "string" ||
@@ -106,7 +111,7 @@ export class GuestUserService {
 				description: "Default workspace for guest user",
 			});
 
-			return workspace.id;
+			return workspace;
 		} catch (error) {
 			if (error instanceof Error) {
 				throw new Error(`Failed to create guest workspace: ${error.message}`);

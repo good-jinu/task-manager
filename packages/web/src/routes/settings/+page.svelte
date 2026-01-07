@@ -1,33 +1,38 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { Settings as SettingsIcon, User, Database } from '$lib/components/icons';
-	import type { PageData } from './$types';
+import type { ExternalIntegration } from "@notion-task-manager/db";
+import { onMount } from "svelte";
+import {
+	Database,
+	Settings as SettingsIcon,
+	User,
+} from "$lib/components/icons";
+import type { PageData } from "./$types";
 
-	let { data }: { data: PageData } = $props();
-	
-	let session = $derived(data.session);
-	let integrations: any[] = $state([]);
-	let loading = $state(false);
+let { data }: { data: PageData } = $props();
 
-	onMount(() => {
-		loadIntegrations();
-	});
+let session = $derived(data.session);
+let integrations: ExternalIntegration[] = $state([]);
+let loading = $state(false);
 
-	async function loadIntegrations() {
-		try {
-			loading = true;
-			const response = await fetch('/api/integrations');
-			const data = await response.json();
-			
-			if (response.ok) {
-				integrations = data.integrations || [];
-			}
-		} catch (err) {
-			console.error('Error loading integrations:', err);
-		} finally {
-			loading = false;
+onMount(() => {
+	loadIntegrations();
+});
+
+async function loadIntegrations() {
+	try {
+		loading = true;
+		const response = await fetch("/api/integrations");
+		const data = await response.json();
+
+		if (response.ok) {
+			integrations = data.integrations || [];
 		}
+	} catch (err) {
+		console.error("Error loading integrations:", err);
+	} finally {
+		loading = false;
 	}
+}
 </script>
 
 <svelte:head>

@@ -1,41 +1,49 @@
 <script lang="ts">
-	import type { HTMLAttributes } from 'svelte/elements';
-	import { Info, Success, Warning, Error, Close } from '$lib/components/icons';
-	import { cn } from '$lib/components/utils';
+import type { HTMLAttributes } from "svelte/elements";
+import {
+	Close,
+	Error as ErrorIcon,
+	Info,
+	Success,
+	Warning,
+} from "$lib/components/icons";
+import { cn } from "$lib/components/utils";
 
-	interface Props extends HTMLAttributes<HTMLDivElement> {
-		variant?: 'info' | 'success' | 'warning' | 'error';
-		title?: string;
-		dismissible?: boolean;
-		onDismiss?: () => void;
-	}
+interface Props extends HTMLAttributes<HTMLDivElement> {
+	variant?: "info" | "success" | "warning" | "error";
+	title?: string;
+	dismissible?: boolean;
+	onDismiss?: () => void;
+}
 
-	let {
-		variant = 'info',
-		title,
-		dismissible = false,
-		onDismiss,
-		class: className = '',
-		children,
-		...restProps
-	}: Props = $props();
+let {
+	variant = "info",
+	title,
+	dismissible = false,
+	onDismiss,
+	class: className = "",
+	children,
+	...restProps
+}: Props = $props();
 
-	const variantClasses = {
-		info: 'bg-info-alert-bg border-info-border text-info',
-		success: 'bg-success-alert-bg border-success-border text-success',
-		warning: 'bg-warning-alert-bg border-warning-border text-warning',
-		error: 'bg-error-alert-bg border-error-border text-error'
-	};
+const variantClasses = {
+	info: "bg-info-alert-bg border-info-border text-info",
+	success: "bg-success-alert-bg border-success-border text-success",
+	warning: "bg-warning-alert-bg border-warning-border text-warning",
+	error: "bg-error-alert-bg border-error-border text-error",
+};
 
-	const iconComponents = {
-		info: Info,
-		success: Success,
-		warning: Warning,
-		error: Error
-	};
+const iconComponents = {
+	info: Info,
+	success: Success,
+	warning: Warning,
+	error: ErrorIcon,
+};
 
-	const IconComponent = $derived(iconComponents[variant]);
-	const classes = $derived(cn('border rounded-lg px-4 py-3', variantClasses[variant], className));
+const IconComponent = $derived(iconComponents[variant]);
+const classes = $derived(
+	cn("border rounded-lg px-4 py-3", variantClasses[variant], className),
+);
 </script>
 
 <div class={classes} {...restProps}>

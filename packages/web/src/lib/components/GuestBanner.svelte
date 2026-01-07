@@ -1,34 +1,34 @@
 <script lang="ts">
-	import { Button } from './ui';
-	import { Close, Info } from './icons';
-	import { cn } from './utils';
+import { Close, Info } from "./icons";
+import { Button } from "./ui";
+import { cn } from "./utils";
 
-	interface Props {
-		taskCount?: number;
-		daysRemaining?: number;
-		onSignUp?: () => void;
-		onDismiss?: () => void;
-		class?: string;
-	}
+interface Props {
+	taskCount?: number;
+	daysRemaining?: number;
+	onSignUp?: () => void;
+	onDismiss?: () => void;
+	class?: string;
+}
 
-	let {
-		taskCount = 0,
-		daysRemaining = 7,
-		onSignUp,
-		onDismiss,
-		class: className = ''
-	}: Props = $props();
+let {
+	taskCount = 0,
+	daysRemaining = 7,
+	onSignUp,
+	onDismiss,
+	class: className = "",
+}: Props = $props();
 
-	let isDismissed = $state(false);
+let isDismissed = $state(false);
 
-	function handleDismiss() {
-		isDismissed = true;
-		onDismiss?.();
-	}
+function handleDismiss() {
+	isDismissed = true;
+	onDismiss?.();
+}
 
-	function handleSignUp() {
-		onSignUp?.();
-	}
+function handleSignUp() {
+	onSignUp?.();
+}
 </script>
 
 {#if !isDismissed}

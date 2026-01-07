@@ -1,9 +1,14 @@
 <script lang="ts">
-	import { isOnline, syncStatus } from '$lib/offline-sync.js';
-	import { Wifi, WifiOff, RefreshRounded, AlertCircle } from '$lib/components/icons';
+import {
+	AlertCircle,
+	RefreshRounded,
+	Wifi,
+	WifiOff,
+} from "$lib/components/icons";
+import { isOnline, syncStatus } from "$lib/offline-sync.js";
 
-	let online = $derived($isOnline);
-	let status = $derived($syncStatus);
+let online = $derived($isOnline);
+let status = $derived($syncStatus);
 </script>
 
 <div class="flex items-center gap-2 text-xs">

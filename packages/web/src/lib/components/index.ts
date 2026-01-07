@@ -14,7 +14,6 @@ export { default as NotionIntegrationDialog } from "./NotionIntegrationDialog.sv
 // PWA and offline components
 export { default as OfflineIndicator } from "./OfflineIndicator.svelte";
 export { default as OptimisticTaskList } from "./OptimisticTaskList.svelte";
-export { default as PWAInstallPrompt } from "./PWAInstallPrompt.svelte";
 export { default as SettingsDrawer } from "./SettingsDrawer.svelte";
 export { default as TaskForm } from "./TaskForm.svelte";
 export { default as TaskInput } from "./TaskInput.svelte";

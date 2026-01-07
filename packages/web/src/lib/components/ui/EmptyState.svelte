@@ -1,38 +1,42 @@
 <script lang="ts">
-	import type { HTMLAttributes } from 'svelte/elements';
-	import { Database, Document, Task } from '$lib/components/icons';
-	import { cn } from '$lib/components/utils';
+import type { HTMLAttributes } from "svelte/elements";
+import { Database, Document, Task } from "$lib/components/icons";
+import { cn } from "$lib/components/utils";
 
-	interface Props extends HTMLAttributes<HTMLDivElement> {
-		icon?: string;
-		title: string;
-		description?: string;
-		action?: {
-			label: string;
-			href?: string;
-			onclick?: () => void;
-		};
-	}
-
-	let {
-		icon,
-		title,
-		description,
-		action,
-		class: className = '',
-		children,
-		...restProps
-	}: Props = $props();
-
-	const iconComponents = {
-		database: Database,
-		page: Document,
-		task: Task
+interface Props extends HTMLAttributes<HTMLDivElement> {
+	icon?: string;
+	title: string;
+	description?: string;
+	action?: {
+		label: string;
+		href?: string;
+		onclick?: () => void;
 	};
+}
 
-	const IconComponent = $derived(icon && icon in iconComponents ? iconComponents[icon as keyof typeof iconComponents] : null);
+let {
+	icon,
+	title,
+	description,
+	action,
+	class: className = "",
+	children,
+	...restProps
+}: Props = $props();
 
-	const classes = $derived(cn('text-center py-12', className));
+const iconComponents = {
+	database: Database,
+	page: Document,
+	task: Task,
+};
+
+const IconComponent = $derived(
+	icon && icon in iconComponents
+		? iconComponents[icon as keyof typeof iconComponents]
+		: null,
+);
+
+const classes = $derived(cn("text-center py-12", className));
 </script>
 
 <div class={classes} {...restProps}>

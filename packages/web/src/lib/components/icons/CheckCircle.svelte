@@ -1,13 +1,14 @@
 <script lang="ts">
 interface Props {
-	size?: number;
 	class?: string;
+	size?: number;
 }
 
-let { size = 24, class: className = "" }: Props = $props();
+let { class: className = "", size = 24 }: Props = $props();
 </script>
 
 <svg
+	class={className}
 	width={size}
 	height={size}
 	viewBox="0 0 24 24"
@@ -16,8 +17,7 @@ let { size = 24, class: className = "" }: Props = $props();
 	stroke-width="2"
 	stroke-linecap="round"
 	stroke-linejoin="round"
-	class={className}
 >
-	<circle cx="12" cy="12" r="10" />
-	<polyline points="12,6 12,12 16,14" />
+	<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+	<polyline points="22,4 12,14.01 9,11.01" />
 </svg>

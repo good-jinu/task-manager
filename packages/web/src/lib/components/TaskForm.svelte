@@ -1,46 +1,53 @@
 <script lang="ts">
-	import type { Database } from '$lib/types';
-	import { Card, Button } from './ui';
+import type { Database } from "$lib/types";
+import { Button, Card } from "./ui";
 
-	interface Props {
-		databases: Database[];
-		loading: boolean;
-		error: string;
-		onSubmit: (query: string, databaseId: string) => Promise<void>;
-		onClear: () => void;
-		isGuestMode?: boolean;
+interface Props {
+	databases: Database[];
+	loading: boolean;
+	error: string;
+	onSubmit: (query: string, databaseId: string) => Promise<void>;
+	onClear: () => void;
+	isGuestMode?: boolean;
+}
+
+let {
+	databases,
+	loading,
+	error,
+	onSubmit,
+	onClear,
+	isGuestMode = false,
+}: Props = $props();
+
+// Form state
+let query = $state("");
+let selectedDatabaseId = $state("");
+
+async function handleSubmit() {
+	if (!query.trim()) {
+		return;
 	}
 
-	let { databases, loading, error, onSubmit, onClear, isGuestMode = false }: Props = $props();
-
-	// Form state
-	let query = $state('');
-	let selectedDatabaseId = $state('');
-
-	async function handleSubmit() {
-		if (!query.trim()) {
-			return;
-		}
-
-		// For guest mode, we don't need a database selection
-		if (!isGuestMode && !selectedDatabaseId) {
-			return;
-		}
-
-		await onSubmit(query.trim(), selectedDatabaseId || 'guest');
-		query = '';
-		if (!isGuestMode) {
-			selectedDatabaseId = '';
-		}
+	// For guest mode, we don't need a database selection
+	if (!isGuestMode && !selectedDatabaseId) {
+		return;
 	}
 
-	function handleClear() {
-		query = '';
-		if (!isGuestMode) {
-			selectedDatabaseId = '';
-		}
-		onClear();
+	await onSubmit(query.trim(), selectedDatabaseId || "guest");
+	query = "";
+	if (!isGuestMode) {
+		selectedDatabaseId = "";
 	}
+}
+
+function handleClear() {
+	query = "";
+	if (!isGuestMode) {
+		selectedDatabaseId = "";
+	}
+	onClear();
+}
 </script>
 
 <Card variant="elevated" class="sticky top-6">

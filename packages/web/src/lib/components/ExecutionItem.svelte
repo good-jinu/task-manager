@@ -1,66 +1,91 @@
 <script lang="ts">
-	import type { AgentExecutionRecord } from '@notion-task-manager/db';
-	import { marked } from 'marked';
-	import { Card, Badge, Alert, LoadingSpinner, Button } from './ui';
-	import { KeyboardArrowDown, KeyboardArrowRight, ArrowRightAlt } from '$lib/components/icons';
-    import type { Database } from '$lib/types';
+import type { AgentExecutionRecord } from "@notion-task-manager/db";
+import { marked } from "marked";
+import {
+	ArrowRightAlt,
+	KeyboardArrowDown,
+	KeyboardArrowRight,
+} from "$lib/components/icons";
+import type { Database } from "$lib/types";
+import { Alert, Badge, Button, Card, LoadingSpinner } from "./ui";
 
-	interface Props {
-		execution: AgentExecutionRecord;
-		databases: Database[];
-		expanded: boolean;
-		onToggleExpanded: () => void;
+interface Props {
+	execution: AgentExecutionRecord;
+	databases: Database[];
+	expanded: boolean;
+	onToggleExpanded: () => void;
+}
+
+let { execution, databases, expanded, onToggleExpanded }: Props = $props();
+
+function formatDateTime(dateString: string): string {
+	return new Date(dateString).toLocaleString();
+}
+
+function getStatusVariant(
+	status: string,
+): "warning" | "success" | "error" | "default" {
+	switch (status) {
+		case "pending":
+			return "warning";
+		case "done":
+			return "success";
+		case "fail":
+			return "error";
+		default:
+			return "default";
 	}
+}
 
-	let { execution, databases, expanded, onToggleExpanded }: Props = $props();
-
-	function formatDateTime(dateString: string): string {
-		return new Date(dateString).toLocaleString();
+function getStatusIcon(status: string): string {
+	switch (status) {
+		case "pending":
+			return "⏳";
+		case "done":
+			return "✓";
+		case "fail":
+			return "✗";
+		default:
+			return "?";
 	}
+}
 
-	function getStatusVariant(status: string): 'warning' | 'success' | 'error' | 'default' {
-		switch (status) {
-			case 'pending': return 'warning';
-			case 'done': return 'success';
-			case 'fail': return 'error';
-			default: return 'default';
-		}
-	}
+function getDatabaseName(databaseId: string): string {
+	const db = databases.find((d: Database) => d.id === databaseId);
+	return db?.title || "Unknown Database";
+}
 
-	function getStatusIcon(status: string): string {
-		switch (status) {
-			case 'pending': return '⏳';
-			case 'done': return '✓';
-			case 'fail': return '✗';
-			default: return '?';
-		}
+function getActionLabel(action: string): string {
+	switch (action) {
+		case "created":
+			return "Created new page";
+		case "updated":
+			return "Updated existing page";
+		case "none":
+			return "No action taken";
+		default:
+			return action;
 	}
+}
 
-	function getDatabaseName(databaseId: string): string {
-		const db = databases.find((d: Database) => d.id === databaseId);
-		return db?.title || 'Unknown Database';
+function getToolLabel(toolName: string): string {
+	switch (toolName) {
+		case "executeSearchPages":
+			return "Search Pages";
+		case "executeCreatePage":
+			return "Create Page";
+		case "executeUpdatePage":
+			return "Update Page";
+		case "search_pages":
+			return "Search Pages";
+		case "create_page":
+			return "Create Page";
+		case "update_page":
+			return "Update Page";
+		default:
+			return toolName;
 	}
-
-	function getActionLabel(action: string): string {
-		switch (action) {
-			case 'created': return 'Created new page';
-			case 'updated': return 'Updated existing page';
-			case 'none': return 'No action taken';
-			default: return action;
-		}
-	}
-
-	function getToolLabel(toolName: string): string {
-		switch (toolName) {
-			case 'executeSearchPages': return 'Search Pages';
-			case 'executeCreatePage': return 'Create Page';
-			case 'executeUpdatePage': return 'Update Page';
-			case 'search_pages': return 'Search Pages';
-			case 'create_page': return 'Create Page';
-			case 'update_page': return 'Update Page';
-			default: return toolName;
-		}
-	}
+}
 </script>
 
 <Card hover class="p-4">

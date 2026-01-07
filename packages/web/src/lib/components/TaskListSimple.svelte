@@ -1,82 +1,95 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
-	import { Spinner, Task as TaskIcon } from './icons';
+import type { Task } from "@notion-task-manager/db";
+import { Spinner, Task as TaskIcon } from "./icons";
 
-	const dispatch = createEventDispatcher();
+let {
+	tasks = [],
+	loading = false,
+	ontaskupdated,
+	ontaskdeleted,
+	onerror,
+}: {
+	tasks: Task[];
+	loading?: boolean;
+	ontaskupdated?: (task: Task) => void;
+	ontaskdeleted?: (taskId: string) => void;
+	onerror?: (error: string) => void;
+} = $props();
 
-	let { 
-		tasks = [], 
-		loading = false 
-	}: { 
-		tasks: any[]; 
-		loading?: boolean; 
-	} = $props();
+async function handleStatusChange(taskId: string, newStatus: string) {
+	try {
+		const response = await fetch(`/api/tasks/${taskId}`, {
+			method: "PATCH",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({ status: newStatus }),
+		});
 
-	async function handleStatusChange(taskId: string, newStatus: string) {
-		try {
-			const response = await fetch(`/api/tasks/${taskId}`, {
-				method: 'PATCH',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({ status: newStatus })
-			});
+		const data = await response.json();
 
+		if (response.ok) {
+			ontaskupdated?.(data.task);
+		} else {
+			onerror?.(data.error || "Failed to update task");
+		}
+	} catch (err) {
+		onerror?.("Failed to update task");
+		console.error("Error updating task:", err);
+	}
+}
+
+async function handleDelete(taskId: string) {
+	if (!confirm("Are you sure you want to delete this task?")) return;
+
+	try {
+		const response = await fetch(`/api/tasks/${taskId}`, {
+			method: "DELETE",
+		});
+
+		if (response.ok) {
+			ontaskdeleted?.(taskId);
+		} else {
 			const data = await response.json();
-
-			if (response.ok) {
-				dispatch('taskUpdated', data.task);
-			} else {
-				dispatch('error', data.error || 'Failed to update task');
-			}
-		} catch (err) {
-			dispatch('error', 'Failed to update task');
-			console.error('Error updating task:', err);
+			onerror?.(data.error || "Failed to delete task");
 		}
+	} catch (err) {
+		onerror?.("Failed to delete task");
+		console.error("Error deleting task:", err);
 	}
+}
 
-	async function handleDelete(taskId: string) {
-		if (!confirm('Are you sure you want to delete this task?')) return;
+function formatDate(dateString: string): string {
+	return new Date(dateString).toLocaleDateString();
+}
 
-		try {
-			const response = await fetch(`/api/tasks/${taskId}`, {
-				method: 'DELETE'
-			});
-
-			if (response.ok) {
-				dispatch('taskDeleted', taskId);
-			} else {
-				const data = await response.json();
-				dispatch('error', data.error || 'Failed to delete task');
-			}
-		} catch (err) {
-			dispatch('error', 'Failed to delete task');
-			console.error('Error deleting task:', err);
-		}
+function getPriorityColor(priority: string): string {
+	switch (priority) {
+		case "urgent":
+			return "text-error border-error bg-error/10";
+		case "high":
+			return "text-warning border-warning bg-warning/10";
+		case "medium":
+			return "text-primary border-primary bg-primary/10";
+		case "low":
+			return "text-foreground-secondary border-subtle-base bg-surface-muted";
+		default:
+			return "text-foreground-secondary border-subtle-base bg-surface-muted";
 	}
+}
 
-	function formatDate(dateString: string): string {
-		return new Date(dateString).toLocaleDateString();
+function getStatusColor(status: string): string {
+	switch (status) {
+		case "done":
+			return "text-success border-success bg-success/10";
+		case "in-progress":
+			return "text-accent border-accent bg-accent/10";
+		case "todo":
+			return "text-foreground-secondary border-subtle-base bg-surface-muted";
+		default:
+			return "text-foreground-secondary border-subtle-base bg-surface-muted";
 	}
-
-	function getPriorityColor(priority: string): string {
-		switch (priority) {
-			case 'urgent': return 'text-error border-error bg-error/10';
-			case 'high': return 'text-warning border-warning bg-warning/10';
-			case 'medium': return 'text-primary border-primary bg-primary/10';
-			case 'low': return 'text-foreground-secondary border-subtle-base bg-surface-muted';
-			default: return 'text-foreground-secondary border-subtle-base bg-surface-muted';
-		}
-	}
-
-	function getStatusColor(status: string): string {
-		switch (status) {
-			case 'done': return 'text-success border-success bg-success/10';
-			case 'in-progress': return 'text-accent border-accent bg-accent/10';
-			case 'todo': return 'text-foreground-secondary border-subtle-base bg-surface-muted';
-			default: return 'text-foreground-secondary border-subtle-base bg-surface-muted';
-		}
-	}
+}
 </script>
 
 <div class="bg-card-bg border border-subtle-base rounded-xl">

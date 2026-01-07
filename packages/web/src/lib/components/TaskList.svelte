@@ -1,97 +1,103 @@
 <script lang="ts">
-	import type { Task, TaskStatus, PaginatedResult } from '@notion-task-manager/db';
-	import TaskItem from './TaskItem.svelte';
-	import { LoadingSpinner, EmptyState } from './ui';
-	import { Task as TaskIcon } from './icons';
-	import { cn } from './utils';
+import type {
+	PaginatedResult,
+	Task,
+	TaskStatus,
+} from "@notion-task-manager/db";
+import { Task as TaskIcon } from "./icons";
+import TaskItem from "./TaskItem.svelte";
+import { EmptyState, LoadingSpinner } from "./ui";
+import { cn } from "./utils";
 
-	interface Props {
-		tasks: Task[];
-		loading?: boolean;
-		hasMore?: boolean;
-		onLoadMore?: () => Promise<void>;
-		onStatusChange?: (taskId: string, status: TaskStatus) => Promise<void>;
-		onEdit?: (task: Task) => void;
-		onDelete?: (taskId: string) => Promise<void>;
-		emptyMessage?: string;
-		class?: string;
+interface Props {
+	tasks: Task[];
+	loading?: boolean;
+	hasMore?: boolean;
+	onLoadMore?: () => Promise<void>;
+	onStatusChange?: (taskId: string, status: TaskStatus) => Promise<void>;
+	onEdit?: (task: Task) => void;
+	onDelete?: (taskId: string) => Promise<void>;
+	emptyMessage?: string;
+	class?: string;
+}
+
+let {
+	tasks,
+	loading = false,
+	hasMore = false,
+	onLoadMore,
+	onStatusChange,
+	onEdit,
+	onDelete,
+	emptyMessage = "No tasks yet. Create your first task above!",
+	class: className = "",
+}: Props = $props();
+
+let listElement: HTMLDivElement;
+let isLoadingMore = $state(false);
+
+// Intersection Observer for infinite scroll
+let observer: IntersectionObserver | null = null;
+let sentinelElement: HTMLDivElement | null = $state(null);
+
+$effect(() => {
+	if (typeof window === "undefined") return;
+
+	// Clean up previous observer
+	if (observer) {
+		observer.disconnect();
 	}
 
-	let {
-		tasks,
-		loading = false,
-		hasMore = false,
-		onLoadMore,
-		onStatusChange,
-		onEdit,
-		onDelete,
-		emptyMessage = "No tasks yet. Create your first task above!",
-		class: className = ''
-	}: Props = $props();
+	// Set up intersection observer for infinite scroll
+	if (hasMore && onLoadMore && sentinelElement) {
+		observer = new IntersectionObserver(
+			async (entries) => {
+				const entry = entries[0];
+				if (entry.isIntersecting && !isLoadingMore && !loading) {
+					isLoadingMore = true;
+					try {
+						await onLoadMore();
+					} finally {
+						isLoadingMore = false;
+					}
+				}
+			},
+			{
+				rootMargin: "100px", // Start loading 100px before the sentinel comes into view
+			},
+		);
 
-	let listElement: HTMLDivElement;
-	let isLoadingMore = $state(false);
+		observer.observe(sentinelElement);
+	}
 
-	// Intersection Observer for infinite scroll
-	let observer: IntersectionObserver | null = null;
-	let sentinelElement: HTMLDivElement | null = $state(null);
-
-	$effect(() => {
-		if (typeof window === 'undefined') return;
-
-		// Clean up previous observer
+	// Cleanup function
+	return () => {
 		if (observer) {
 			observer.disconnect();
 		}
+	};
+});
 
-		// Set up intersection observer for infinite scroll
-		if (hasMore && onLoadMore && sentinelElement) {
-			observer = new IntersectionObserver(
-				async (entries) => {
-					const entry = entries[0];
-					if (entry.isIntersecting && !isLoadingMore && !loading) {
-						isLoadingMore = true;
-						try {
-							await onLoadMore();
-						} finally {
-							isLoadingMore = false;
-						}
-					}
-				},
-				{
-					rootMargin: '100px' // Start loading 100px before the sentinel comes into view
-				}
-			);
+// Group tasks by status for better organization
+const groupedTasks = $derived(() => {
+	const groups = {
+		todo: tasks.filter((t) => t.status === "todo" && !t.archived),
+		"in-progress": tasks.filter(
+			(t) => t.status === "in-progress" && !t.archived,
+		),
+		done: tasks.filter((t) => t.status === "done" && !t.archived),
+		archived: tasks.filter((t) => t.archived || t.status === "archived"),
+	};
 
-			observer.observe(sentinelElement);
-		}
+	return groups;
+});
 
-		// Cleanup function
-		return () => {
-			if (observer) {
-				observer.disconnect();
-			}
-		};
-	});
-
-	// Group tasks by status for better organization
-	const groupedTasks = $derived(() => {
-		const groups = {
-			todo: tasks.filter(t => t.status === 'todo' && !t.archived),
-			'in-progress': tasks.filter(t => t.status === 'in-progress' && !t.archived),
-			done: tasks.filter(t => t.status === 'done' && !t.archived),
-			archived: tasks.filter(t => t.archived || t.status === 'archived')
-		};
-
-		return groups;
-	});
-
-	const hasAnyTasks = $derived(tasks.length > 0);
-	const hasActiveTasks = $derived(
-		groupedTasks().todo.length > 0 || 
-		groupedTasks()['in-progress'].length > 0 || 
-		groupedTasks().done.length > 0
-	);
+const hasAnyTasks = $derived(tasks.length > 0);
+const hasActiveTasks = $derived(
+	groupedTasks().todo.length > 0 ||
+		groupedTasks()["in-progress"].length > 0 ||
+		groupedTasks().done.length > 0,
+);
 </script>
 
 <div class={cn('space-y-4', className)} bind:this={listElement}>

@@ -1,21 +1,19 @@
 {
 	"root": false,
 	"extends": ["../../biome.json"],
-	"overrides": [
-		{
-			"includes": ["**/*.svelte"],
-			"linter": {
-				"rules": {
-					"style": {
-						"useConst": "off",
-						"useImportType": "off"
-					},
-					"correctness": {
-						"noUnusedVariables": "off",
-						"noUnusedImports": "off"
-					}
-				}
+	"files": {
+		"includes": ["**/*.svelte"]
+	},
+	"linter": {
+		"rules": {
+			"style": {
+				"useConst": "off",
+				"useImportType": "off"
+			},
+			"correctness": {
+				"noUnusedVariables": "off",
+				"noUnusedImports": "off"
 			}
 		}
-	]
+	}
 }
