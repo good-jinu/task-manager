@@ -6,8 +6,6 @@ import { ErrorAlert } from "$lib/components";
 import AccountCreationDialog from "$lib/components/AccountCreationDialog.svelte";
 import ChatInterface from "$lib/components/ChatInterface.svelte";
 import { Settings } from "$lib/components/icons";
-import RecoveryNotification from "$lib/components/RecoveryNotification.svelte";
-import TaskDisplay from "$lib/components/TaskDisplay.svelte";
 import { GuestRecoveryService } from "$lib/services/guestRecovery";
 import {
 	guestUser,
@@ -31,19 +29,6 @@ let currentWorkspace: Workspace | null = $state(null);
 let loading = $state(false);
 let error = $state("");
 let showAccountDialog = $state(false);
-
-// Recovery notification state
-let showRecoveryNotification = $state(false);
-let recoveryNotification = $state<{
-	type: "success" | "info" | "warning";
-	title: string;
-	message: string;
-	taskCount?: number;
-}>({
-	type: "info",
-	title: "",
-	message: "",
-});
 
 onMount(async () => {
 	if (isAuthenticated) {
@@ -74,36 +59,6 @@ async function handleAutoGuestRegistration() {
 				workspace: currentWorkspace,
 				isRegistered: false,
 			});
-
-			// Show recovery notification if data was recovered
-			if (
-				recoveryResult.recoveredFromLocal &&
-				recoveryResult.tasks.length > 0
-			) {
-				recoveryNotification = {
-					type: "success",
-					title: "Tasks Recovered!",
-					message: "We found your previous tasks and restored them.",
-					taskCount: recoveryResult.tasks.length,
-				};
-				showRecoveryNotification = true;
-
-				// Auto-hide after 8 seconds
-				setTimeout(() => {
-					showRecoveryNotification = false;
-				}, 8000);
-			} else if (recoveryResult.recoveredFromLocal) {
-				recoveryNotification = {
-					type: "info",
-					title: "Session Restored",
-					message: "Your workspace has been restored.",
-				};
-				showRecoveryNotification = true;
-
-				setTimeout(() => {
-					showRecoveryNotification = false;
-				}, 5000);
-			}
 
 			console.log("Guest session recovered successfully:", currentWorkspace);
 		} else {
@@ -270,25 +225,15 @@ function goToNotionIntegration() {
 	{/if}
 
 	<!-- Main Content -->
-	<div class="max-w-6xl mx-auto px-4 {$isGuestMode && !isAuthenticated || isAuthenticated ? 'h-[calc(100vh-120px)]' : 'h-screen'}">
+	<div class="flex-1 overflow-hidden">
 		{#if currentWorkspace}
-			<!-- Main Chat Layout -->
-			<div class="grid md:grid-cols-4 gap-6 h-full">
-				<!-- Chat Interface -->
-				<div class="md:col-span-3 bg-card border rounded-xl overflow-hidden">
-					<ChatInterface 
-						workspaceId={currentWorkspace.id}
-						onTasksUpdate={handleTasksUpdate}
-					/>
-				</div>
-
-				<!-- Task Sidebar -->
-				<div class="md:col-span-1 space-y-4 overflow-y-auto">
-					<TaskDisplay 
-						{tasks}
-						title="Current Tasks"
-					/>
-				</div>
+			<!-- Full Screen Chat Layout -->
+			<div class="h-full">
+				<ChatInterface 
+					workspaceId={currentWorkspace.id}
+					{tasks}
+					onTasksUpdate={handleTasksUpdate}
+				/>
 			</div>
 
 			<!-- Error Display -->
@@ -316,15 +261,5 @@ function goToNotionIntegration() {
 	bind:open={showAccountDialog}
 	guestTasks={tasks}
 	onOpenChange={(open) => showAccountDialog = open}
-	onCreateAccount={handleAccountCreation}
-/>
-
-<!-- Recovery Notification -->
-<RecoveryNotification
-	show={showRecoveryNotification}
-	type={recoveryNotification.type}
-	title={recoveryNotification.title}
-	message={recoveryNotification.message}
-	taskCount={recoveryNotification.taskCount}
-	onClose={() => showRecoveryNotification = false}
+	onNotionLogin={handleAccountCreation}
 />

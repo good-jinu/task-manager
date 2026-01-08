@@ -15,6 +15,7 @@ export { default as KeyboardArrowDown } from "./KeyboardArrowDown.svelte";
 export { default as KeyboardArrowRight } from "./KeyboardArrowRight.svelte";
 export { default as List } from "./List.svelte";
 export { default as Lock } from "./Lock.svelte";
+export { default as NotionLogo } from "./NotionLogo.svelte";
 export { default as Plus } from "./Plus.svelte";
 export { default as RefreshRounded } from "./RefreshRounded.svelte";
 export { default as Robot } from "./Robot.svelte";
