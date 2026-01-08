@@ -47,11 +47,11 @@ const guestUserArb = fc.record({
 	migrated: fc.boolean(),
 });
 
-// Generator for guest users with valid 7-day TTL
+// Generator for guest users with valid 1-year TTL
 const validGuestUserArb = fc
 	.date({ min: new Date("2020-01-01"), max: new Date("2030-01-01") })
 	.map((createdAt) => {
-		const expiresAt = new Date(createdAt.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days later
+		const expiresAt = new Date(createdAt.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 year later
 		return {
 			id: `guest_${crypto.randomUUID()}`,
 			createdAt: createdAt.toISOString(),
@@ -169,15 +169,15 @@ describe("GuestUserService Property-Based Tests", () => {
 						Item: guestUser,
 					});
 
-					// Verify TTL is set correctly (7 days from creation)
+					// Verify TTL is set correctly (1 year from creation)
 					const createdAt = new Date(guestUser.createdAt);
 					const expiresAt = new Date(guestUser.expiresAt);
 					const daysDifference =
 						(expiresAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
 
-					// Should expire within 7 days (allowing for some test timing variance)
-					expect(daysDifference).toBeGreaterThanOrEqual(6.9);
-					expect(daysDifference).toBeLessThanOrEqual(7.1);
+					// Should expire within 1 year (allowing for some test timing variance)
+					expect(daysDifference).toBeGreaterThanOrEqual(364.9);
+					expect(daysDifference).toBeLessThanOrEqual(365.1);
 
 					// Verify guest user has valid structure
 					expect(guestUser.id).toMatch(

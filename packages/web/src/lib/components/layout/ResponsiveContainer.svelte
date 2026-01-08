@@ -2,29 +2,28 @@
 import type { Session } from "@auth/sveltekit";
 import type { Snippet } from "svelte";
 import { onMount } from "svelte";
-import { page } from "$app/stores";
 import { getGuestTaskCount, guestUser, isGuestMode } from "$lib/stores/guest";
 import GuestBanner from "../GuestBanner.svelte";
 import BottomNavigation from "./BottomNavigation.svelte";
-import Header from "./Header.svelte";
 
 let {
 	children,
 	session,
 	showGuestBanner = true,
 	class: className = "",
+	currentPath = "/",
 }: {
 	children: Snippet;
 	session: Session | null;
 	showGuestBanner?: boolean;
 	class?: string;
+	currentPath?: string;
 } = $props();
 
 // Check if user is a guest (not authenticated)
 let isGuest = $derived(!session);
 
 // Don't show guest banner on landing page (main page for unauthenticated users)
-let currentPath = $derived($page.url.pathname);
 let shouldShowGuestBanner = $derived(
 	isGuest && showGuestBanner && currentPath !== "/" && $isGuestMode,
 );
@@ -54,28 +53,22 @@ $effect(() => {
 </script>
 
 <div class="min-h-screen bg-page-bg">
-	<!-- Desktop Header - Hidden on mobile -->
-	<div class="hidden md:block">
-		<Header {session} />
-	</div>
-
 	<!-- Guest Banner - Only show for unauthenticated users on non-landing pages -->
 	{#if shouldShowGuestBanner}
 		<GuestBanner 
 			taskCount={guestTaskCount}
 			daysRemaining={7}
 			onSignUp={() => {
-				// Navigate to sign in page
-				window.location.href = '/user/signin';
+				// Navigate to main page and show dialog
+				window.location.href = '/';
 			}}
 		/>
 	{/if}
 
 	<!-- Main Content Container -->
 	<main class="flex-1 {className}">
-		<!-- Mobile: Add top padding for status bar, bottom padding for nav -->
-		<!-- Desktop: Add top padding for header -->
-		<div class="pt-4 pb-20 md:pt-8 md:pb-8 px-4 md:px-6 lg:px-8">
+		<!-- Mobile: Add bottom padding for nav -->
+		<div class="pt-4 pb-20 md:pb-8 px-4 md:px-6 lg:px-8">
 			<div class="max-w-7xl mx-auto">
 				{@render children()}
 			</div>

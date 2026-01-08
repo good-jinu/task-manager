@@ -25,7 +25,7 @@ const navItems = $derived([
 		requiresAuth: false,
 	},
 	{
-		href: session ? "/settings" : "/user/signin",
+		href: session ? "/settings" : "/",
 		icon: session ? Settings : User,
 		label: session ? "Settings" : "Sign In",
 		active:

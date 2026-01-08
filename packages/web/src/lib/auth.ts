@@ -10,7 +10,7 @@ export async function requireAuth(event: RequestEvent) {
 	const session = await event.locals.auth();
 
 	if (!session?.user || !session.user.id) {
-		throw redirect(302, "/user/signin");
+		throw redirect(302, "/");
 	}
 
 	return {

@@ -1,43 +1,22 @@
 <script lang="ts">
-import type {
-	AgentExecutionRecord,
-	Task,
-	Workspace,
-} from "@notion-task-manager/db";
+import type { Task, Workspace } from "@notion-task-manager/db";
 import { onMount } from "svelte";
 import { goto } from "$app/navigation";
-import { page } from "$app/stores";
-import { ErrorAlert, ExecutionHistory, TaskForm } from "$lib/components";
+import { ErrorAlert } from "$lib/components";
 import AccountCreationDialog from "$lib/components/AccountCreationDialog.svelte";
-import AIAgentChatSimple from "$lib/components/AIAgentChatSimple.svelte";
-import GuestBanner from "$lib/components/GuestBanner.svelte";
-import {
-	CheckCircle,
-	List,
-	Plus,
-	Robot,
-	Settings,
-	Sparkles,
-} from "$lib/components/icons";
+import ChatInterface from "$lib/components/ChatInterface.svelte";
+import { Settings } from "$lib/components/icons";
 import RecoveryNotification from "$lib/components/RecoveryNotification.svelte";
-import TaskInputSimple from "$lib/components/TaskInputSimple.svelte";
-import TaskListSimple from "$lib/components/TaskListSimple.svelte";
+import TaskDisplay from "$lib/components/TaskDisplay.svelte";
 import { GuestRecoveryService } from "$lib/services/guestRecovery";
 import {
-	checkExistingGuest,
-	getGuestTaskCount,
 	guestUser,
 	isGuestMode,
 	migrateGuestTasks,
-	registerGuestUser,
 	updateGuestTaskCount,
 } from "$lib/stores/guest";
-import {
-	loadGuestDataLocally,
-	saveGuestDataLocally,
-} from "$lib/stores/guestPersistence";
+import { saveGuestDataLocally } from "$lib/stores/guestPersistence";
 import type { PageData } from "$lib/types/page-data";
-import { deleteCookie } from "$lib/utils/cookies";
 
 let { data }: { data: PageData } = $props();
 
@@ -51,8 +30,6 @@ let workspaces: Workspace[] = $state([]);
 let currentWorkspace: Workspace | null = $state(null);
 let loading = $state(false);
 let error = $state("");
-let showAIChat = $state(false);
-let guestTaskCount = $state(0);
 let showAccountDialog = $state(false);
 
 // Recovery notification state
@@ -66,52 +43,6 @@ let recoveryNotification = $state<{
 	type: "info",
 	title: "",
 	message: "",
-});
-
-// Agent functionality state
-let expandedExecutions = $state<Set<string>>(new Set());
-let localExecutions = $state<AgentExecutionRecord[]>([]);
-let initialized = $state(false);
-let databases = $derived(data.databases || []);
-let executions = $derived(localExecutions);
-let hasPendingExecutions = $derived(
-	executions.some((e) => e.status === "pending"),
-);
-let autoRefreshInterval: ReturnType<typeof setInterval> | null = null;
-
-// UI state
-let activeTab = $state<"tasks" | "agent">("tasks");
-
-// Initialize from server data on first render for agent executions
-$effect(() => {
-	if (!initialized && data.executions) {
-		localExecutions = data.executions;
-		initialized = true;
-	}
-});
-
-// Auto-refresh interval for pending executions
-$effect(() => {
-	if (hasPendingExecutions && !autoRefreshInterval) {
-		autoRefreshInterval = setInterval(() => {
-			refreshExecutions();
-		}, 10000); // Refresh every 10 seconds
-	} else if (!hasPendingExecutions && autoRefreshInterval) {
-		clearInterval(autoRefreshInterval);
-		autoRefreshInterval = null;
-	}
-
-	return () => {
-		if (autoRefreshInterval) {
-			clearInterval(autoRefreshInterval);
-			autoRefreshInterval = null;
-		}
-	};
-});
-
-// Debug: Track workspace changes
-$effect(() => {
-	console.log("currentWorkspace changed:", currentWorkspace);
 });
 
 onMount(async () => {
@@ -135,7 +66,6 @@ async function handleAutoGuestRegistration() {
 		if (recoveryResult.success && recoveryResult.workspace) {
 			currentWorkspace = recoveryResult.workspace;
 			tasks = recoveryResult.tasks;
-			guestTaskCount = tasks.length;
 
 			// Update guest store
 			isGuestMode.set(true);
@@ -199,8 +129,13 @@ async function handleAccountCreation(migrateData: boolean) {
 			await migrateGuestTasks($guestUser.id);
 		}
 
-		// Redirect to sign in page
-		goto("/user/signin");
+		// Since we removed user pages, we'll handle account creation differently
+		// For now, we'll just close the dialog and show a success message
+		showAccountDialog = false;
+
+		// You can implement your account creation logic here
+		// For example, redirect to an external auth provider or handle it via API
+		console.log("Account creation requested with migrate data:", migrateData);
 	} catch (err) {
 		console.error("Failed to handle account creation:", err);
 		throw err; // Let the dialog handle the error
@@ -242,7 +177,6 @@ async function loadTasks() {
 
 		if (response.ok) {
 			tasks = data.data?.items || [];
-			guestTaskCount = tasks.length;
 
 			// Update guest store if in guest mode
 			if ($isGuestMode && !isAuthenticated) {
@@ -259,42 +193,9 @@ async function loadTasks() {
 	}
 }
 
-function handleTaskCreated(newTask: Task) {
-	tasks = [newTask, ...tasks];
-	guestTaskCount = tasks.length;
-
-	// Update guest store if in guest mode
-	if ($isGuestMode && !isAuthenticated) {
-		updateGuestTaskCount(tasks.length);
-		// Save to local storage for persistence
-		if (currentWorkspace) {
-			saveGuestDataLocally({
-				guestId: "guest", // This should be the actual guest ID from cookie
-				workspaceId: currentWorkspace.id,
-				tasks: tasks,
-			});
-		}
-	}
-}
-
-function handleTaskUpdated(updatedTask: Task) {
-	tasks = tasks.map((task) =>
-		task.id === updatedTask.id ? updatedTask : task,
-	);
-
-	// Update local storage for guest users
-	if ($isGuestMode && !isAuthenticated && currentWorkspace) {
-		saveGuestDataLocally({
-			guestId: "guest",
-			workspaceId: currentWorkspace.id,
-			tasks: tasks,
-		});
-	}
-}
-
-function handleTaskDeleted(deletedTaskId: string) {
-	tasks = tasks.filter((task) => task.id !== deletedTaskId);
-	guestTaskCount = tasks.length;
+function handleTasksUpdate(updatedTasks: Task[]) {
+	// Update tasks from chat interface
+	tasks = [...tasks, ...updatedTasks];
 
 	// Update guest store if in guest mode
 	if ($isGuestMode && !isAuthenticated) {
@@ -310,105 +211,8 @@ function handleTaskDeleted(deletedTaskId: string) {
 	}
 }
 
-function handleError(event: CustomEvent) {
-	error = event.detail;
-}
-
-// Wrapper function for TaskListSimple (Svelte 5 style)
-function handleErrorFromTaskList(errorMessage: string) {
-	error = errorMessage;
-}
-
-function toggleAIChat() {
-	showAIChat = !showAIChat;
-}
-
 function goToNotionIntegration() {
 	goto("/notion");
-}
-
-function switchTab(tab: "tasks" | "agent") {
-	activeTab = tab;
-}
-
-async function refreshExecutions() {
-	try {
-		const response = await fetch("/api/agent/executions?limit=10");
-		const result = await response.json();
-
-		if (response.ok && result.executions) {
-			localExecutions = result.executions;
-		}
-	} catch (err) {
-		console.error("Failed to refresh executions:", err);
-	}
-}
-
-async function handleAgentTaskSubmit(query: string, databaseId: string) {
-	try {
-		loading = true;
-		error = "";
-
-		// For guest users, we'll use a simple AI parsing endpoint instead of the full agent
-		const endpoint = isAuthenticated
-			? "/api/agent/execute"
-			: "/api/ai/parse-task";
-		const body = isAuthenticated
-			? { query: query, databaseId: databaseId }
-			: { input: query };
-
-		const response = await fetch(endpoint, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify(body),
-		});
-
-		const result = await response.json();
-
-		if (response.ok && result.success) {
-			if (isAuthenticated) {
-				// Authenticated user - add to execution history
-				const newExecution: AgentExecutionRecord = {
-					userId: "",
-					executionId: result.executionId,
-					status: "pending",
-					query: query,
-					databaseId: databaseId,
-					steps: [],
-					createdAt: new Date().toISOString(),
-					updatedAt: new Date().toISOString(),
-				};
-				localExecutions = [newExecution, ...localExecutions];
-			} else {
-				// Guest user - show success message and refresh tasks
-				error = ""; // Clear any previous errors
-				await loadTasks(); // Refresh the task list
-			}
-		} else {
-			error = result.error || "Submission failed";
-		}
-	} catch (err) {
-		console.error("Submission error:", err);
-		error = "An error occurred while submitting. Please try again.";
-	} finally {
-		loading = false;
-	}
-}
-
-function handleClearForm() {
-	error = "";
-}
-
-function toggleExpanded(executionId: string) {
-	const newSet = new Set(expandedExecutions);
-	if (newSet.has(executionId)) {
-		newSet.delete(executionId);
-	} else {
-		newSet.add(executionId);
-	}
-	expandedExecutions = newSet;
 }
 </script>
 
@@ -418,21 +222,10 @@ function toggleExpanded(executionId: string) {
 </svelte:head>
 
 <div class="min-h-screen bg-page-bg">
-	<!-- Header -->
-	<header class="text-center py-8 px-4">
-		<h1 class="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground-base mb-3">
-			<Sparkles class="inline w-8 h-8 md:w-10 md:h-10 mr-3 text-accent" />
-			TaskFlow
-		</h1>
-		<p class="text-foreground-secondary text-sm md:text-base">
-			Manage your tasks with AI assistance
-		</p>
-	</header>
-
 	<!-- Guest Banner for Guest Users -->
 	{#if $isGuestMode && !isAuthenticated}
-		<div class="mb-6 px-4">
-			<div class="max-w-4xl mx-auto">
+		<div class="p-4">
+			<div class="max-w-6xl mx-auto">
 				<div class="bg-gradient-to-r from-accent/10 to-primary/10 border border-accent/20 rounded-xl p-4">
 					<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 						<div>
@@ -455,8 +248,8 @@ function toggleExpanded(executionId: string) {
 
 	<!-- Notion Integration Banner for Authenticated Users -->
 	{#if isAuthenticated}
-		<div class="mb-6 px-4">
-			<div class="max-w-4xl mx-auto">
+		<div class="p-4">
+			<div class="max-w-6xl mx-auto">
 				<div class="bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20 rounded-xl p-4">
 					<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 						<div>
@@ -477,156 +270,30 @@ function toggleExpanded(executionId: string) {
 	{/if}
 
 	<!-- Main Content -->
-	<div class="max-w-4xl mx-auto px-4">
+	<div class="max-w-6xl mx-auto px-4 {$isGuestMode && !isAuthenticated || isAuthenticated ? 'h-[calc(100vh-120px)]' : 'h-screen'}">
 		{#if currentWorkspace}
-			<!-- Tab Navigation -->
-			<div class="mb-6">
-				<div class="bg-card-bg border border-subtle-base rounded-xl p-1 inline-flex">
-					<button
-						onclick={() => switchTab('tasks')}
-						class="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 {activeTab === 'tasks' 
-							? 'bg-primary text-primary-foreground shadow-sm' 
-							: 'text-foreground-secondary hover:text-foreground-base hover:bg-surface-raised'}"
-					>
-						<List class="w-4 h-4 inline mr-2" />
-						My Tasks
-					</button>
-					<button
-						onclick={() => switchTab('agent')}
-						class="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 {activeTab === 'agent' 
-							? 'bg-accent text-accent-foreground shadow-sm' 
-							: 'text-foreground-secondary hover:text-foreground-base hover:bg-surface-raised'}"
-					>
-						<Robot class="w-4 h-4 inline mr-2" />
-						AI Agent
-					</button>
-				</div>
-			</div>
-
-			<!-- Main Grid Layout -->
-			<div class="grid md:grid-cols-3 gap-6">
-				<!-- Task/Agent Input Section -->
-				<div class="md:col-span-2">
-					{#if activeTab === 'tasks'}
-						<!-- Simple Task Input -->
-						<div class="bg-card-bg border border-subtle-base rounded-xl p-6 mb-6">
-							<h2 class="text-xl font-semibold text-foreground-base mb-4 flex items-center gap-2">
-								<Plus class="w-5 h-5 text-primary" />
-								New Task
-							</h2>
-							{#key currentWorkspace.id}
-								<TaskInputSimple 
-									workspaceId={currentWorkspace.id}
-									ontaskcreated={handleTaskCreated}
-									onerror={handleErrorFromTaskList}
-								/>
-							{/key}
-						</div>
-
-						<!-- Task List -->
-						<div class="bg-card-bg border border-subtle-base rounded-xl p-6">
-							<div class="flex justify-between items-center mb-4">
-								<h2 class="text-xl font-semibold text-foreground-base flex items-center gap-2">
-									<CheckCircle class="w-5 h-5 text-accent" />
-									My Tasks
-								</h2>
-								<span class="bg-surface-raised px-3 py-1 rounded-full text-foreground-secondary text-sm">
-									{tasks.filter(t => t.status !== 'done' && !t.archived).length} active, {tasks.filter(t => t.status === 'done').length} done
-								</span>
-							</div>
-							
-							<TaskListSimple 
-								{tasks}
-								{loading}
-								ontaskupdated={handleTaskUpdated}
-								ontaskdeleted={handleTaskDeleted}
-								onerror={handleErrorFromTaskList}
-							/>
-						</div>
-					{:else}
-						<!-- Agent Task Form -->
-						<TaskForm 
-							{databases} 
-							{loading} 
-							{error} 
-							onSubmit={handleAgentTaskSubmit} 
-							onClear={handleClearForm}
-							isGuestMode={!isAuthenticated}
-						/>
-
-						<!-- Agent Execution History -->
-						{#if isAuthenticated}
-							<div class="mt-6">
-								<ExecutionHistory 
-									{executions} 
-									{databases} 
-									{hasPendingExecutions} 
-									{expandedExecutions} 
-									onToggleExpanded={toggleExpanded} 
-								/>
-							</div>
-						{:else}
-							<!-- Guest user - show simplified interface -->
-							<div class="mt-6 bg-card-bg shadow-sm rounded-xl border border-subtle-base p-6">
-								<h3 class="text-lg font-semibold text-foreground-base mb-4">
-									AI Task Creation
-								</h3>
-								<p class="text-foreground-secondary text-sm mb-4">
-									As a guest user, you can create tasks using natural language. 
-									Sign in with Notion to access advanced features like task history and database integration.
-								</p>
-								<div class="bg-info/10 border border-info/20 rounded-lg p-4">
-									<p class="text-info text-sm">
-										💡 <strong>Tip:</strong> Try describing tasks like "Fix login bug on mobile" or "Review API documentation"
-									</p>
-								</div>
-							</div>
-						{/if}
-					{/if}
+			<!-- Main Chat Layout -->
+			<div class="grid md:grid-cols-4 gap-6 h-full">
+				<!-- Chat Interface -->
+				<div class="md:col-span-3 bg-card border rounded-xl overflow-hidden">
+					<ChatInterface 
+						workspaceId={currentWorkspace.id}
+						onTasksUpdate={handleTasksUpdate}
+					/>
 				</div>
 
-				<!-- AI Assistant Sidebar -->
-				<div class="md:col-span-1">
-					<div class="bg-card-bg border border-subtle-base rounded-xl p-6 h-full flex flex-col">
-						<h2 class="text-xl font-semibold text-foreground-base mb-4 flex items-center gap-2">
-							<Robot class="w-5 h-5 text-accent" />
-							AI Assistant
-						</h2>
-						
-						<div class="flex-1">
-							<AIAgentChatSimple workspaceId={currentWorkspace?.id} />
-						</div>
-
-						<!-- Quick Actions -->
-						<div class="mt-4 pt-4 border-t border-subtle-base">
-							<div class="flex flex-wrap gap-2">
-								<button
-									onclick={() => switchTab('tasks')}
-									class="text-xs bg-primary/10 hover:bg-primary/20 text-primary px-3 py-2 rounded-full transition-colors {activeTab === 'tasks' ? 'bg-primary/20' : ''}"
-								>
-									📋 Tasks
-								</button>
-								<button
-									onclick={() => switchTab('agent')}
-									class="text-xs bg-accent/10 hover:bg-accent/20 text-accent px-3 py-2 rounded-full transition-colors {activeTab === 'agent' ? 'bg-accent/20' : ''}"
-								>
-									🤖 Agent
-								</button>
-								<button
-									onclick={loadTasks}
-									class="text-xs bg-surface-raised hover:bg-surface-base text-foreground-secondary px-3 py-2 rounded-full transition-colors"
-								>
-									🔄 Refresh
-								</button>
-							</div>
-						</div>
-					</div>
+				<!-- Task Sidebar -->
+				<div class="md:col-span-1 space-y-4 overflow-y-auto">
+					<TaskDisplay 
+						{tasks}
+						title="Current Tasks"
+					/>
 				</div>
 			</div>
 
 			<!-- Error Display -->
 			{#if error}
-				<div class="mt-6">
+				<div class="mt-4">
 					<ErrorAlert {error} />
 				</div>
 			{/if}
@@ -646,9 +313,9 @@ function toggleExpanded(executionId: string) {
 
 <!-- Account Creation Dialog -->
 <AccountCreationDialog
-	isOpen={showAccountDialog}
+	bind:open={showAccountDialog}
 	guestTasks={tasks}
-	onClose={() => showAccountDialog = false}
+	onOpenChange={(open) => showAccountDialog = open}
 	onCreateAccount={handleAccountCreation}
 />
 

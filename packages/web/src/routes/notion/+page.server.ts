@@ -6,7 +6,7 @@ export const load: PageServerLoad = async (event) => {
 
 	// Redirect to login if not authenticated - Notion integration requires auth
 	if (!session?.user) {
-		throw redirect(302, "/user/signin?redirect=/notion");
+		throw redirect(302, "/?redirect=/notion");
 	}
 
 	return {

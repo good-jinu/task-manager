@@ -84,24 +84,6 @@ export function loadGuestDataLocally(): GuestBackupData | null {
 	}
 }
 
-export function clearGuestDataLocally() {
-	if (!browser) return;
-
-	localStorage.removeItem(GUEST_STORAGE_KEY);
-	localStorage.removeItem(GUEST_ID_KEY);
-	localStorage.removeItem(GUEST_WORKSPACE_KEY);
-}
-
-export function getStoredGuestId(): string | null {
-	if (!browser) return null;
-	return localStorage.getItem(GUEST_ID_KEY);
-}
-
-export function getStoredWorkspaceId(): string | null {
-	if (!browser) return null;
-	return localStorage.getItem(GUEST_WORKSPACE_KEY);
-}
-
 // Sync local tasks with server tasks, merging any differences
 export function mergeTasks(localTasks: Task[], serverTasks: Task[]): Task[] {
 	const taskMap = new Map<string, Task>();

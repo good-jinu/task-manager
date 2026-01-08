@@ -69,20 +69,14 @@ export class GuestRecoveryService {
 	/**
 	 * Try to recover existing server session
 	 */
-	private async attemptServerRecovery(guestId: string): Promise<{
+	private async attemptServerRecovery(_guestId: string): Promise<{
 		success: boolean;
 		workspace: Workspace | null;
 		tasks: Task[];
 	}> {
 		try {
-			// Try to restore session by setting the guest-id cookie and fetching data
-			// Set cookie using a more standard approach
-			const cookieValue = `guest-id=${guestId}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
-			if (typeof document !== "undefined") {
-				// biome-ignore lint/suspicious/noDocumentCookie: Required for guest session recovery
-				document.cookie = cookieValue;
-			}
-
+			// Try to fetch workspaces - if the guest session is still valid on the server,
+			// this should work without needing to set cookies (they're httpOnly)
 			const response = await fetch("/api/workspaces");
 			const data = await response.json();
 
@@ -96,6 +90,14 @@ export class GuestRecoveryService {
 				const tasksData = await tasksResponse.json();
 
 				if (tasksResponse.ok) {
+					// Session is valid, extend it to prevent future expiration
+					try {
+						await fetch("/api/guest/extend", { method: "POST" });
+					} catch (extendError) {
+						console.warn("Failed to extend guest session:", extendError);
+						// Don't fail the recovery if extension fails
+					}
+
 					return {
 						success: true,
 						workspace,
@@ -127,8 +129,8 @@ export class GuestRecoveryService {
 
 			const result = await response.json();
 
-			if (response.ok && result.success) {
-				const { workspace } = result;
+			if (response.ok && result.success && result.data) {
+				const { workspace, guestId } = result.data;
 
 				// Upload local tasks to new workspace
 				const uploadedTasks = await this.uploadLocalTasks(
@@ -138,7 +140,7 @@ export class GuestRecoveryService {
 
 				// Update local storage with new IDs
 				saveGuestDataLocally({
-					guestId: result.guestId,
+					guestId: guestId,
 					workspaceId: workspace.id,
 					tasks: uploadedTasks,
 				});
@@ -152,12 +154,13 @@ export class GuestRecoveryService {
 				};
 			}
 
+			console.error("Guest registration failed:", result);
 			return {
 				success: false,
 				workspace: null,
 				tasks: [],
 				recoveredFromLocal: false,
-				message: "Failed to create new session",
+				message: result.error || "Failed to create new session",
 			};
 		} catch (error) {
 			console.error("Failed to create new session with local data:", error);
@@ -222,29 +225,32 @@ export class GuestRecoveryService {
 
 			const result = await response.json();
 
-			if (response.ok && result.success) {
+			if (response.ok && result.success && result.data) {
+				const { workspace, guestId } = result.data;
+
 				// Initialize local storage
 				saveGuestDataLocally({
-					guestId: result.guestId,
-					workspaceId: result.workspace.id,
+					guestId: guestId,
+					workspaceId: workspace.id,
 					tasks: [],
 				});
 
 				return {
 					success: true,
-					workspace: result.workspace,
+					workspace: workspace,
 					tasks: [],
 					recoveredFromLocal: false,
 					message: "New workspace created",
 				};
 			}
 
+			console.error("Guest registration failed:", result);
 			return {
 				success: false,
 				workspace: null,
 				tasks: [],
 				recoveredFromLocal: false,
-				message: "Failed to create workspace",
+				message: result.error || "Failed to create workspace",
 			};
 		} catch (error) {
 			console.error("Failed to create fresh guest session:", error);

@@ -38,8 +38,8 @@ const {
 	trustHost: true,
 	basePath: "/auth",
 	pages: {
-		signIn: "/user/signin",
-		error: "/user/error",
+		signIn: "/",
+		error: "/",
 	},
 	callbacks: {
 		async signIn({ user, account }) {

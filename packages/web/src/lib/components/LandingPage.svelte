@@ -39,7 +39,7 @@ import { Database, Document, Sparkles } from "$lib/components/icons";
 			
 			<div class="flex flex-col sm:flex-row gap-4 justify-center">
 				<a
-					href="/user/signin"
+					href="/"
 					class="landing-button-primary text-primary-foreground font-semibold py-4 px-8 rounded-xl text-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
 				>
 					Start with Your Notion
@@ -247,7 +247,7 @@ import { Database, Document, Sparkles } from "$lib/components/icons";
 			</p>
 			<div class="flex flex-col sm:flex-row gap-4 justify-center">
 				<a
-					href="/user/signin"
+					href="/"
 					class="landing-button-primary text-primary-foreground font-semibold py-4 px-8 rounded-xl text-lg transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
 				>
 					Connect Your Notion Now

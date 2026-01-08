@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { ConditionalCheckFailedException } from "@aws-sdk/client-dynamodb";
 import {
 	GetCommand,
 	PutCommand,
@@ -35,7 +36,7 @@ export class GuestUserService {
 	async createGuestUser(guestId?: string): Promise<GuestUser> {
 		const id = guestId || this.generateGuestId();
 		const now = new Date();
-		const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
+		const expiresAt = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 year from now
 
 		const guestUser: GuestUser = {
 			id,
@@ -303,6 +304,42 @@ export class GuestUserService {
 				throw new Error(`Failed to cleanup expired guests: ${error.message}`);
 			}
 			throw new Error("Failed to cleanup expired guests: Unknown error");
+		}
+	}
+
+	/**
+	 * Extends the TTL for a guest user to prevent expiration
+	 */
+	async extendGuestSession(guestId: string): Promise<GuestUser | null> {
+		try {
+			const now = new Date();
+			const newExpiresAt = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000); // Extend by 1 year
+
+			const result = await this.client.send(
+				new UpdateCommand({
+					TableName: this.tableName,
+					Key: { id: guestId },
+					UpdateExpression:
+						"SET expiresAt = :expiresAt, updatedAt = :updatedAt",
+					ExpressionAttributeValues: {
+						":expiresAt": newExpiresAt.toISOString(),
+						":updatedAt": now.toISOString(),
+					},
+					ConditionExpression: "attribute_exists(id)", // Only update if guest exists
+					ReturnValues: "ALL_NEW",
+				}),
+			);
+
+			return (result.Attributes as GuestUser) || null;
+		} catch (error) {
+			if (error instanceof ConditionalCheckFailedException) {
+				// Guest user doesn't exist
+				return null;
+			}
+			if (error instanceof Error) {
+				throw new Error(`Failed to extend guest session: ${error.message}`);
+			}
+			throw new Error("Failed to extend guest session: Unknown error");
 		}
 	}
 }

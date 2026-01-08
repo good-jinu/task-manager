@@ -9,6 +9,7 @@ interface Props {
 	onStatusChange?: (taskId: string, status: TaskStatus) => Promise<void>;
 	onEdit?: (task: Task) => void;
 	onDelete?: (taskId: string) => Promise<void>;
+	compact?: boolean;
 	class?: string;
 }
 
@@ -17,6 +18,7 @@ let {
 	onStatusChange,
 	onEdit,
 	onDelete,
+	compact = false,
 	class: className = "",
 }: Props = $props();
 
@@ -96,7 +98,7 @@ const isArchived = $derived(task.archived || task.status === "archived");
 
 <div 
 	class={cn(
-		'relative bg-white border border-gray-200 rounded-lg overflow-hidden',
+		'relative bg-card border border-subtle-base rounded-lg overflow-hidden',
 		'touch-pan-y select-none', // Enable touch scrolling but prevent text selection during swipe
 		className
 	)}
@@ -106,24 +108,27 @@ const isArchived = $derived(task.archived || task.status === "archived");
 	ontouchend={handleTouchEnd}
 >
 	<!-- Main task content -->
-	<div class="p-4 min-h-[44px] flex items-start gap-3">
+	<div class={cn(
+		'flex items-start gap-3',
+		compact ? 'p-2 min-h-[36px]' : 'p-4 min-h-[44px]'
+	)}>
 		<!-- Status toggle button -->
 		<button
 			onclick={handleStatusToggle}
 			disabled={isUpdating || isArchived}
 			class={cn(
-				'flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center',
+				'flex-shrink-0 rounded-full border-2 flex items-center justify-center',
 				'transition-colors duration-200 touch-manipulation',
-				'min-w-[44px] min-h-[44px] -m-2', // Expand touch target
+				compact ? 'w-4 h-4 min-w-[32px] min-h-[32px] -m-1' : 'w-6 h-6 min-w-[44px] min-h-[44px] -m-2',
 				isCompleted 
 					? 'bg-green-500 border-green-500 text-white' 
-					: 'border-gray-300 hover:border-green-400',
+					: 'border-subtle-base hover:border-green-400',
 				isArchived && 'opacity-50 cursor-not-allowed'
 			)}
 			aria-label={isCompleted ? 'Mark as incomplete' : 'Mark as complete'}
 		>
 			{#if isCompleted}
-				<Check class="w-4 h-4" />
+				<Check class={compact ? "w-3 h-3" : "w-4 h-4"} />
 			{/if}
 		</button>
 
@@ -131,13 +136,14 @@ const isArchived = $derived(task.archived || task.status === "archived");
 		<div class="flex-1 min-w-0">
 			<div class="flex items-start justify-between gap-2 mb-1">
 				<h3 class={cn(
-					'font-medium text-gray-900 leading-tight',
-					isCompleted && 'line-through text-gray-500'
+					'leading-tight',
+					compact ? 'text-sm font-medium' : 'font-medium text-foreground-base',
+					isCompleted && 'line-through text-muted-foreground'
 				)}>
 					{task.title}
 				</h3>
 				
-				{#if task.priority}
+				{#if task.priority && !compact}
 					<Badge 
 						variant="secondary" 
 						class={cn('text-xs', priorityColors[task.priority])}
@@ -147,23 +153,23 @@ const isArchived = $derived(task.archived || task.status === "archived");
 				{/if}
 			</div>
 
-			{#if task.content}
+			{#if task.content && !compact}
 				<p class={cn(
-					'text-sm text-gray-600 line-clamp-2',
-					isCompleted && 'line-through text-gray-400'
+					'text-sm text-foreground-secondary line-clamp-2',
+					isCompleted && 'line-through text-muted-foreground'
 				)}>
 					{task.content}
 				</p>
 			{/if}
 
-			{#if task.dueDate}
-				<div class="mt-2 text-xs text-gray-500">
+			{#if task.dueDate && !compact}
+				<div class="mt-2 text-xs text-muted-foreground">
 					Due: {new Date(task.dueDate).toLocaleDateString()}
 				</div>
 			{/if}
 
 			<!-- Status indicator for non-todo/done states -->
-			{#if task.status === 'in-progress'}
+			{#if task.status === 'in-progress' && !compact}
 				<div class="mt-2">
 					<Badge variant="secondary" class="bg-blue-100 text-blue-800 text-xs">
 						In Progress
@@ -174,7 +180,7 @@ const isArchived = $derived(task.archived || task.status === "archived");
 	</div>
 
 	<!-- Swipe actions (revealed when swiping left) -->
-	<div class="absolute right-0 top-0 h-full flex items-center bg-gray-50 px-2 gap-2">
+	<div class="absolute right-0 top-0 h-full flex items-center bg-surface-muted px-2 gap-2">
 		{#if onEdit}
 			<button
 				onclick={handleEdit}

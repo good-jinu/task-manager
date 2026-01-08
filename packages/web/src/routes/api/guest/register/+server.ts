@@ -14,13 +14,16 @@ export const POST: RequestHandler = async (event) => {
 		// Generate guest ID
 		const guestId = guestUserService.generateGuestId();
 
+		// Create the guest user record in the database first
+		await guestUserService.createGuestUser(guestId);
+
 		// Create default workspace for guest user
 		const workspace = await guestUserService.createGuestWorkspace(guestId);
 
-		// Set guest ID in cookie for future requests with 7-day expiration to match database TTL
+		// Set guest ID in cookie for future requests with 1-year expiration to match database TTL
 		event.cookies.set("guest-id", guestId, {
 			path: "/",
-			maxAge: 60 * 60 * 24 * 7, // 7 days to match database TTL
+			maxAge: 60 * 60 * 24 * 365, // 1 year to match database TTL
 			httpOnly: true,
 			secure: process.env.NODE_ENV === "production",
 			sameSite: "lax",

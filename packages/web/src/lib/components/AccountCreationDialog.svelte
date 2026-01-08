@@ -1,23 +1,21 @@
 <script lang="ts">
 import type { Task } from "@notion-task-manager/db";
+import { Dialog } from "bits-ui";
 import { ArrowRightAlt, Check, Close, Spinner } from "./icons";
-import { Button, Card } from "./ui";
-import { cn } from "./utils";
+import { Button } from "./ui";
 
 interface Props {
-	isOpen: boolean;
+	open: boolean;
 	guestTasks?: Task[];
-	onClose: () => void;
+	onOpenChange: (open: boolean) => void;
 	onCreateAccount: (migrateData: boolean) => Promise<void>;
-	class?: string;
 }
 
 let {
-	isOpen,
+	open = $bindable(),
 	guestTasks = [],
-	onClose,
+	onOpenChange,
 	onCreateAccount,
-	class: className = "",
 }: Props = $props();
 
 let migrateData = $state(true);
@@ -26,7 +24,7 @@ let step = $state<"confirm" | "creating" | "success">("confirm");
 
 // Reset state when dialog opens/closes
 $effect(() => {
-	if (isOpen) {
+	if (open) {
 		step = "confirm";
 		migrateData = true;
 		isCreating = false;
@@ -45,7 +43,7 @@ async function handleCreateAccount() {
 
 		// Auto-close after success
 		setTimeout(() => {
-			onClose();
+			onOpenChange(false);
 		}, 2000);
 	} catch (error) {
 		console.error("Account creation failed:", error);
@@ -58,63 +56,24 @@ async function handleCreateAccount() {
 
 function handleClose() {
 	if (!isCreating) {
-		onClose();
+		onOpenChange(false);
 	}
 }
-
-// Prevent background scroll when dialog is open
-$effect(() => {
-	if (typeof document === "undefined") return;
-
-	if (isOpen) {
-		document.body.style.overflow = "hidden";
-	} else {
-		document.body.style.overflow = "";
-	}
-
-	return () => {
-		document.body.style.overflow = "";
-	};
-});
 </script>
 
-{#if isOpen}
-	<!-- Backdrop -->
-	<div 
-		class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
-		role="button"
-		tabindex="0"
-		onclick={handleClose}
-		onkeydown={(e) => e.key === 'Enter' && handleClose()}
-	>
-		<!-- Dialog -->
-		<Card
-			variant="elevated"
-			padding="lg"
-			class={cn(
-				'w-full max-w-md mx-auto',
-				'animate-in fade-in-0 zoom-in-95 duration-200',
-				className
-			)}
-			onclick={(e) => e.stopPropagation()}
-		>
+<Dialog.Root bind:open onOpenChange={onOpenChange}>
+	<Dialog.Portal>
+		<Dialog.Overlay class="fixed inset-0 bg-black/50 z-50" />
+		<Dialog.Content class="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg border shadow-lg p-6">
 			{#if step === 'confirm'}
 				<!-- Header -->
 				<div class="flex items-center justify-between mb-6">
-					<h2 class="text-xl font-semibold text-gray-900">
+					<Dialog.Title class="text-xl font-semibold text-gray-900">
 						Create Your Account
-					</h2>
-					<button
-						onclick={handleClose}
-						class={cn(
-							'p-2 rounded-md text-gray-400 hover:text-gray-600',
-							'hover:bg-gray-100 transition-colors',
-							'min-w-[44px] min-h-[44px] flex items-center justify-center'
-						)}
-						aria-label="Close dialog"
-					>
+					</Dialog.Title>
+					<Dialog.Close class="p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Close dialog">
 						<Close class="w-5 h-5" />
-					</button>
+					</Dialog.Close>
 				</div>
 
 				<!-- Content -->
@@ -179,13 +138,14 @@ $effect(() => {
 								<ArrowRightAlt class="w-4 h-4" />
 							</span>
 						</Button>
-						<Button
-							onclick={handleClose}
-							variant="outline"
-							disabled={isCreating}
-						>
-							Cancel
-						</Button>
+						<Dialog.Close>
+							<Button
+								variant="outline"
+								disabled={isCreating}
+							>
+								Cancel
+							</Button>
+						</Dialog.Close>
 					</div>
 				</div>
 
@@ -193,16 +153,16 @@ $effect(() => {
 				<!-- Creating state -->
 				<div class="text-center py-8">
 					<Spinner class="w-8 h-8 mx-auto mb-4 text-blue-600" />
-					<h3 class="text-lg font-medium text-gray-900 mb-2">
+					<Dialog.Title class="text-lg font-medium text-gray-900 mb-2">
 						Creating Your Account
-					</h3>
-					<p class="text-sm text-gray-600">
+					</Dialog.Title>
+					<Dialog.Description class="text-sm text-gray-600">
 						{#if migrateData && guestTasks.length > 0}
 							Transferring your {guestTasks.length} task{guestTasks.length === 1 ? '' : 's'}...
 						{:else}
 							Setting up your workspace...
 						{/if}
-					</p>
+					</Dialog.Description>
 				</div>
 
 			{:else if step === 'success'}
@@ -211,35 +171,19 @@ $effect(() => {
 					<div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
 						<Check class="w-8 h-8 text-green-600" />
 					</div>
-					<h3 class="text-lg font-medium text-gray-900 mb-2">
+					<Dialog.Title class="text-lg font-medium text-gray-900 mb-2">
 						Account Created!
-					</h3>
-					<p class="text-sm text-gray-600">
+					</Dialog.Title>
+					<Dialog.Description class="text-sm text-gray-600">
 						{#if migrateData && guestTasks.length > 0}
 							Your {guestTasks.length} task{guestTasks.length === 1 ? ' has' : 's have'} been transferred successfully.
 						{:else}
 							Welcome to your new task management workspace!
 						{/if}
-					</p>
+					</Dialog.Description>
 				</div>
 			{/if}
-		</Card>
-	</div>
-{/if}
+		</Dialog.Content>
+	</Dialog.Portal>
+</Dialog.Root>
 
-<style>
-	@keyframes animate-in {
-		from {
-			opacity: 0;
-			transform: scale(0.95);
-		}
-		to {
-			opacity: 1;
-			transform: scale(1);
-		}
-	}
-
-	.animate-in {
-		animation: animate-in 0.2s ease-out;
-	}
-</style>
