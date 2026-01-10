@@ -1,23 +1,8 @@
 <script lang="ts">
-interface Props {
-	size?: number;
-	class?: string;
-}
+import type { HTMLAttributes } from "svelte/elements";
+import { cn } from "$lib/components/utils";
 
-let { size = 24, class: className = "" }: Props = $props();
+let { class: className, ...props }: HTMLAttributes<SVGElement> = $props();
 </script>
 
-<svg
-	width={size}
-	height={size}
-	viewBox="0 0 24 24"
-	fill="none"
-	stroke="currentColor"
-	stroke-width="2"
-	stroke-linecap="round"
-	stroke-linejoin="round"
-	class={className}
->
-	<circle cx="12" cy="12" r="10" />
-	<polyline points="12,6 12,12 16,14" />
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" class={cn('', className)} {...props}><path fill="currentColor" d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10s10-4.5 10-10S17.5 2 12 2m4.2 14.2L11 13V7h1.5v5.2l4.5 2.7z"/></svg>

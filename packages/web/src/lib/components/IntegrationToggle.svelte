@@ -87,7 +87,7 @@ const statusConfig = {
 const currentStatus = $derived(statusConfig[status()]);
 </script>
 
-<div class={cn('flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg', className)}>
+<div class={cn('flex items-center justify-between p-4 bg-surface-base border border-subtle-base rounded-lg', className)}>
 	<div class="flex items-center gap-3">
 		<div class="flex-shrink-0">
 			<Database class="w-6 h-6 text-gray-600" />
@@ -140,7 +140,7 @@ const currentStatus = $derived(statusConfig[status()]);
 			>
 				<span
 					class={cn(
-						'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+						'inline-block h-4 w-4 transform rounded-full bg-surface-base transition-transform',
 						integration.syncEnabled ? 'translate-x-6' : 'translate-x-1'
 					)}
 				></span>

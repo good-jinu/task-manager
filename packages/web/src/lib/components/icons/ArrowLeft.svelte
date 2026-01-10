@@ -1,10 +1,8 @@
-<svg
-	class={$$props.class || "w-6 h-6"}
-	fill="none"
-	stroke="currentColor"
-	viewBox="0 0 24 24"
-	xmlns="http://www.w3.org/2000/svg"
-	{...$$restProps}
->
-	<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-</svg>
+<script lang="ts">
+import type { HTMLAttributes } from "svelte/elements";
+import { cn } from "$lib/components/utils";
+
+let { class: className, ...props }: HTMLAttributes<SVGElement> = $props();
+</script>
+
+<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" class={cn('', className)} {...props}><path fill="currentColor" d="M20 11H7.83l5.59-5.59L12 4l-8 8l8 8l1.41-1.41L7.83 13H20z"/></svg>

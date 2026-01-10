@@ -1,21 +1,24 @@
-import { TaskService, ValidationError } from "@notion-task-manager/db";
+import { TaskService } from "@notion-task-manager/db";
+import type { RequestEvent } from "@sveltejs/kit";
 import { json } from "@sveltejs/kit";
-import { requireAuth } from "$lib/auth";
-import type { RequestHandler } from "./$types";
 
-/**
- * GET /api/tasks/[id]
- * Returns a specific task by ID
- */
-export const GET: RequestHandler = async (event) => {
+const taskService = new TaskService();
+
+export const GET = async (event: RequestEvent) => {
 	try {
-		const { id } = event.params;
+		const taskId = event.params.id;
+		if (!taskId) {
+			return json({ error: "Task ID is required" }, { status: 400 });
+		}
 
-		// Try to get authenticated user, but allow guest users
-		let _userId: string;
+		// Check authentication (guest or authenticated user)
+		let userId: string;
 		try {
-			const session = await requireAuth(event);
-			_userId = session.user.id;
+			const session = await event.locals.auth();
+			if (!session?.user || !session.user.id) {
+				throw new Error("Not authenticated");
+			}
+			userId = session.user.id;
 		} catch {
 			// Check for guest user ID in headers or cookies
 			const guestId =
@@ -28,40 +31,37 @@ export const GET: RequestHandler = async (event) => {
 					{ status: 401 },
 				);
 			}
-			_userId = guestId;
+			userId = guestId;
 		}
 
-		const taskService = new TaskService();
-		const task = await taskService.getTask(id);
+		const task = await taskService.getTask(taskId);
 
 		if (!task) {
 			return json({ error: "Task not found" }, { status: 404 });
 		}
 
-		return json({
-			success: true,
-			data: task,
-		});
+		return json({ task });
 	} catch (error) {
 		console.error("Failed to get task:", error);
-		return json({ error: "Failed to retrieve task" }, { status: 500 });
+		return json({ error: "Failed to get task" }, { status: 500 });
 	}
 };
 
-/**
- * PUT /api/tasks/[id]
- * Updates a specific task by ID
- */
-export const PUT: RequestHandler = async (event) => {
+export const PUT = async (event: RequestEvent) => {
 	try {
-		const { id } = event.params;
-		const updateData = await event.request.json();
+		const taskId = event.params.id;
+		if (!taskId) {
+			return json({ error: "Task ID is required" }, { status: 400 });
+		}
 
-		// Try to get authenticated user, but allow guest users
-		let _userId: string;
+		// Check authentication (guest or authenticated user)
+		let userId: string;
 		try {
-			const session = await requireAuth(event);
-			_userId = session.user.id;
+			const session = await event.locals.auth();
+			if (!session?.user || !session.user.id) {
+				throw new Error("Not authenticated");
+			}
+			userId = session.user.id;
 		} catch {
 			// Check for guest user ID in headers or cookies
 			const guestId =
@@ -74,73 +74,15 @@ export const PUT: RequestHandler = async (event) => {
 					{ status: 401 },
 				);
 			}
-			_userId = guestId;
+			userId = guestId;
 		}
 
-		const taskService = new TaskService();
-		const task = await taskService.updateTask(id, updateData);
+		const updateData = await event.request.json();
+		const updatedTask = await taskService.updateTask(taskId, updateData);
 
-		return json({
-			success: true,
-			data: task,
-		});
+		return json({ task: updatedTask });
 	} catch (error) {
 		console.error("Failed to update task:", error);
-
-		if (error instanceof ValidationError) {
-			return json({ error: error.message }, { status: 400 });
-		}
-
-		if (error instanceof Error && error.message.includes("not found")) {
-			return json({ error: "Task not found" }, { status: 404 });
-		}
-
 		return json({ error: "Failed to update task" }, { status: 500 });
-	}
-};
-
-/**
- * DELETE /api/tasks/[id]
- * Deletes a specific task by ID
- */
-export const DELETE: RequestHandler = async (event) => {
-	try {
-		const { id } = event.params;
-
-		// Try to get authenticated user, but allow guest users
-		let _userId: string;
-		try {
-			const session = await requireAuth(event);
-			_userId = session.user.id;
-		} catch {
-			// Check for guest user ID in headers or cookies
-			const guestId =
-				event.request.headers.get("x-guest-id") ||
-				event.cookies.get("guest-id");
-
-			if (!guestId) {
-				return json(
-					{ error: "Authentication required or guest ID missing" },
-					{ status: 401 },
-				);
-			}
-			_userId = guestId;
-		}
-
-		const taskService = new TaskService();
-		await taskService.deleteTask(id);
-
-		return json({
-			success: true,
-			message: "Task deleted successfully",
-		});
-	} catch (error) {
-		console.error("Failed to delete task:", error);
-
-		if (error instanceof Error && error.message.includes("not found")) {
-			return json({ error: "Task not found" }, { status: 404 });
-		}
-
-		return json({ error: "Failed to delete task" }, { status: 500 });
 	}
 };

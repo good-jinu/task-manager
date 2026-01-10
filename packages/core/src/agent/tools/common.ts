@@ -41,7 +41,7 @@ export interface ToolCommonArgs {
 /**
  * Factory function to create AI SDK tools configuration
  */
-export function createExecutorFactory(
+export function createNotionExecutorFactory(
 	notionManager: NotionTaskManager,
 	databaseId: string,
 	onStepComplete?: (step: ExecutionStep) => Promise<void>,

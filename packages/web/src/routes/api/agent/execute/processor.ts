@@ -1,4 +1,4 @@
-import { TaskManagerAgent } from "@notion-task-manager/core";
+import { NotionTaskManagerAgent } from "@notion-task-manager/core";
 import type { ExecutionStep, User } from "@notion-task-manager/db";
 import { AgentExecutionService } from "@notion-task-manager/db";
 import { createNotionTaskManagerWithAuth } from "$lib/notion";
@@ -36,7 +36,7 @@ async function executeAgent(
 	try {
 		// Create Notion client and TaskManagerAgent
 		const notionManager = createNotionTaskManagerWithAuth(user);
-		const agent = new TaskManagerAgent();
+		const agent = new NotionTaskManagerAgent();
 
 		// Execute agent with step recording callback
 		const result = await agent.execute({

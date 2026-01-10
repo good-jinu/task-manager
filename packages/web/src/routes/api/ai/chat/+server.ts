@@ -1,7 +1,9 @@
+import { ChatService } from "@notion-task-manager/core";
+import { TaskService } from "@notion-task-manager/db";
 import type { RequestEvent } from "@sveltejs/kit";
 import { json } from "@sveltejs/kit";
 import { ERROR_MESSAGES } from "$lib/constants/chat";
-import { ChatService } from "$lib/services/chat-service";
+import { chatStatuses } from "$lib/services/chat-status";
 import {
 	isGuestUser,
 	sanitizeMessage,
@@ -10,6 +12,7 @@ import {
 } from "$lib/utils/validation";
 
 const chatService = new ChatService();
+const taskService = new TaskService();
 
 export const POST = async (event: RequestEvent) => {
 	try {
@@ -37,7 +40,7 @@ export const POST = async (event: RequestEvent) => {
 		}
 
 		const requestBody = await event.request.json();
-		const { message, workspaceId } = requestBody;
+		const { message, workspaceId, contextTasks = [] } = requestBody;
 
 		// Validate and sanitize inputs
 		let sanitizedMessage: string;
@@ -59,22 +62,31 @@ export const POST = async (event: RequestEvent) => {
 			console.log(`Guest user ${userId} making chat request`);
 		}
 
-		// Process the message using ChatService
-		const response = await chatService.processMessage(
+		// Generate chat ID for async processing
+		const chatId =
+			Date.now().toString() + Math.random().toString(36).substr(2, 9);
+
+		// Store initial status
+		chatStatuses.set(chatId, {
+			completed: false,
+			startTime: Date.now(),
+		});
+
+		// Start async processing (in real implementation, this would be a background job)
+		processMessageAsync(
+			chatId,
 			sanitizedMessage,
 			validatedWorkspaceId,
 			userId,
+			contextTasks,
 		);
 
-		if (response.success) {
-			return json({
-				success: true,
-				content: response.content,
-				tasks: response.tasks || [],
-			});
-		} else {
-			return json({ error: response.content }, { status: 500 });
-		}
+		// Return immediately with chat ID
+		return json({
+			success: true,
+			chatId: chatId,
+			message: "Processing your request...",
+		});
 	} catch (error) {
 		console.error("AI chat failed:", error);
 
@@ -102,3 +114,54 @@ export const POST = async (event: RequestEvent) => {
 		return json({ error: ERROR_MESSAGES.GENERAL_ERROR }, { status: 500 });
 	}
 };
+
+/**
+ * Process message asynchronously (simulated)
+ * In a real implementation, this would be handled by a background job queue
+ */
+async function processMessageAsync(
+	chatId: string,
+	message: string,
+	workspaceId: string,
+	userId: string,
+	contextTasks: any[] = [],
+) {
+	try {
+		// Simulate processing delay
+		await new Promise((resolve) => setTimeout(resolve, 2000));
+
+		// Process the message using ChatService
+		const response = await chatService.processMessage(
+			message,
+			workspaceId,
+			userId,
+			taskService,
+			contextTasks,
+		);
+
+		// Update status with result
+		const status = chatStatuses.get(chatId);
+		if (status) {
+			status.completed = true;
+			status.result = {
+				content: response.content,
+				tasks: response.tasks || [],
+			};
+			if (!response.success) {
+				status.error = response.content;
+			}
+			chatStatuses.set(chatId, status);
+		}
+	} catch (error) {
+		console.error("Async message processing failed:", error);
+
+		// Update status with error
+		const status = chatStatuses.get(chatId);
+		if (status) {
+			status.completed = true;
+			status.error =
+				error instanceof Error ? error.message : "Processing failed";
+			chatStatuses.set(chatId, status);
+		}
+	}
+}

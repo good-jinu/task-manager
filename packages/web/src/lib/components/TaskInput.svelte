@@ -91,14 +91,14 @@ function autoResize(textarea: HTMLTextAreaElement) {
 }
 
 const priorities: { value: TaskPriority; label: string; color: string }[] = [
-	{ value: "low", label: "Low", color: "text-blue-600" },
-	{ value: "medium", label: "Medium", color: "text-yellow-600" },
-	{ value: "high", label: "High", color: "text-orange-600" },
-	{ value: "urgent", label: "Urgent", color: "text-red-600" },
+	{ value: "low", label: "Low", color: "text-info" },
+	{ value: "medium", label: "Medium", color: "text-warning" },
+	{ value: "high", label: "High", color: "text-error" },
+	{ value: "urgent", label: "Urgent", color: "text-error" },
 ];
 </script>
 
-<div class={cn('bg-white border border-gray-200 rounded-lg p-4', className)}>
+<div class={cn('bg-surface-base border border-subtle-base rounded-lg p-4', className)}>
 	<form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
 		<!-- Main input area -->
 		<div class="relative">
@@ -110,7 +110,8 @@ const priorities: { value: TaskPriority; label: string; color: string }[] = [
 				class={cn(
 					'w-full px-0 py-2 text-base border-none resize-none',
 					'focus:outline-none focus:ring-0',
-					'placeholder:text-gray-400',
+					'placeholder:text-muted-foreground',
+					'bg-transparent text-foreground-base',
 					'min-h-[44px]' // Ensure minimum touch target
 				)}
 				rows="1"
@@ -125,7 +126,7 @@ const priorities: { value: TaskPriority; label: string; color: string }[] = [
 					disabled={!input.trim() || isAIProcessing}
 					class={cn(
 						'absolute right-0 top-2 p-2 rounded-md',
-						'text-purple-600 hover:bg-purple-50',
+						'text-accent hover:bg-accent-icon-bg',
 						'disabled:opacity-50 disabled:cursor-not-allowed',
 						'min-w-[44px] min-h-[44px] flex items-center justify-center'
 					)}
@@ -146,7 +147,7 @@ const priorities: { value: TaskPriority; label: string; color: string }[] = [
 			<button
 				type="button"
 				onclick={() => showAdvanced = !showAdvanced}
-				class="text-sm text-gray-500 hover:text-gray-700 min-h-[44px] px-2"
+				class="text-sm text-muted-foreground hover:text-foreground-base min-h-[44px] px-2"
 			>
 				{showAdvanced ? 'Hide' : 'Show'} options
 			</button>
@@ -166,10 +167,10 @@ const priorities: { value: TaskPriority; label: string; color: string }[] = [
 
 		<!-- Advanced options -->
 		{#if showAdvanced}
-			<div class="mt-4 pt-4 border-t border-gray-100 space-y-4">
+			<div class="mt-4 pt-4 border-t border-subtle-base space-y-4">
 				<!-- Priority selection -->
 				<fieldset>
-					<legend class="block text-sm font-medium text-gray-700 mb-2">
+					<legend class="block text-sm font-medium text-foreground-base mb-2">
 						Priority
 					</legend>
 					<div class="flex flex-wrap gap-2">
@@ -179,8 +180,8 @@ const priorities: { value: TaskPriority; label: string; color: string }[] = [
 							class={cn(
 								'px-3 py-1.5 text-sm rounded-md border min-h-[44px]',
 								!priority 
-									? 'bg-gray-100 border-gray-300 text-gray-900' 
-									: 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+									? 'bg-surface-muted border-subtle-base text-foreground-base' 
+									: 'bg-surface-base border-subtle-base text-muted-foreground hover:bg-surface-muted'
 							)}
 						>
 							None
@@ -192,8 +193,8 @@ const priorities: { value: TaskPriority; label: string; color: string }[] = [
 								class={cn(
 									'px-3 py-1.5 text-sm rounded-md border min-h-[44px]',
 									priority === p.value
-										? 'bg-gray-100 border-gray-300 text-gray-900'
-										: 'bg-white border-gray-200 hover:bg-gray-50',
+										? 'bg-surface-muted border-subtle-base text-foreground-base'
+										: 'bg-surface-base border-subtle-base hover:bg-surface-muted',
 									p.color
 								)}
 							>
@@ -205,7 +206,7 @@ const priorities: { value: TaskPriority; label: string; color: string }[] = [
 
 				<!-- Due date -->
 				<div>
-					<label for="due-date" class="block text-sm font-medium text-gray-700 mb-2">
+					<label for="due-date" class="block text-sm font-medium text-foreground-base mb-2">
 						Due Date
 					</label>
 					<input
@@ -213,8 +214,9 @@ const priorities: { value: TaskPriority; label: string; color: string }[] = [
 						type="date"
 						bind:value={dueDate}
 						class={cn(
-							'px-3 py-2 border border-gray-200 rounded-md',
-							'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+							'px-3 py-2 border border-subtle-base rounded-md',
+							'bg-surface-base text-foreground-base',
+							'focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent',
 							'min-h-[44px] text-sm'
 						)}
 					/>

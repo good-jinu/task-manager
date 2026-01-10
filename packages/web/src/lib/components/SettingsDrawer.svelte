@@ -128,21 +128,21 @@ async function handleConnectNotionDatabase(
 
 <!-- Drawer -->
 <div class={cn(
-	'fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-xl z-50',
+	'fixed top-0 right-0 h-full w-full max-w-md bg-surface-base shadow-xl z-50',
 	'transform transition-transform duration-300 ease-in-out',
 	'overflow-y-auto',
 	isOpen ? 'translate-x-0' : 'translate-x-full',
 	className
 )}>
 	<!-- Header -->
-	<div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
+	<div class="sticky top-0 bg-surface-base border-b border-subtle-base px-6 py-4">
 		<div class="flex items-center justify-between">
-			<h2 class="text-lg font-semibold text-gray-900">Settings</h2>
+			<h2 class="text-lg font-semibold text-foreground-base">Settings</h2>
 			<button
 				onclick={onClose}
 				class={cn(
-					'p-2 rounded-md text-gray-400 hover:text-gray-600',
-					'hover:bg-gray-100 transition-colors',
+					'p-2 rounded-md text-muted-foreground hover:text-foreground-base',
+					'hover:bg-surface-muted transition-colors',
 					'min-w-[44px] min-h-[44px] flex items-center justify-center'
 				)}
 				aria-label="Close settings"
@@ -156,7 +156,7 @@ async function handleConnectNotionDatabase(
 	<div class="p-6 space-y-8">
 		<!-- Integrations Section -->
 		<section>
-			<h3 class="text-base font-medium text-gray-900 mb-4">Integrations</h3>
+			<h3 class="text-base font-medium text-foreground-base mb-4">Integrations</h3>
 			<div class="space-y-4">
 				<!-- Notion Integration -->
 				<IntegrationToggle
@@ -194,28 +194,28 @@ async function handleConnectNotionDatabase(
 
 				<!-- Future integrations placeholder -->
 				<div class="opacity-50 pointer-events-none">
-					<div class="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg">
+					<div class="flex items-center justify-between p-4 bg-surface-muted border border-subtle-base rounded-lg">
 						<div class="flex items-center gap-3">
-							<div class="w-6 h-6 bg-gray-300 rounded"></div>
+							<div class="w-6 h-6 bg-subtle-base rounded"></div>
 							<div>
-								<h4 class="font-medium text-gray-700">Google Calendar</h4>
-								<p class="text-sm text-gray-500">Coming soon</p>
+								<h4 class="font-medium text-muted-foreground">Google Calendar</h4>
+								<p class="text-sm text-muted-foreground">Coming soon</p>
 							</div>
 						</div>
-						<div class="w-11 h-6 bg-gray-200 rounded-full"></div>
+						<div class="w-11 h-6 bg-subtle-base rounded-full"></div>
 					</div>
 				</div>
 
 				<div class="opacity-50 pointer-events-none">
-					<div class="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg">
+					<div class="flex items-center justify-between p-4 bg-surface-muted border border-subtle-base rounded-lg">
 						<div class="flex items-center gap-3">
-							<div class="w-6 h-6 bg-gray-300 rounded"></div>
+							<div class="w-6 h-6 bg-subtle-base rounded"></div>
 							<div>
-								<h4 class="font-medium text-gray-700">Slack</h4>
-								<p class="text-sm text-gray-500">Coming soon</p>
+								<h4 class="font-medium text-muted-foreground">Slack</h4>
+								<p class="text-sm text-muted-foreground">Coming soon</p>
 							</div>
 						</div>
-						<div class="w-11 h-6 bg-gray-200 rounded-full"></div>
+						<div class="w-11 h-6 bg-subtle-base rounded-full"></div>
 					</div>
 				</div>
 			</div>
@@ -223,33 +223,33 @@ async function handleConnectNotionDatabase(
 
 		<!-- Workspace Section -->
 		<section>
-			<h3 class="text-base font-medium text-gray-900 mb-4">Workspace</h3>
+			<h3 class="text-base font-medium text-foreground-base mb-4">Workspace</h3>
 			<div class="space-y-3">
-				<div class="text-sm text-gray-600">
+				<div class="text-sm text-foreground-secondary">
 					<span class="font-medium">Workspace ID:</span>
-					<code class="ml-2 px-2 py-1 bg-gray-100 rounded text-xs font-mono">
+					<code class="ml-2 px-2 py-1 bg-surface-muted rounded text-xs font-mono">
 						{workspaceId}
 					</code>
 				</div>
 				
 				<!-- Future workspace settings -->
 				<div class="opacity-50">
-					<p class="text-sm text-gray-500">More workspace settings coming soon</p>
+					<p class="text-sm text-muted-foreground">More workspace settings coming soon</p>
 				</div>
 			</div>
 		</section>
 
 		<!-- Account Section -->
 		<section>
-			<h3 class="text-base font-medium text-gray-900 mb-4">Account</h3>
+			<h3 class="text-base font-medium text-foreground-base mb-4">Account</h3>
 			<div class="space-y-3">
 				<Button variant="outline" class="w-full justify-start" disabled>
 					Export Data
 				</Button>
-				<Button variant="outline" class="w-full justify-start text-red-600 border-red-200 hover:bg-red-50" disabled>
+				<Button variant="outline" class="w-full justify-start text-error border-error-border hover:bg-error-alert-bg" disabled>
 					Delete Account
 				</Button>
-				<p class="text-xs text-gray-500">Account management features coming soon</p>
+				<p class="text-xs text-muted-foreground">Account management features coming soon</p>
 			</div>
 		</section>
 	</div>

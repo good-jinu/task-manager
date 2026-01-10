@@ -11,9 +11,11 @@ import { cn } from "./utils";
 
 interface Props {
 	tasks: Task[];
+	workspaceId?: string;
 	loading?: boolean;
 	hasMore?: boolean;
 	onLoadMore?: () => Promise<void>;
+	onTasksUpdate?: (tasks: Task[]) => void;
 	onStatusChange?: (taskId: string, status: TaskStatus) => Promise<void>;
 	onEdit?: (task: Task) => void;
 	onDelete?: (taskId: string) => Promise<void>;
@@ -23,9 +25,11 @@ interface Props {
 
 let {
 	tasks,
+	workspaceId,
 	loading = false,
 	hasMore = false,
 	onLoadMore,
+	onTasksUpdate,
 	onStatusChange,
 	onEdit,
 	onDelete,
@@ -117,14 +121,13 @@ const hasActiveTasks = $derived(
 			<div class="space-y-3">
 				{#if groupedTasks()['in-progress'].length > 0}
 					<div>
-						<h3 class="text-sm font-medium text-gray-500 mb-2 px-1">In Progress</h3>
+						<h3 class="text-sm font-medium text-foreground-secondary mb-2 px-1">In Progress</h3>
 						<div class="space-y-2">
 							{#each groupedTasks()['in-progress'] as task (task.id)}
 								<TaskItem
 									{task}
-									{onStatusChange}
-									{onEdit}
-									{onDelete}
+									{workspaceId}
+									{onTasksUpdate}
 								/>
 							{/each}
 						</div>
@@ -133,14 +136,13 @@ const hasActiveTasks = $derived(
 
 				{#if groupedTasks().todo.length > 0}
 					<div>
-						<h3 class="text-sm font-medium text-gray-500 mb-2 px-1">To Do</h3>
+						<h3 class="text-sm font-medium text-foreground-secondary mb-2 px-1">To Do</h3>
 						<div class="space-y-2">
 							{#each groupedTasks().todo as task (task.id)}
 								<TaskItem
 									{task}
-									{onStatusChange}
-									{onEdit}
-									{onDelete}
+									{workspaceId}
+									{onTasksUpdate}
 								/>
 							{/each}
 						</div>
@@ -152,14 +154,13 @@ const hasActiveTasks = $derived(
 		<!-- Completed tasks -->
 		{#if groupedTasks().done.length > 0}
 			<div class="space-y-3">
-				<h3 class="text-sm font-medium text-gray-500 mb-2 px-1">Completed</h3>
+				<h3 class="text-sm font-medium text-foreground-secondary mb-2 px-1">Completed</h3>
 				<div class="space-y-2">
 					{#each groupedTasks().done as task (task.id)}
 						<TaskItem
 							{task}
-							{onStatusChange}
-							{onEdit}
-							{onDelete}
+							{workspaceId}
+							{onTasksUpdate}
 							class="opacity-75"
 						/>
 					{/each}
@@ -170,16 +171,15 @@ const hasActiveTasks = $derived(
 		<!-- Archived tasks (usually hidden or in a separate view) -->
 		{#if groupedTasks().archived.length > 0}
 			<details class="space-y-3">
-				<summary class="text-sm font-medium text-gray-400 cursor-pointer hover:text-gray-600 px-1">
+				<summary class="text-sm font-medium text-muted-foreground cursor-pointer hover:text-foreground-secondary px-1">
 					Archived ({groupedTasks().archived.length})
 				</summary>
 				<div class="space-y-2 ml-4">
 					{#each groupedTasks().archived as task (task.id)}
 						<TaskItem
 							{task}
-							{onStatusChange}
-							{onEdit}
-							{onDelete}
+							{workspaceId}
+							{onTasksUpdate}
 							class="opacity-50"
 						/>
 					{/each}

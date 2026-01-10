@@ -58,33 +58,33 @@ const statusConfig = {
 	},
 	disabled: {
 		label: "Disabled",
-		color: "bg-gray-100 text-gray-700 border-gray-200",
+		color: "bg-surface-muted text-muted-foreground border-subtle-base",
 		icon: Database,
-		iconColor: "text-gray-400",
+		iconColor: "text-muted-foreground",
 	},
 	synced: {
 		label: "Synced",
-		color: "bg-green-50 text-green-700 border-green-200",
+		color: "bg-success-alert-bg text-success-foreground border-success-border",
 		icon: Success,
-		iconColor: "text-green-600",
+		iconColor: "text-success",
 	},
 	pending: {
 		label: "Syncing",
-		color: "bg-yellow-50 text-yellow-700 border-yellow-200",
+		color: "bg-warning-alert-bg text-warning-foreground border-warning-border",
 		icon: Spinner,
-		iconColor: "text-yellow-600",
+		iconColor: "text-warning",
 	},
 	conflict: {
 		label: "Conflict",
-		color: "bg-orange-50 text-orange-700 border-orange-200",
+		color: "bg-warning-alert-bg text-warning-foreground border-warning-border",
 		icon: Warning,
-		iconColor: "text-orange-600",
+		iconColor: "text-warning",
 	},
 	error: {
 		label: "Error",
-		color: "bg-red-50 text-red-700 border-red-200",
+		color: "bg-error-alert-bg text-error-foreground border-error-border",
 		icon: ErrorIcon,
-		iconColor: "text-red-600",
+		iconColor: "text-error",
 	},
 };
 

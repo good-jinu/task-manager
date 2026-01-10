@@ -1,94 +1,127 @@
 <script lang="ts">
 import type { Task, TaskStatus } from "@notion-task-manager/db";
-import { ArrowRightAlt, Check, Task as TaskIcon } from "./icons";
+import { goto } from "$app/navigation";
+import { deleteTask, fetchTasks, updateTask } from "$lib/utils/task-api";
+import { Check, Edit, Plus, Trash2 } from "./icons";
 import { Badge } from "./ui";
 import { cn } from "./utils";
 
 interface Props {
 	task: Task;
-	onStatusChange?: (taskId: string, status: TaskStatus) => Promise<void>;
-	onEdit?: (task: Task) => void;
-	onDelete?: (taskId: string) => Promise<void>;
+	workspaceId?: string;
+	onTasksUpdate?: (tasks: Task[]) => void;
+	isContextSelected?: boolean;
+	onContextToggle?: (taskId: string) => void;
 	compact?: boolean;
 	class?: string;
 }
 
 let {
 	task,
-	onStatusChange,
-	onEdit,
-	onDelete,
+	workspaceId = "",
+	onTasksUpdate,
+	isContextSelected = false,
+	onContextToggle,
 	compact = false,
 	class: className = "",
 }: Props = $props();
 
 let isUpdating = $state(false);
-let swipeOffset = $state(0);
-let isDragging = $state(false);
-let startX = $state(0);
+let isEditing = $state(false);
+let editTitle = $state("");
 
-// Touch event handlers for swipe gestures
-function handleTouchStart(e: TouchEvent) {
-	startX = e.touches[0].clientX;
-	isDragging = true;
-}
-
-function handleTouchMove(e: TouchEvent) {
-	if (!isDragging) return;
-
-	const currentX = e.touches[0].clientX;
-	const diff = currentX - startX;
-
-	// Only allow left swipe (negative offset)
-	swipeOffset = Math.min(0, Math.max(-120, diff));
-}
-
-function handleTouchEnd() {
-	isDragging = false;
-
-	// If swiped more than 60px, show actions
-	if (swipeOffset < -60) {
-		swipeOffset = -120;
-	} else {
-		swipeOffset = 0;
-	}
-}
+// Update editTitle when task changes
+$effect(() => {
+	editTitle = task.title;
+});
 
 async function handleStatusToggle() {
-	if (!onStatusChange || isUpdating) return;
+	if (isUpdating || !workspaceId) return;
 
 	isUpdating = true;
 	try {
 		const newStatus: TaskStatus = task.status === "done" ? "todo" : "done";
-		await onStatusChange(task.id, newStatus);
+		await updateTask(task.id, { status: newStatus });
+		await refreshTasks();
+	} catch (error) {
+		console.error("Failed to update task:", error);
 	} finally {
 		isUpdating = false;
 	}
 }
 
 async function handleDelete() {
-	if (!onDelete || isUpdating) return;
+	if (isUpdating || !workspaceId) return;
 
 	isUpdating = true;
 	try {
-		await onDelete(task.id);
+		await deleteTask(task.id);
+		await refreshTasks();
+	} catch (error) {
+		console.error("Failed to delete task:", error);
 	} finally {
 		isUpdating = false;
 	}
 }
 
-function handleEdit() {
-	if (!onEdit) return;
-	onEdit(task);
-	swipeOffset = 0; // Close swipe actions
+async function handleEditSave() {
+	if (!editTitle.trim() || isUpdating || !workspaceId) return;
+
+	isUpdating = true;
+	try {
+		await updateTask(task.id, { title: editTitle.trim() });
+		await refreshTasks();
+		isEditing = false;
+	} catch (error) {
+		console.error("Failed to update task:", error);
+	} finally {
+		isUpdating = false;
+	}
 }
 
-// Priority colors
+async function refreshTasks() {
+	if (onTasksUpdate && workspaceId) {
+		const updatedTasks = await fetchTasks(workspaceId);
+		onTasksUpdate(updatedTasks);
+	}
+}
+
+function handleEditCancel() {
+	editTitle = task.title;
+	isEditing = false;
+}
+
+function handleEditKeydown(event: KeyboardEvent) {
+	if (event.key === "Enter" && !event.shiftKey) {
+		event.preventDefault();
+		handleEditSave();
+	} else if (event.key === "Escape") {
+		handleEditCancel();
+	}
+}
+
+function handleContextToggle() {
+	if (onContextToggle) {
+		onContextToggle(task.id);
+	}
+}
+
+function handleTaskClick(event: MouseEvent) {
+	// Don't navigate if clicking on buttons or interactive elements
+	const target = event.target as HTMLElement;
+	if (target.closest("button") || target.closest("input")) {
+		return;
+	}
+
+	goto(`/tasks/${task.id}`);
+}
+
+// Priority colors using semantic color system
 const priorityColors = {
-	low: "bg-blue-100 text-blue-800",
-	medium: "bg-yellow-100 text-yellow-800",
-	high: "bg-orange-100 text-orange-800",
-	urgent: "bg-red-100 text-red-800",
+	low: "bg-info-alert-bg text-info",
+	medium: "bg-warning-alert-bg text-warning-foreground",
+	high: "bg-accent-icon-bg text-accent",
+	urgent: "bg-error-alert-bg text-error",
 };
 
 // Status styles
@@ -96,110 +129,149 @@ const isCompleted = $derived(task.status === "done");
 const isArchived = $derived(task.archived || task.status === "archived");
 </script>
 
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div 
 	class={cn(
-		'relative bg-card border border-subtle-base rounded-lg overflow-hidden',
-		'touch-pan-y select-none', // Enable touch scrolling but prevent text selection during swipe
+		'relative bg-surface-base border rounded-lg overflow-hidden transition-all duration-200 cursor-pointer',
+		isContextSelected ? 'border-accent bg-accent-icon-bg' : 'border-subtle-base hover:border-subtle-hover',
 		className
 	)}
-	style="transform: translateX({swipeOffset}px); transition: {isDragging ? 'none' : 'transform 0.2s ease-out'}"
-	ontouchstart={handleTouchStart}
-	ontouchmove={handleTouchMove}
-	ontouchend={handleTouchEnd}
+	onclick={handleTaskClick}
+	role="button"
+	tabindex="0"
 >
 	<!-- Main task content -->
 	<div class={cn(
-		'flex items-start gap-3',
+		'flex items-center gap-3',
 		compact ? 'p-2 min-h-[36px]' : 'p-4 min-h-[44px]'
 	)}>
-		<!-- Status toggle button -->
+		<!-- Checkbox for task completion -->
 		<button
 			onclick={handleStatusToggle}
 			disabled={isUpdating || isArchived}
 			class={cn(
-				'flex-shrink-0 rounded-full border-2 flex items-center justify-center',
-				'transition-colors duration-200 touch-manipulation',
-				compact ? 'w-4 h-4 min-w-[32px] min-h-[32px] -m-1' : 'w-6 h-6 min-w-[44px] min-h-[44px] -m-2',
+				'flex-shrink-0 rounded border-2 flex items-center justify-center',
+				'transition-colors duration-200',
+				compact ? 'w-4 h-4' : 'w-5 h-5',
 				isCompleted 
-					? 'bg-green-500 border-green-500 text-white' 
-					: 'border-subtle-base hover:border-green-400',
+					? 'bg-success border-success text-success-foreground' 
+					: 'border-subtle-base hover:border-success',
 				isArchived && 'opacity-50 cursor-not-allowed'
 			)}
 			aria-label={isCompleted ? 'Mark as incomplete' : 'Mark as complete'}
 		>
 			{#if isCompleted}
-				<Check class={compact ? "w-3 h-3" : "w-4 h-4"} />
+				<Check class={compact ? "w-2 h-2" : "w-3 h-3"} />
 			{/if}
 		</button>
 
 		<!-- Task content -->
 		<div class="flex-1 min-w-0">
-			<div class="flex items-start justify-between gap-2 mb-1">
-				<h3 class={cn(
-					'leading-tight',
-					compact ? 'text-sm font-medium' : 'font-medium text-foreground-base',
-					isCompleted && 'line-through text-muted-foreground'
-				)}>
-					{task.title}
-				</h3>
-				
-				{#if task.priority && !compact}
-					<Badge 
-						variant="secondary" 
-						class={cn('text-xs', priorityColors[task.priority])}
-					>
-						{task.priority}
-					</Badge>
+			{#if isEditing}
+				<input
+					bind:value={editTitle}
+					onkeydown={handleEditKeydown}
+					class="w-full px-2 py-1 border border-subtle-base rounded focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent bg-surface-base text-foreground-base"
+				/>
+			{:else}
+				<div class="flex items-start justify-between gap-2">
+					<h3 class={cn(
+						'leading-tight',
+						compact ? 'text-sm font-medium' : 'font-medium text-foreground-base',
+						isCompleted && 'line-through text-muted-foreground'
+					)}>
+						{task.title}
+					</h3>
+					
+					{#if task.priority && !compact}
+						<Badge 
+							variant="secondary" 
+							class={cn('text-xs', priorityColors[task.priority])}
+						>
+							{task.priority}
+						</Badge>
+					{/if}
+				</div>
+
+				{#if task.content && !compact}
+					<p class={cn(
+						'text-sm text-foreground-secondary line-clamp-2 mt-1',
+						isCompleted && 'line-through text-muted-foreground'
+					)}>
+						{task.content}
+					</p>
 				{/if}
-			</div>
 
-			{#if task.content && !compact}
-				<p class={cn(
-					'text-sm text-foreground-secondary line-clamp-2',
-					isCompleted && 'line-through text-muted-foreground'
-				)}>
-					{task.content}
-				</p>
-			{/if}
+				{#if task.dueDate && !compact}
+					<div class="mt-2 text-xs text-muted-foreground">
+						Due: {new Date(task.dueDate).toLocaleDateString()}
+					</div>
+				{/if}
 
-			{#if task.dueDate && !compact}
-				<div class="mt-2 text-xs text-muted-foreground">
-					Due: {new Date(task.dueDate).toLocaleDateString()}
-				</div>
-			{/if}
-
-			<!-- Status indicator for non-todo/done states -->
-			{#if task.status === 'in-progress' && !compact}
-				<div class="mt-2">
-					<Badge variant="secondary" class="bg-blue-100 text-blue-800 text-xs">
-						In Progress
-					</Badge>
-				</div>
+				<!-- Status indicator for non-todo/done states -->
+				{#if task.status === 'in-progress' && !compact}
+					<div class="mt-2">
+						<Badge variant="secondary" class="bg-info-alert-bg text-info text-xs">
+							In Progress
+						</Badge>
+					</div>
+				{/if}
 			{/if}
 		</div>
-	</div>
 
-	<!-- Swipe actions (revealed when swiping left) -->
-	<div class="absolute right-0 top-0 h-full flex items-center bg-surface-muted px-2 gap-2">
-		{#if onEdit}
-			<button
-				onclick={handleEdit}
-				class="bg-blue-500 text-white px-3 py-2 rounded-md text-sm font-medium min-w-[44px] min-h-[44px] flex items-center justify-center"
-				aria-label="Edit task"
-			>
-				Edit
-			</button>
-		{/if}
-		
-		{#if onDelete}
-			<button
-				onclick={handleDelete}
-				disabled={isUpdating}
-				class="bg-red-500 text-white px-3 py-2 rounded-md text-sm font-medium min-w-[44px] min-h-[44px] flex items-center justify-center disabled:opacity-50"
-				aria-label="Delete task"
-			>
-				Delete
-			</button>
+		<!-- Action buttons -->
+		{#if workspaceId}
+			<div class="flex items-center gap-2">
+				{#if isEditing}
+					<button
+						onclick={handleEditSave}
+						disabled={!editTitle.trim() || isUpdating}
+						class="px-2 py-1 text-xs bg-success text-success-foreground rounded hover:bg-success-button-hover disabled:opacity-50"
+					>
+						Save
+					</button>
+					<button
+						onclick={handleEditCancel}
+						class="px-2 py-1 text-xs bg-subtle-base text-foreground-base rounded hover:bg-subtle-hover"
+					>
+						Cancel
+					</button>
+				{:else}
+					<!-- Add to AI Context button -->
+					<button
+						onclick={handleContextToggle}
+						class={cn(
+							'p-1 rounded transition-colors',
+							isContextSelected 
+								? 'bg-accent text-accent-foreground' 
+								: 'bg-surface-muted text-foreground-secondary hover:bg-subtle-hover'
+						)}
+						title="Add to AI context"
+					>
+						<Plus class="w-4 h-4" />
+					</button>
+
+					<!-- Edit button -->
+					<button
+						onclick={() => (isEditing = true)}
+						class="p-1 bg-surface-muted text-foreground-secondary rounded hover:bg-subtle-hover transition-colors"
+						title="Edit task"
+					>
+						<Edit class="w-4 h-4" />
+					</button>
+
+					<!-- Delete button -->
+					<button
+						onclick={handleDelete}
+						disabled={isUpdating}
+						class="p-1 bg-error-alert-bg text-error rounded hover:bg-error-button-hover transition-colors disabled:opacity-50"
+						title="Delete task"
+					>
+						<Trash2 class="w-4 h-4" />
+					</button>
+				{/if}
+			</div>
 		{/if}
 	</div>
 </div>
