@@ -33,7 +33,10 @@ export async function fetchTasks(workspaceId: string) {
 	return result.success ? result.data.items : [];
 }
 
-export async function updateTask(taskId: string, updates: any) {
+export async function updateTask(
+	taskId: string,
+	updates: Record<string, unknown>,
+) {
 	const response = await fetch(`/api/tasks/${taskId}`, {
 		method: "PATCH",
 		headers: {

@@ -4,7 +4,7 @@ export const chatStatuses = new Map<
 	string,
 	{
 		completed: boolean;
-		result?: any;
+		result?: unknown;
 		error?: string;
 		startTime: number;
 	}

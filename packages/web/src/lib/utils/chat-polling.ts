@@ -3,7 +3,7 @@
  */
 export async function pollChatResult(
 	chatId: string,
-	onComplete: (result: any) => void,
+	onComplete: (result: unknown) => void,
 	onError: (error: string) => void,
 ) {
 	const maxAttempts = 30; // 5 minutes with 10-second intervals
@@ -39,7 +39,7 @@ export async function pollChatResult(
 export async function sendChatMessage(
 	message: string,
 	workspaceId: string,
-	contextTasks: any[],
+	contextTasks: unknown[],
 ) {
 	const response = await fetch("/api/ai/chat", {
 		method: "POST",

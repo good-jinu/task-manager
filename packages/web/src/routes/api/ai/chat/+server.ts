@@ -1,5 +1,5 @@
 import { ChatService } from "@notion-task-manager/core";
-import { TaskService } from "@notion-task-manager/db";
+import { type Task, TaskService } from "@notion-task-manager/db";
 import type { RequestEvent } from "@sveltejs/kit";
 import { json } from "@sveltejs/kit";
 import { ERROR_MESSAGES } from "$lib/constants/chat";
@@ -124,7 +124,7 @@ async function processMessageAsync(
 	message: string,
 	workspaceId: string,
 	userId: string,
-	contextTasks: any[] = [],
+	contextTasks: Task[] = [],
 ) {
 	try {
 		// Simulate processing delay
@@ -136,7 +136,7 @@ async function processMessageAsync(
 			workspaceId,
 			userId,
 			taskService,
-			contextTasks,
+			contextTasks as Task[],
 		);
 
 		// Update status with result
