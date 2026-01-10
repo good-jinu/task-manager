@@ -1,10 +1,12 @@
 <script lang="ts">
 import type { Task, Workspace } from "@notion-task-manager/db";
 import { onMount } from "svelte";
+import { browser } from "$app/environment";
 import { ErrorAlert, LoadingSpinner } from "$lib/components";
 import AccountCreationDialog from "$lib/components/AccountCreationDialog.svelte";
 import AgentExecutionHistory from "$lib/components/AgentExecutionHistory.svelte";
 import FloatingAIInput from "$lib/components/FloatingAIInput.svelte";
+import SettingsDrawer from "$lib/components/SettingsDrawer.svelte";
 import TaskBoard from "$lib/components/TaskBoard.svelte";
 import TopMenu from "$lib/components/TopMenu.svelte";
 import { GuestRecoveryService } from "$lib/services/guestRecovery";
@@ -28,11 +30,36 @@ let currentWorkspace: Workspace | null = $state(null);
 let loading = $state(false);
 let error = $state("");
 let showAccountDialog = $state(false);
+let showSettingsDrawer = $state(false);
 let selectedContextTasks = $state(new Set<string>());
+let integrations = $state([]);
 
 onMount(async () => {
 	if (isAuthenticated) {
 		await loadWorkspaces();
+		await loadIntegrations();
+
+		// Check for OAuth success parameters
+		if (browser) {
+			const urlParams = new URLSearchParams(window.location.search);
+			const oauthSuccess = urlParams.get("oauth_success");
+			const workspaceId = urlParams.get("workspace_id");
+
+			if (
+				oauthSuccess === "notion" &&
+				workspaceId &&
+				currentWorkspace?.id === workspaceId
+			) {
+				// OAuth was successful, open settings drawer to show database selection
+				showSettingsDrawer = true;
+
+				// Clean up URL parameters
+				const url = new URL(window.location.href);
+				url.searchParams.delete("oauth_success");
+				url.searchParams.delete("workspace_id");
+				window.history.replaceState({}, "", url.toString());
+			}
+		}
 	} else {
 		await initializeGuestSession();
 	}
@@ -68,6 +95,24 @@ function updateGuestStore(workspace: Workspace) {
 	});
 }
 
+async function loadIntegrations() {
+	if (!currentWorkspace) return;
+
+	try {
+		const response = await fetch(
+			`/api/integrations?workspaceId=${currentWorkspace.id}`,
+		);
+		const data = await response.json();
+
+		if (response.ok) {
+			integrations = data.integrations || [];
+		} else {
+			console.error("Failed to load integrations:", data.error);
+		}
+	} catch (err) {
+		console.error("Error loading integrations:", err);
+	}
+}
 async function loadWorkspaces() {
 	try {
 		const response = await fetch("/api/workspaces");
@@ -156,13 +201,44 @@ function handleMenuAction(action: string) {
 			showAccountDialog = true;
 			break;
 		case "notion":
-			// TODO: Handle Notion integration
+			showSettingsDrawer = true;
 			break;
 		case "settings":
-			// TODO: Handle settings
+			showSettingsDrawer = true;
 			break;
 		default:
 			console.log("Menu action:", action);
+	}
+}
+
+async function handleToggleIntegration(provider: string, enabled: boolean) {
+	// This will be handled by the SettingsDrawer component
+	console.log("Toggle integration:", provider, enabled);
+}
+
+async function handleConnectNotion(
+	_databaseId: string,
+	_importExisting: boolean,
+) {
+	// Reload integrations after successful connection
+	await loadIntegrations();
+}
+
+async function handleDisconnectIntegration(integrationId: string) {
+	try {
+		const response = await fetch(`/api/integrations/${integrationId}`, {
+			method: "DELETE",
+		});
+
+		if (response.ok) {
+			// Reload integrations after successful disconnection
+			await loadIntegrations();
+		} else {
+			const data = await response.json();
+			console.error("Failed to disconnect integration:", data.error);
+		}
+	} catch (err) {
+		console.error("Error disconnecting integration:", err);
 	}
 }
 
@@ -236,3 +312,16 @@ const contextTasks = $derived(
 	onOpenChange={(open) => showAccountDialog = open}
 	onNotionLogin={async () => { showAccountDialog = false; }}
 />
+
+<!-- Settings Drawer -->
+{#if isAuthenticated && currentWorkspace}
+	<SettingsDrawer
+		isOpen={showSettingsDrawer}
+		workspaceId={currentWorkspace.id}
+		{integrations}
+		onClose={() => showSettingsDrawer = false}
+		onToggleIntegration={handleToggleIntegration}
+		onConnectNotion={handleConnectNotion}
+		onDisconnectIntegration={handleDisconnectIntegration}
+	/>
+{/if}

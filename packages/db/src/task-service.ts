@@ -6,7 +6,7 @@ import {
 	QueryCommand,
 	UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
-import { getDynamoDBClient, getTableNames } from "./client";
+import { getDynamoDBClient, getTableName } from "./client";
 import type {
 	CreateTaskInput,
 	ListTasksOptions,
@@ -24,7 +24,9 @@ import {
 
 export class TaskService {
 	private client = getDynamoDBClient();
-	private tableName = getTableNames().tasks;
+	private get tableName() {
+		return getTableName("tasks");
+	}
 
 	/**
 	 * Creates a new task in the database

@@ -5,7 +5,7 @@ import {
 	QueryCommand,
 	UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
-import { getDynamoDBClient, getTableNames } from "./client";
+import { getDynamoDBClient, getTableName } from "./client";
 import type {
 	CreateSyncMetadataInput,
 	SyncMetadata,
@@ -21,7 +21,9 @@ import {
 
 export class SyncMetadataService {
 	private client = getDynamoDBClient();
-	private tableName = getTableNames().syncMetadata;
+	private get tableName() {
+		return getTableName("syncMetadata");
+	}
 
 	/**
 	 * Creates new sync metadata in the database

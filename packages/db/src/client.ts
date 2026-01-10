@@ -47,18 +47,50 @@ export function getDynamoDBClient(): DynamoDBDocumentClient {
 
 /**
  * Gets the table names from SST Resources
+ * Returns null if SST resources are not available (e.g., during build time)
  */
 export function getTableNames() {
-	return {
-		// biome-ignore-start lint/suspicious/noExplicitAny: Resource for any
-		users: (Resource as any).UsersTable.name,
-		databaseConfigs: (Resource as any).DatabaseConfigsTable.name,
-		agentExecutions: (Resource as any).AgentExecutionsTable.name,
-		tasks: (Resource as any).TasksTable.name,
-		workspaces: (Resource as any).WorkspacesTable.name,
-		integrations: (Resource as any).IntegrationsTable.name,
-		syncMetadata: (Resource as any).SyncMetadataTable.name,
-		guestUsers: (Resource as any).GuestUsersTable.name,
-		// biome-ignore-end lint/suspicious/noExplicitAny: Resource for any
-	};
+	try {
+		return {
+			// biome-ignore-start lint/suspicious/noExplicitAny: Resource for any
+			users: (Resource as any).UsersTable.name,
+			databaseConfigs: (Resource as any).DatabaseConfigsTable.name,
+			agentExecutions: (Resource as any).AgentExecutionsTable.name,
+			tasks: (Resource as any).TasksTable.name,
+			workspaces: (Resource as any).WorkspacesTable.name,
+			integrations: (Resource as any).IntegrationsTable.name,
+			syncMetadata: (Resource as any).SyncMetadataTable.name,
+			guestUsers: (Resource as any).GuestUsersTable.name,
+			// biome-ignore-end lint/suspicious/noExplicitAny: Resource for any
+		};
+	} catch (_error) {
+		// SST resources not available (e.g., during build time)
+		return null;
+	}
+}
+
+type TableNames = {
+	users: string;
+	databaseConfigs: string;
+	agentExecutions: string;
+	tasks: string;
+	workspaces: string;
+	integrations: string;
+	syncMetadata: string;
+	guestUsers: string;
+};
+
+/**
+ * Gets a specific table name, with fallback for build time
+ */
+export function getTableName(tableName: keyof TableNames): string {
+	const tableNames = getTableNames();
+	if (!tableNames) {
+		// Fallback for build time - use environment variable or placeholder
+		return (
+			process.env[`${tableName.toUpperCase()}_TABLE_NAME`] ||
+			`placeholder-${tableName}`
+		);
+	}
+	return tableNames[tableName];
 }

@@ -5,7 +5,7 @@ import {
 	QueryCommand,
 	UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
-import { getDynamoDBClient, getTableNames } from "./client";
+import { getDynamoDBClient, getTableName } from "./client";
 import type { CreateUserInput, UpdateUserInput, User } from "./types";
 import {
 	validateCreateUserInput,
@@ -15,7 +15,9 @@ import {
 
 export class UserService {
 	private client = getDynamoDBClient();
-	private tableName = getTableNames().users;
+	private get tableName() {
+		return getTableName("users");
+	}
 
 	/**
 	 * Creates a new user in the database

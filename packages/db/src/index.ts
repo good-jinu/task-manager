@@ -10,7 +10,7 @@ export type {
 	ExecutionUpdateData,
 } from "./agent-execution-service";
 export { AgentExecutionService } from "./agent-execution-service";
-export { getDynamoDBClient, getTableNames } from "./client";
+export { getDynamoDBClient, getTableName, getTableNames } from "./client";
 export { DatabaseClient, getDatabaseClient } from "./database";
 // Export database config types from service
 export type {

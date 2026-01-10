@@ -5,7 +5,7 @@ import {
 	QueryCommand,
 	UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
-import { getDynamoDBClient, getTableNames } from "./client";
+import { getDynamoDBClient, getTableName } from "./client";
 
 /**
  * Status of an agent execution
@@ -69,7 +69,9 @@ export interface ExecutionUpdateData {
 
 export class AgentExecutionService {
 	private client = getDynamoDBClient();
-	private tableName = getTableNames().agentExecutions;
+	private get tableName() {
+		return getTableName("agentExecutions");
+	}
 
 	/**
 	 * Creates a new execution record with pending status

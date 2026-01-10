@@ -6,7 +6,7 @@ import {
 	QueryCommand,
 	UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
-import { getDynamoDBClient, getTableNames } from "./client";
+import { getDynamoDBClient, getTableName } from "./client";
 import { TaskService } from "./task-service";
 import type {
 	CreateWorkspaceInput,
@@ -22,7 +22,9 @@ import {
 
 export class WorkspaceService {
 	private client = getDynamoDBClient();
-	private tableName = getTableNames().workspaces;
+	private get tableName() {
+		return getTableName("workspaces");
+	}
 	private taskService = new TaskService();
 
 	/**

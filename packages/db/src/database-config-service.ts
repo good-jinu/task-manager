@@ -4,7 +4,7 @@ import {
 	PutCommand,
 	QueryCommand,
 } from "@aws-sdk/lib-dynamodb";
-import { getDynamoDBClient, getTableNames } from "./client";
+import { getDynamoDBClient, getTableName } from "./client";
 import { ValidationError } from "./validation";
 
 export interface DatabaseConfig {
@@ -23,7 +23,9 @@ export interface CreateDatabaseConfigInput {
 
 export class DatabaseConfigService {
 	private client = getDynamoDBClient();
-	private tableName = getTableNames().databaseConfigs;
+	private get tableName() {
+		return getTableName("databaseConfigs");
+	}
 
 	/**
 	 * Save a database configuration for a user

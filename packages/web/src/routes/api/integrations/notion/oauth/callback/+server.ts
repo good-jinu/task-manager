@@ -163,24 +163,12 @@ export const GET: RequestHandler = async (event) => {
 			);
 		}
 
-		return json({
-			success: true,
-			workspace: {
-				id: tokenData.workspace_id,
-				name: tokenData.workspace_name,
-				icon: tokenData.workspace_icon,
-			},
-			bot: {
-				id: tokenData.bot_id,
-			},
-			user: {
-				id: tokenData.owner.user.id,
-				name: tokenData.owner.user.name,
-				email: tokenData.owner.user.person?.email,
-			},
-			// Return workspace ID for next step (database selection)
-			workspaceId: stateData.workspaceId,
-		});
+		// Redirect to frontend with success parameters
+		const redirectUrl = new URL("/", event.url.origin);
+		redirectUrl.searchParams.set("oauth_success", "notion");
+		redirectUrl.searchParams.set("workspace_id", stateData.workspaceId);
+
+		throw redirect(302, redirectUrl.toString());
 	} catch (error) {
 		console.error("OAuth callback error:", error);
 

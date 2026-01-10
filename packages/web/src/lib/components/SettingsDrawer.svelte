@@ -57,6 +57,7 @@ let {
 let showNotionDialog = $state(false);
 let availableDatabases = $state<NotionDatabase[]>([]);
 let loadingDatabases = $state(false);
+let databaseLoadError = $state<string | null>(null);
 let syncStats = $state<SyncStatistics | null>(null);
 let integrationStatus = $state<IntegrationStatus | null>(null);
 let statusCache = $state(
@@ -188,9 +189,31 @@ $effect(() => {
 
 async function handleNotionToggle(enabled: boolean) {
 	if (enabled && !notionIntegration) {
-		// Need to connect - show dialog
-		await loadNotionDatabases();
-		showNotionDialog = true;
+		// Need to connect - initiate OAuth flow
+		try {
+			const response = await fetch("/api/integrations/notion/oauth", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					workspaceId,
+				}),
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.error || "Failed to initiate OAuth");
+			}
+
+			const data = await response.json();
+
+			// Redirect to Notion OAuth
+			window.location.href = data.authUrl;
+		} catch (error) {
+			console.error("Failed to initiate OAuth:", error);
+			// Could show error message to user here
+		}
 	} else if (notionIntegration) {
 		// Toggle existing integration
 		await onToggleIntegration("notion", enabled);
@@ -202,25 +225,35 @@ async function handleNotionToggle(enabled: boolean) {
 async function loadNotionDatabases() {
 	loadingDatabases = true;
 	try {
-		// In a real implementation, this would fetch from Notion API
-		// For now, we'll simulate some databases
-		await new Promise((resolve) => setTimeout(resolve, 1000));
-		availableDatabases = [
-			{ id: "db1", name: "Personal Tasks", url: "https://notion.so/..." },
-			{ id: "db2", name: "Work Projects", url: "https://notion.so/..." },
-			{ id: "db3", name: "Ideas & Notes", url: "https://notion.so/..." },
-		];
+		const response = await fetch(`/api/integrations/notion/databases`);
+
+		if (!response.ok) {
+			const errorData = await response.json();
+			throw new Error(errorData.error || "Failed to load databases");
+		}
+
+		const data = await response.json();
+		availableDatabases = data.databases || [];
 	} catch (error) {
 		console.error("Failed to load databases:", error);
 		availableDatabases = [];
+		// Set error state for the dialog to display
+		databaseLoadError =
+			error instanceof Error ? error.message : "Failed to load databases";
 	} finally {
 		loadingDatabases = false;
 	}
 }
 
 function handleConfigureNotion() {
+	databaseLoadError = null;
 	loadNotionDatabases();
 	showNotionDialog = true;
+}
+
+function handleRetryDatabaseLoad() {
+	databaseLoadError = null;
+	loadNotionDatabases();
 }
 
 async function handleDisconnectNotion() {
@@ -231,14 +264,52 @@ async function handleDisconnectNotion() {
 
 function handleCloseNotionDialog() {
 	showNotionDialog = false;
+	databaseLoadError = null;
 }
 
 async function handleConnectNotionDatabase(
 	databaseId: string,
 	importExisting: boolean,
 ) {
-	await onConnectNotion(databaseId, importExisting);
-	showNotionDialog = false;
+	try {
+		// Create the integration record
+		const response = await fetch("/api/integrations", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				workspaceId,
+				provider: "notion",
+				externalId: databaseId,
+				config: {
+					databaseId,
+					databaseName:
+						availableDatabases.find((db) => db.id === databaseId)?.name ||
+						"Unknown Database",
+					importExisting,
+				},
+				syncEnabled: true,
+			}),
+		});
+
+		if (!response.ok) {
+			const errorData = await response.json();
+			throw new Error(errorData.error || "Failed to create integration");
+		}
+
+		const data = await response.json();
+
+		// Call the parent handler to update the integrations list
+		await onConnectNotion(databaseId, importExisting);
+
+		showNotionDialog = false;
+		databaseLoadError = null;
+	} catch (error) {
+		console.error("Failed to connect database:", error);
+		// The error will be handled by the dialog component
+		throw error;
+	}
 }
 </script>
 
@@ -485,6 +556,8 @@ async function handleConnectNotionDatabase(
 	{workspaceId}
 	{availableDatabases}
 	loading={loadingDatabases}
+	error={databaseLoadError}
 	onClose={handleCloseNotionDialog}
 	onConnect={handleConnectNotionDatabase}
+	onRetry={handleRetryDatabaseLoad}
 />

@@ -6,7 +6,7 @@ import {
 	QueryCommand,
 	UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
-import { getDynamoDBClient, getTableNames } from "./client";
+import { getDynamoDBClient, getTableName } from "./client";
 import type {
 	CreateIntegrationInput,
 	ExternalIntegration,
@@ -21,7 +21,9 @@ import {
 
 export class IntegrationService {
 	private client = getDynamoDBClient();
-	private tableName = getTableNames().integrations;
+	private get tableName() {
+		return getTableName("integrations");
+	}
 
 	/**
 	 * Creates a new integration in the database

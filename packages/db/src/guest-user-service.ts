@@ -6,7 +6,7 @@ import {
 	ScanCommand,
 	UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
-import { getDynamoDBClient, getTableNames } from "./client";
+import { getDynamoDBClient, getTableName } from "./client";
 import { TaskService } from "./task-service";
 import type {
 	GuestUser,
@@ -19,7 +19,9 @@ import { WorkspaceService } from "./workspace-service";
 
 export class GuestUserService {
 	private client = getDynamoDBClient();
-	private tableName = getTableNames().guestUsers;
+	private get tableName() {
+		return getTableName("guestUsers");
+	}
 	private workspaceService = new WorkspaceService();
 	private taskService = new TaskService();
 
