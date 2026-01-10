@@ -108,7 +108,7 @@ export const PUT: RequestHandler = async (event) => {
 
 /**
  * DELETE /api/integrations/[id]
- * Deletes an integration and all associated sync metadata
+ * Deletes an integration and all associated sync metadata with proper cleanup
  */
 export const DELETE: RequestHandler = async (event) => {
 	try {
@@ -124,15 +124,34 @@ export const DELETE: RequestHandler = async (event) => {
 		const syncMetadataService = new SyncMetadataService();
 
 		try {
-			// First, clean up all sync metadata for this integration
-			// Note: This would require implementing a method to delete by integration ID
-			// For now, we'll just delete the integration
+			// First, verify the integration exists
+			const integration =
+				await integrationService.getIntegration(integrationId);
+			if (!integration) {
+				return json({ error: "Integration not found" }, { status: 404 });
+			}
 
+			// Clean up all sync metadata for this integration
+			const syncMetadata =
+				await syncMetadataService.listSyncMetadataByIntegration(integrationId);
+
+			// Delete all sync metadata records
+			const cleanupPromises = syncMetadata.map((sm: any) =>
+				syncMetadataService.deleteSyncMetadata(sm.taskId, sm.integrationId),
+			);
+
+			await Promise.allSettled(cleanupPromises);
+
+			// Delete the integration itself
 			await integrationService.deleteIntegration(integrationId);
 
 			return json({
 				success: true,
-				message: "Integration deleted successfully",
+				message: "Integration and all associated data deleted successfully",
+				cleanedUp: {
+					syncMetadataRecords: syncMetadata.length,
+					integrationId: integrationId,
+				},
 			});
 		} catch (error) {
 			if (error instanceof Error && error.message.includes("not found")) {

@@ -95,6 +95,18 @@ export const GET: RequestHandler = async (event) => {
 			return json(
 				{
 					error: "Invalid OAuth state format",
+					code: "INVALID_STATE_FORMAT",
+				},
+				{ status: 400 },
+			);
+		}
+
+		// Verify the user ID matches the current session
+		if (stateData.userId !== session.user.id) {
+			return json(
+				{
+					error: "OAuth state user mismatch",
+					code: "USER_MISMATCH",
 				},
 				{ status: 400 },
 			);
@@ -108,6 +120,7 @@ export const GET: RequestHandler = async (event) => {
 			return json(
 				{
 					error: "OAuth state expired",
+					code: "STATE_EXPIRED",
 				},
 				{ status: 400 },
 			);
@@ -144,12 +157,18 @@ export const GET: RequestHandler = async (event) => {
 
 		const tokenData: NotionOAuthTokenResponse = await tokenResponse.json();
 
+		// Calculate token expiration (Notion tokens typically don't expire, but we'll set a long expiration)
+		const tokenExpiresAt = new Date(
+			Date.now() + 365 * 24 * 60 * 60 * 1000,
+		).toISOString(); // 1 year
+
 		// Update user with Notion tokens
 		const userService = new UserService();
 		await userService.updateUser(session.user.id, {
 			notionAccessToken: tokenData.access_token,
-			// Notion doesn't provide refresh tokens in OAuth flow
-			// Token expiration is handled by the API
+			// Notion doesn't provide refresh tokens in OAuth flow typically
+			// But we'll store the expiration for future reference
+			tokenExpiresAt,
 		});
 
 		// Get updated user data
@@ -167,6 +186,7 @@ export const GET: RequestHandler = async (event) => {
 		const redirectUrl = new URL("/", event.url.origin);
 		redirectUrl.searchParams.set("oauth_success", "notion");
 		redirectUrl.searchParams.set("workspace_id", stateData.workspaceId);
+		redirectUrl.searchParams.set("workspace_name", tokenData.workspace_name);
 
 		throw redirect(302, redirectUrl.toString());
 	} catch (error) {
