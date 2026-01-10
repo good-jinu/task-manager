@@ -192,6 +192,7 @@ export interface CreateIntegrationInput {
 export interface UpdateIntegrationInput {
 	config?: Record<string, unknown>;
 	syncEnabled?: boolean;
+	lastSyncAt?: string;
 }
 
 /**

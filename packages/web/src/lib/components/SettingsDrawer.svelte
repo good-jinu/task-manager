@@ -1,5 +1,9 @@
 <script lang="ts">
 import type { ExternalIntegration, SyncStatus } from "@notion-task-manager/db";
+import {
+	createWorkspaceStatusStore,
+	refreshIntegrationStatus,
+} from "$lib/stores/integration-status";
 import IntegrationStatusBadge from "./IntegrationStatusBadge.svelte";
 import IntegrationToggle from "./IntegrationToggle.svelte";
 import { Close, Database, KeyboardArrowRight, RefreshRounded } from "./icons";
@@ -58,40 +62,36 @@ let showNotionDialog = $state(false);
 let availableDatabases = $state<NotionDatabase[]>([]);
 let loadingDatabases = $state(false);
 let databaseLoadError = $state<string | null>(null);
-let syncStats = $state<SyncStatistics | null>(null);
-let integrationStatus = $state<IntegrationStatus | null>(null);
-let statusCache = $state(
-	new Map<string, { data: IntegrationStatus; timestamp: number }>(),
-);
-let refreshingStatus = $state(false);
 
-// Cache TTL in milliseconds (30 seconds for status updates)
-const STATUS_CACHE_TTL = 30000;
-
-// Find Notion integration
-const notionIntegration = $derived(
-	integrations.find((i) => i.provider === "notion"),
+// Create status store reactively
+let statusStore = $state<ReturnType<typeof createWorkspaceStatusStore> | null>(
+	null,
 );
 
-// Get cached or fetch integration status
-const currentIntegrationStatus = $derived(() => {
-	if (!notionIntegration) return null;
-
-	const cached = statusCache.get(notionIntegration.id);
-	if (cached && Date.now() - cached.timestamp < STATUS_CACHE_TTL) {
-		return cached.data;
+// Initialize status store when component mounts
+$effect(() => {
+	if (workspaceId) {
+		statusStore = createWorkspaceStatusStore(workspaceId, false);
 	}
-
-	// If no cache or expired, return basic status from integration
-	return {
-		status: notionIntegration.syncEnabled ? "synced" : "disabled",
-		lastSyncAt: notionIntegration.lastSyncAt
-			? new Date(notionIntegration.lastSyncAt)
-			: undefined,
-		syncCount: 0,
-		conflictCount: 0,
-	} as IntegrationStatus;
 });
+
+// Reactive access to status store properties
+const statusIntegrations = $derived(
+	statusStore ? statusStore.integrations : null,
+);
+const statusLoading = $derived(statusStore ? statusStore.loading : null);
+const statusError = $derived(statusStore ? statusStore.error : null);
+
+// Find Notion integration from status data
+const notionIntegration = $derived(
+	statusIntegrations && $statusIntegrations
+		? $statusIntegrations.find((item) => item.integration.provider === "notion")
+		: null,
+);
+
+// Get current integration status and stats
+const currentIntegrationStatus = $derived(notionIntegration?.status || null);
+const syncStats = $derived(notionIntegration?.stats || null);
 
 // Prevent background scroll when drawer is open and handle keyboard navigation
 $effect(() => {
@@ -99,6 +99,11 @@ $effect(() => {
 
 	if (isOpen) {
 		document.body.style.overflow = "hidden";
+
+		// Start polling for status updates when drawer opens
+		if (statusStore) {
+			statusStore.startPolling();
+		}
 
 		// Handle escape key to close drawer
 		const handleKeyDown = (e: KeyboardEvent) => {
@@ -112,80 +117,26 @@ $effect(() => {
 		return () => {
 			document.body.style.overflow = "";
 			document.removeEventListener("keydown", handleKeyDown);
+			// Stop polling when drawer closes
+			if (statusStore) {
+				statusStore.stopPolling();
+			}
 		};
 	} else {
 		document.body.style.overflow = "";
+		if (statusStore) {
+			statusStore.stopPolling();
+		}
 	}
 });
 
-async function refreshIntegrationStatus() {
-	if (!notionIntegration || refreshingStatus) return;
-
-	refreshingStatus = true;
-	try {
-		// In a real implementation, this would call the API
-		// For now, simulate fetching status
-		await new Promise((resolve) => setTimeout(resolve, 500));
-
-		const newStatus: IntegrationStatus = {
-			status: notionIntegration.syncEnabled ? "synced" : "disabled",
-			lastSyncAt: notionIntegration.lastSyncAt
-				? new Date(notionIntegration.lastSyncAt)
-				: undefined,
-			syncCount: Math.floor(Math.random() * 100),
-			conflictCount: Math.floor(Math.random() * 5),
-		};
-
-		// Update cache
-		statusCache.set(notionIntegration.id, {
-			data: newStatus,
-			timestamp: Date.now(),
-		});
-
-		integrationStatus = newStatus;
-	} catch (error) {
-		console.error("Failed to refresh integration status:", error);
-	} finally {
-		refreshingStatus = false;
+async function handleRefreshStatus() {
+	if (notionIntegration && statusStore) {
+		await refreshIntegrationStatus(notionIntegration.integration.id);
+		// Also refresh the workspace status
+		await statusStore.refresh();
 	}
 }
-
-async function loadSyncStatistics() {
-	if (!notionIntegration) return;
-
-	try {
-		// In a real implementation, this would fetch from API
-		await new Promise((resolve) => setTimeout(resolve, 300));
-
-		syncStats = {
-			totalTasks: Math.floor(Math.random() * 50) + 10,
-			syncedTasks: Math.floor(Math.random() * 40) + 5,
-			pendingTasks: Math.floor(Math.random() * 5),
-			errorTasks: Math.floor(Math.random() * 3),
-			lastSyncDuration: Math.floor(Math.random() * 5000) + 500,
-		};
-	} catch (error) {
-		console.error("Failed to load sync statistics:", error);
-		syncStats = null;
-	}
-}
-
-// Auto-refresh status when drawer opens and integration exists
-$effect(() => {
-	if (isOpen && notionIntegration) {
-		refreshIntegrationStatus();
-		loadSyncStatistics();
-
-		// Set up periodic refresh every 30 seconds while drawer is open
-		const interval = setInterval(() => {
-			if (isOpen && notionIntegration) {
-				refreshIntegrationStatus();
-			}
-		}, 30000);
-
-		return () => clearInterval(interval);
-	}
-});
 
 async function handleNotionToggle(enabled: boolean) {
 	if (enabled && !notionIntegration) {
@@ -218,7 +169,9 @@ async function handleNotionToggle(enabled: boolean) {
 		// Toggle existing integration
 		await onToggleIntegration("notion", enabled);
 		// Refresh status after toggle
-		setTimeout(() => refreshIntegrationStatus(), 500);
+		if (statusStore) {
+			setTimeout(() => statusStore?.refresh(), 500);
+		}
 	}
 }
 
@@ -258,7 +211,11 @@ function handleRetryDatabaseLoad() {
 
 async function handleDisconnectNotion() {
 	if (notionIntegration) {
-		await onDisconnectIntegration(notionIntegration.id);
+		await onDisconnectIntegration(notionIntegration.integration.id);
+		// Refresh status after disconnect
+		if (statusStore) {
+			setTimeout(() => statusStore?.refresh(), 500);
+		}
 	}
 }
 
@@ -370,14 +327,14 @@ async function handleConnectNotionDatabase(
 				<h3 class="text-base font-medium text-foreground-base">Integrations</h3>
 				{#if notionIntegration}
 					<button
-						onclick={refreshIntegrationStatus}
-						disabled={refreshingStatus}
+						onclick={handleRefreshStatus}
+						disabled={statusLoading ? $statusLoading : false}
 						class={cn(
 							'p-2 rounded-lg text-muted-foreground hover:text-foreground-base',
 							'hover:bg-surface-muted active:bg-surface-muted/80 transition-colors',
 							'min-w-[44px] min-h-[44px] flex items-center justify-center',
 							'touch-manipulation select-none',
-							refreshingStatus && 'animate-spin'
+							(statusLoading && $statusLoading) && 'animate-spin'
 						)}
 						aria-label="Refresh integration status"
 					>
@@ -389,10 +346,11 @@ async function handleConnectNotionDatabase(
 				<!-- Notion Integration -->
 				<div class="space-y-3">
 					<IntegrationToggle
-						integration={notionIntegration}
+						integration={notionIntegration?.integration}
 						workspaceId={workspaceId}
 						onToggle={handleNotionToggle}
 						onConfigure={notionIntegration ? handleConfigureNotion : undefined}
+						integrationStatus={currentIntegrationStatus || undefined}
 					/>
 
 					{#if notionIntegration}
@@ -401,14 +359,17 @@ async function handleConnectNotionDatabase(
 							<!-- Status Badge and Details -->
 							<div class="flex items-center gap-3">
 								<IntegrationStatusBadge 
-									integration={notionIntegration}
-									syncStatus={currentIntegrationStatus()?.status as SyncStatus}
+									integration={notionIntegration.integration}
+									integrationStatus={currentIntegrationStatus || undefined}
+									syncStats={syncStats || undefined}
 									size="md"
+									showDetails={false}
+									loading={statusLoading ? ($statusLoading || false) : false}
 									class="flex-shrink-0"
 								/>
-								{#if currentIntegrationStatus()?.lastSyncAt}
+								{#if currentIntegrationStatus?.lastSyncAt}
 									<span class="text-xs text-muted-foreground">
-										Last synced: {currentIntegrationStatus()?.lastSyncAt?.toLocaleString()}
+										Last synced: {currentIntegrationStatus.lastSyncAt.toLocaleString()}
 									</span>
 								{/if}
 							</div>
