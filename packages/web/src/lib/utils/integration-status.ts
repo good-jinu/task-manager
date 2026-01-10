@@ -29,7 +29,10 @@ interface CacheEntry<T> {
 }
 
 export class IntegrationStatusManager {
-	private cache = new Map<string, CacheEntry<IntegrationStatusData>>();
+	private cache = new Map<
+		string,
+		CacheEntry<IntegrationStatusData | IntegrationStatusData[]>
+	>();
 	private pollingIntervals = new Map<string, number>();
 	private subscribers = new Map<
 		string,
@@ -59,7 +62,8 @@ export class IntegrationStatusManager {
 		if (!forceRefresh) {
 			const cached = this.cache.get(cacheKey);
 			if (cached && Date.now() - cached.timestamp < cached.ttl) {
-				return cached.data;
+				// Ensure we return a single item, not an array
+				return Array.isArray(cached.data) ? null : cached.data;
 			}
 		}
 
@@ -133,8 +137,23 @@ export class IntegrationStatusManager {
 			const data = await response.json();
 
 			// Process the integrations array
+			interface IntegrationStatusItem {
+				integration: ExternalIntegration;
+				status: {
+					status: "disconnected" | "disabled" | "synced" | "pending" | "error";
+					lastSyncAt?: string;
+					lastError?: string;
+					totalTasks: number;
+					syncedTasks: number;
+					pendingTasks: number;
+					errorTasks: number;
+					lastSyncDuration?: number;
+				};
+				stats: SyncStatistics;
+			}
+
 			const statusDataArray: IntegrationStatusData[] = data.integrations.map(
-				(item: any) => ({
+				(item: IntegrationStatusItem) => ({
 					integration: item.integration,
 					status: {
 						...item.status,
@@ -148,7 +167,7 @@ export class IntegrationStatusManager {
 
 			// Update cache for workspace
 			this.cache.set(cacheKey, {
-				data: statusDataArray as any, // Type assertion to handle the array vs single item issue
+				data: statusDataArray,
 				timestamp: Date.now(),
 				ttl: this.DEFAULT_TTL,
 			});

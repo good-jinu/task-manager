@@ -8,11 +8,7 @@ vi.mock("../client", () => ({
 	getDynamoDBClient: vi.fn(() => ({
 		send: vi.fn(),
 	})),
-	getTableNames: vi.fn(() => ({
-		guestUsers: "test-guest-users-table",
-		workspaces: "test-workspaces-table",
-		tasks: "test-tasks-table",
-	})),
+	getTableName: vi.fn((tableName: string) => `test-${tableName}-table`),
 }));
 
 vi.mock("../workspace-service", () => ({
@@ -133,8 +129,8 @@ describe("GuestUserService Property-Based Tests", () => {
 							mockWorkspace,
 						);
 
-						// createGuestWorkspace returns workspace.id (string), not the workspace object
-						const returnedWorkspaceId =
+						// createGuestWorkspace returns the full workspace object
+						const returnedWorkspace =
 							await guestUserService.createGuestWorkspace(guestId);
 
 						// Verify guest ID has the expected format (guest_ prefix + UUID)
@@ -142,8 +138,8 @@ describe("GuestUserService Property-Based Tests", () => {
 							/^guest_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
 						);
 
-						// Verify workspace ID was returned
-						expect(returnedWorkspaceId).toBe(workspaceId);
+						// Verify workspace object was returned
+						expect(returnedWorkspace).toEqual(mockWorkspace);
 
 						// Verify workspace service was called with guest ID
 						expect(mockWorkspaceService.createWorkspace).toHaveBeenCalledWith(

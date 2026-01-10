@@ -1,5 +1,6 @@
 import {
 	IntegrationService,
+	type SyncMetadata,
 	SyncMetadataService,
 	ValidationError,
 } from "@notion-task-manager/db";
@@ -136,7 +137,7 @@ export const DELETE: RequestHandler = async (event) => {
 				await syncMetadataService.listSyncMetadataByIntegration(integrationId);
 
 			// Delete all sync metadata records
-			const cleanupPromises = syncMetadata.map((sm: any) =>
+			const cleanupPromises = syncMetadata.map((sm: SyncMetadata) =>
 				syncMetadataService.deleteSyncMetadata(sm.taskId, sm.integrationId),
 			);
 

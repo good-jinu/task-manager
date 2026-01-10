@@ -7,10 +7,7 @@ vi.mock("../client", () => ({
 	getDynamoDBClient: vi.fn(() => ({
 		send: vi.fn(),
 	})),
-	getTableNames: vi.fn(() => ({
-		workspaces: "test-workspaces-table",
-		tasks: "test-tasks-table",
-	})),
+	getTableName: vi.fn((tableName: string) => `test-${tableName}-table`),
 }));
 
 // Property test configuration

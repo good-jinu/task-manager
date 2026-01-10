@@ -1,5 +1,7 @@
 import {
+	type ExternalIntegration,
 	IntegrationService,
+	type SyncMetadata,
 	SyncMetadataService,
 } from "@notion-task-manager/db";
 import { json } from "@sveltejs/kit";
@@ -48,16 +50,16 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			// Calculate sync statistics
 			const totalTasks = syncMetadata.length;
 			const syncedTasks = syncMetadata.filter(
-				(sm: any) => sm.syncStatus === "synced",
+				(sm: SyncMetadata) => sm.syncStatus === "synced",
 			).length;
 			const pendingTasks = syncMetadata.filter(
-				(sm: any) => sm.syncStatus === "pending",
+				(sm: SyncMetadata) => sm.syncStatus === "pending",
 			).length;
 			const errorTasks = syncMetadata.filter(
-				(sm: any) => sm.syncStatus === "error",
+				(sm: SyncMetadata) => sm.syncStatus === "error",
 			).length;
 			const conflictTasks = syncMetadata.filter(
-				(sm: any) => sm.syncStatus === "conflict",
+				(sm: SyncMetadata) => sm.syncStatus === "conflict",
 			).length;
 
 			// Determine overall status
@@ -70,8 +72,10 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 				status = "error";
 				// Get the most recent error
 				const errorMetadata = syncMetadata
-					.filter((sm: any) => sm.syncStatus === "error" && sm.lastError)
-					.sort((a: any, b: any) =>
+					.filter(
+						(sm: SyncMetadata) => sm.syncStatus === "error" && sm.lastError,
+					)
+					.sort((a: SyncMetadata, b: SyncMetadata) =>
 						(b.lastSyncAt || "").localeCompare(a.lastSyncAt || ""),
 					)[0];
 				lastError = errorMetadata?.lastError;
@@ -105,7 +109,9 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 		// If specific integration requested, return just that one
 		if (integrationId) {
-			const integration = integrations.find((i: any) => i.id === integrationId);
+			const integration = integrations.find(
+				(i: ExternalIntegration) => i.id === integrationId,
+			);
 			if (!integration) {
 				return json({ error: "Integration not found" }, { status: 404 });
 			}
@@ -119,7 +125,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 		// Return all integrations with their status
 		return json({
-			integrations: integrations.map((integration: any) => ({
+			integrations: integrations.map((integration: ExternalIntegration) => ({
 				integration,
 				status: statusMap.get(integration.id),
 				stats: statsMap.get(integration.id),
@@ -162,16 +168,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 						integrationId,
 					);
 				const syncedTasks = syncMetadata.filter(
-					(sm: any) => sm.syncStatus === "synced",
+					(sm: SyncMetadata) => sm.syncStatus === "synced",
 				).length;
 				const errorTasks = syncMetadata.filter(
-					(sm: any) => sm.syncStatus === "error",
+					(sm: SyncMetadata) => sm.syncStatus === "error",
 				).length;
 				const pendingTasks = syncMetadata.filter(
-					(sm: any) => sm.syncStatus === "pending",
+					(sm: SyncMetadata) => sm.syncStatus === "pending",
 				).length;
 				const conflictTasks = syncMetadata.filter(
-					(sm: any) => sm.syncStatus === "conflict",
+					(sm: SyncMetadata) => sm.syncStatus === "conflict",
 				).length;
 
 				let status: IntegrationStatusResponse["status"] = "synced";

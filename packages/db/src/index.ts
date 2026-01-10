@@ -25,7 +25,9 @@ export type { NotionTaskManagerInterface } from "./notion-adapter";
 export { NotionAdapter } from "./notion-adapter";
 export type { SyncAdapter } from "./sync-adapter";
 export { SyncMetadataService } from "./sync-metadata-service";
+export { SyncScheduler } from "./sync-scheduler";
 export { SyncService } from "./sync-service";
+export { SyncStatisticsService } from "./sync-statistics-service";
 export { TaskService } from "./task-service";
 // Export user types and service
 // Export task types and service
@@ -40,9 +42,11 @@ export type {
 	ConflictStrategy,
 	CreateIntegrationInput,
 	CreateSyncMetadataInput,
+	CreateSyncStatisticsInput,
 	CreateTaskInput,
 	CreateUserInput,
 	CreateWorkspaceInput,
+	EnhancedSyncQueueOperation,
 	ExternalIntegration,
 	ExternalTaskData,
 	FieldDifference,
@@ -52,15 +56,22 @@ export type {
 	MigrationProgress,
 	MigrationResult,
 	PaginatedResult,
+	SyncHistoryEntry,
 	SyncMetadata,
+	SyncPerformanceMetrics,
 	SyncProcessResult,
+	SyncQueueOperation,
 	SyncResult,
+	SyncSchedulerConfig,
+	SyncStatistics,
 	SyncStatus,
+	SyncTimingOptions,
 	Task,
 	TaskPriority,
 	TaskStatus,
 	UpdateIntegrationInput,
 	UpdateSyncMetadataInput,
+	UpdateSyncStatisticsInput,
 	UpdateTaskInput,
 	UpdateUserInput,
 	UpdateWorkspaceInput,

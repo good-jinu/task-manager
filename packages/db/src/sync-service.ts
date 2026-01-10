@@ -5,10 +5,12 @@ import type { TaskService } from "./task-service";
 import type {
 	ConflictInfo,
 	ConflictResolution,
+	EnhancedSyncQueueOperation,
 	ExternalIntegration,
 	FieldDifference,
 	SyncMetadata,
 	SyncProcessResult,
+	SyncTimingOptions,
 	Task,
 } from "./types";
 
@@ -17,20 +19,18 @@ import type {
  */
 export class SyncService {
 	private adapters = new Map<string, SyncAdapter>();
-	private syncQueue: Array<{
-		taskId: string;
-		integrationId: string;
-		operation: "push" | "pull";
-		priority: number;
-		createdAt: Date;
-		retryCount: number;
-	}> = [];
+	private syncQueue: EnhancedSyncQueueOperation[] = [];
+	private isProcessing = false;
+	private queueProcessingInterval: NodeJS.Timeout | null = null;
 
 	constructor(
 		private syncMetadataService: SyncMetadataService,
 		private taskService: TaskService,
 		private integrationService: IntegrationService,
-	) {}
+	) {
+		// Start queue processing with 5-second intervals
+		this.startQueueProcessing();
+	}
 
 	/**
 	 * Register a sync adapter for a provider
@@ -51,12 +51,44 @@ export class SyncService {
 	}
 
 	/**
-	 * Queue a sync operation
+	 * Start automatic queue processing
+	 */
+	private startQueueProcessing(): void {
+		if (this.queueProcessingInterval) {
+			return;
+		}
+
+		this.queueProcessingInterval = setInterval(async () => {
+			if (!this.isProcessing && this.syncQueue.length > 0) {
+				await this.processSyncQueue();
+			}
+		}, 5000); // Process queue every 5 seconds
+	}
+
+	/**
+	 * Stop automatic queue processing
+	 */
+	stopQueueProcessing(): void {
+		if (this.queueProcessingInterval) {
+			clearInterval(this.queueProcessingInterval);
+			this.queueProcessingInterval = null;
+		}
+	}
+
+	/**
+	 * Queue a sync operation with enhanced timing controls
 	 */
 	async queueSync(
 		taskId: string,
 		integrationId: string,
 		operation: "push" | "pull",
+		options?: {
+			priority?: number;
+			maxRetries?: number;
+			backoffMultiplier?: number;
+			timeoutMs?: number;
+			immediate?: boolean;
+		},
 	): Promise<void> {
 		// Check if integration exists and is enabled
 		const integration =
@@ -65,24 +97,61 @@ export class SyncService {
 			return; // Skip if integration doesn't exist or is disabled
 		}
 
-		// Add to queue with priority (push operations have higher priority)
-		this.syncQueue.push({
+		// Create enhanced queue operation
+		const queueItem: EnhancedSyncQueueOperation = {
 			taskId,
 			integrationId,
 			operation,
-			priority: operation === "push" ? 1 : 2,
-			createdAt: new Date(),
+			priority: options?.priority ?? (operation === "push" ? 1 : 2),
+			createdAt: new Date().toISOString(),
 			retryCount: 0,
-		});
+			scheduledAt: new Date().toISOString(),
+			maxRetries: options?.maxRetries ?? 3,
+			backoffMultiplier: options?.backoffMultiplier ?? 2,
+			timeoutMs: options?.timeoutMs ?? 30000, // 30 second default timeout
+		};
 
-		// Sort queue by priority
+		// Add to queue
+		this.syncQueue.push(queueItem);
+
+		// Sort queue by priority (lower number = higher priority)
 		this.syncQueue.sort((a, b) => a.priority - b.priority);
+
+		// If immediate sync requested, process queue now
+		if (options?.immediate) {
+			await this.processSyncQueue();
+		}
 	}
 
 	/**
-	 * Process the sync queue
+	 * Trigger immediate manual sync for a task
+	 */
+	async triggerImmediateSync(
+		taskId: string,
+		integrationId: string,
+		operation: "push" | "pull" = "push",
+	): Promise<void> {
+		await this.queueSync(taskId, integrationId, operation, {
+			priority: 0, // Highest priority
+			immediate: true,
+		});
+	}
+
+	/**
+	 * Process the sync queue with enhanced retry logic
 	 */
 	async processSyncQueue(): Promise<SyncProcessResult> {
+		if (this.isProcessing) {
+			return {
+				processed: 0,
+				succeeded: 0,
+				failed: 0,
+				conflicts: 0,
+			};
+		}
+
+		this.isProcessing = true;
+
 		const result: SyncProcessResult = {
 			processed: 0,
 			succeeded: 0,
@@ -90,54 +159,61 @@ export class SyncService {
 			conflicts: 0,
 		};
 
-		// Process queue items
-		while (this.syncQueue.length > 0) {
-			const queueItem = this.syncQueue.shift();
-			if (!queueItem) break;
-			result.processed++;
+		try {
+			// Process queue items
+			while (this.syncQueue.length > 0) {
+				const queueItem = this.syncQueue.shift();
+				if (!queueItem) break;
+				result.processed++;
 
-			try {
-				const success = await this.processSyncOperation(queueItem);
-				if (success) {
-					result.succeeded++;
-				} else {
-					result.failed++;
-				}
-			} catch (error) {
-				// Check if it's a conflict
-				if (error instanceof Error && error.message.includes("conflict")) {
-					result.conflicts++;
-				} else {
-					result.failed++;
-					// Retry logic
-					if (queueItem.retryCount < 3) {
-						queueItem.retryCount++;
-						// Exponential backoff - add back to queue with delay
-						setTimeout(
-							() => {
-								this.syncQueue.push(queueItem);
-								this.syncQueue.sort((a, b) => a.priority - b.priority);
-							},
-							2 ** queueItem.retryCount * 1000,
-						);
+				try {
+					const success = await this.processSyncOperation(queueItem);
+					if (success) {
+						result.succeeded++;
+					} else {
+						result.failed++;
+					}
+				} catch (error) {
+					// Check if it's a conflict
+					if (error instanceof Error && error.message.includes("conflict")) {
+						result.conflicts++;
+					} else {
+						result.failed++;
+						// Enhanced retry logic with configurable parameters
+						if (queueItem.retryCount < (queueItem.maxRetries ?? 3)) {
+							queueItem.retryCount++;
+							// Exponential backoff with configurable multiplier
+							const backoffMultiplier = queueItem.backoffMultiplier ?? 2;
+							const delay = Math.min(
+								2 ** queueItem.retryCount * 1000 * backoffMultiplier,
+								300000, // Max 5 minutes
+							);
+
+							setTimeout(() => {
+								if (this.syncQueue.length < 100) {
+									// Prevent queue overflow
+									this.syncQueue.push(queueItem);
+									this.syncQueue.sort((a, b) => a.priority - b.priority);
+								}
+							}, delay);
+						}
 					}
 				}
 			}
+		} finally {
+			this.isProcessing = false;
 		}
 
 		return result;
 	}
 
 	/**
-	 * Process a single sync operation
+	 * Process a single sync operation with timeout support
 	 */
-	private async processSyncOperation(queueItem: {
-		taskId: string;
-		integrationId: string;
-		operation: "push" | "pull";
-		retryCount: number;
-	}): Promise<boolean> {
-		const { taskId, integrationId, operation } = queueItem;
+	private async processSyncOperation(
+		queueItem: EnhancedSyncQueueOperation,
+	): Promise<boolean> {
+		const { taskId, integrationId, operation, timeoutMs } = queueItem;
 
 		// Get integration
 		const integration =
@@ -148,21 +224,36 @@ export class SyncService {
 
 		const adapter = this.getAdapter(integration.provider);
 
-		if (operation === "push") {
-			return await this.processPushOperation(
-				taskId,
-				integration,
-				adapter,
-				queueItem.retryCount,
-			);
-		} else {
-			return await this.processPullOperation(
-				taskId,
-				integrationId,
-				integration,
-				adapter,
-				queueItem.retryCount,
-			);
+		// Create timeout promise
+		const timeoutPromise = new Promise<never>((_, reject) => {
+			setTimeout(() => {
+				reject(new Error(`Sync operation timed out after ${timeoutMs}ms`));
+			}, timeoutMs ?? 30000);
+		});
+
+		try {
+			// Race between sync operation and timeout
+			const syncPromise =
+				operation === "push"
+					? this.processPushOperation(
+							taskId,
+							integration,
+							adapter,
+							queueItem.retryCount,
+						)
+					: this.processPullOperation(
+							taskId,
+							integrationId,
+							integration,
+							adapter,
+							queueItem.retryCount,
+						);
+
+			return await Promise.race([syncPromise, timeoutPromise]);
+		} catch (error) {
+			// Log timeout or other errors
+			console.error(`Sync operation failed for task ${taskId}:`, error);
+			throw error;
 		}
 	}
 
@@ -611,5 +702,101 @@ export class SyncService {
 		});
 
 		return resolvedTask;
+	}
+
+	/**
+	 * Get sync timing options for an integration
+	 */
+	async getSyncTimingOptions(
+		integrationId: string,
+	): Promise<SyncTimingOptions | null> {
+		const integration =
+			await this.integrationService.getIntegration(integrationId);
+		if (!integration) {
+			return null;
+		}
+
+		// Extract timing options from integration config
+		const config = integration.config as Record<string, unknown>;
+		return {
+			autoSync: typeof config?.autoSync === "boolean" ? config.autoSync : true,
+			syncInterval:
+				typeof config?.syncInterval === "number" ? config.syncInterval : 30, // Default 30 seconds
+			manualSyncEnabled:
+				typeof config?.manualSyncEnabled === "boolean"
+					? config.manualSyncEnabled
+					: true,
+			conflictResolution:
+				typeof config?.conflictResolution === "string" &&
+				["internal-wins", "external-wins", "manual"].includes(
+					config.conflictResolution,
+				)
+					? (config.conflictResolution as
+							| "internal-wins"
+							| "external-wins"
+							| "manual")
+					: "manual",
+		};
+	}
+
+	/**
+	 * Update sync timing options for an integration
+	 */
+	async updateSyncTimingOptions(
+		integrationId: string,
+		options: Partial<SyncTimingOptions>,
+	): Promise<void> {
+		const integration =
+			await this.integrationService.getIntegration(integrationId);
+		if (!integration) {
+			throw new Error("Integration not found");
+		}
+
+		// Update integration config with new timing options
+		const updatedConfig = {
+			...integration.config,
+			...options,
+		};
+
+		await this.integrationService.updateIntegration(integrationId, {
+			config: updatedConfig,
+		});
+	}
+
+	/**
+	 * Get current sync queue status
+	 */
+	getSyncQueueStatus(): {
+		queueLength: number;
+		isProcessing: boolean;
+		nextScheduledSync: string | null;
+	} {
+		const nextItem = this.syncQueue[0];
+		return {
+			queueLength: this.syncQueue.length,
+			isProcessing: this.isProcessing,
+			nextScheduledSync: nextItem?.scheduledAt ?? null,
+		};
+	}
+
+	/**
+	 * Clear sync queue for a specific integration
+	 */
+	clearSyncQueue(integrationId?: string): void {
+		if (integrationId) {
+			this.syncQueue = this.syncQueue.filter(
+				(item) => item.integrationId !== integrationId,
+			);
+		} else {
+			this.syncQueue = [];
+		}
+	}
+
+	/**
+	 * Cleanup method to stop queue processing
+	 */
+	destroy(): void {
+		this.stopQueueProcessing();
+		this.clearSyncQueue();
 	}
 }

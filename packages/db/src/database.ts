@@ -6,7 +6,9 @@ import { MigrationService } from "./migration-service";
 import type { NotionTaskManagerInterface } from "./notion-adapter";
 import { NotionAdapter } from "./notion-adapter";
 import { SyncMetadataService } from "./sync-metadata-service";
+import { SyncScheduler } from "./sync-scheduler";
 import { SyncService } from "./sync-service";
+import { SyncStatisticsService } from "./sync-statistics-service";
 import { TaskService } from "./task-service";
 import { UserService } from "./user-service";
 import { WorkspaceService } from "./workspace-service";
@@ -22,8 +24,10 @@ export class DatabaseClient {
 	public readonly workspaces: WorkspaceService;
 	public readonly integrations: IntegrationService;
 	public readonly syncMetadata: SyncMetadataService;
+	public readonly syncStatistics: SyncStatisticsService;
 	public readonly guestUsers: GuestUserService;
 	public readonly sync: SyncService;
+	public readonly syncScheduler: SyncScheduler;
 	public readonly migration: MigrationService;
 
 	constructor(notionTaskManager?: NotionTaskManagerInterface) {
@@ -34,6 +38,7 @@ export class DatabaseClient {
 		this.workspaces = new WorkspaceService();
 		this.integrations = new IntegrationService();
 		this.syncMetadata = new SyncMetadataService();
+		this.syncStatistics = new SyncStatisticsService();
 		this.guestUsers = new GuestUserService();
 
 		// Initialize sync service with dependencies
@@ -41,6 +46,14 @@ export class DatabaseClient {
 			this.syncMetadata,
 			this.tasks,
 			this.integrations,
+		);
+
+		// Initialize sync scheduler with dependencies
+		this.syncScheduler = new SyncScheduler(
+			this.sync,
+			this.integrations,
+			this.tasks,
+			this.syncStatistics,
 		);
 
 		// Register Notion adapter if NotionTaskManager is provided

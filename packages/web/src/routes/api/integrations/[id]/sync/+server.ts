@@ -1,6 +1,10 @@
 import {
 	IntegrationService,
+	type SyncMetadata,
 	SyncMetadataService,
+	SyncScheduler,
+	SyncService,
+	SyncStatisticsService,
 	TaskService,
 	ValidationError,
 } from "@notion-task-manager/db";
@@ -10,7 +14,7 @@ import type { RequestHandler } from "./$types";
 
 /**
  * PUT /api/integrations/[id]/sync
- * Triggers a manual sync for the specified integration
+ * Triggers a manual sync for the specified integration with enhanced timing controls
  */
 export const PUT: RequestHandler = async (event) => {
 	try {
@@ -22,11 +26,24 @@ export const PUT: RequestHandler = async (event) => {
 			return json({ error: "Integration ID is required" }, { status: 400 });
 		}
 
-		const { force = false } = await event.request.json().catch(() => ({}));
+		const {
+			force = false,
+			immediate = true,
+			syncType = "full", // "full" | "incremental"
+		} = await event.request.json().catch(() => ({}));
 
 		const integrationService = new IntegrationService();
-		const syncMetadataService = new SyncMetadataService();
-		const taskService = new TaskService();
+		const syncService = new SyncService(
+			new SyncMetadataService(),
+			new TaskService(),
+			integrationService,
+		);
+		const syncScheduler = new SyncScheduler(
+			syncService,
+			integrationService,
+			new TaskService(),
+			new SyncStatisticsService(),
+		);
 
 		try {
 			// Get the integration
@@ -44,121 +61,43 @@ export const PUT: RequestHandler = async (event) => {
 				);
 			}
 
-			// Update last sync attempt timestamp
+			// Trigger manual sync using the scheduler
+			const startTime = Date.now();
+			await syncScheduler.triggerManualSync(integrationId);
+			const syncDuration = Date.now() - startTime;
+
+			// Get updated sync statistics
+			const syncStats = await syncScheduler.getSyncStatistics(integrationId);
+			const queueStatus = syncService.getSyncQueueStatus();
+
+			// Update integration with last sync timestamp
 			const now = new Date().toISOString();
 			await integrationService.updateIntegration(integrationId, {
 				lastSyncAt: now,
 			});
 
-			// Get all tasks for the workspace to sync
-			const tasksResult = await taskService.listTasks(integration.workspaceId);
-			const tasks = tasksResult.items;
-
-			// Get existing sync metadata
-			const existingSyncMetadata =
-				await syncMetadataService.listSyncMetadataByIntegration(integrationId);
-
-			// Create a map for quick lookup
-			const syncMetadataMap = new Map(
-				existingSyncMetadata.map((sm: any) => [sm.taskId, sm]),
-			);
-
-			let syncedCount = 0;
-			let pendingCount = 0;
-			let errorCount = 0;
-
-			// Process each task
-			for (const task of tasks) {
-				try {
-					const existingMetadata = syncMetadataMap.get(task.id);
-
-					if (existingMetadata) {
-						// Update existing sync metadata
-						await syncMetadataService.updateSyncMetadata(
-							task.id,
-							integrationId,
-							{
-								syncStatus: "synced",
-								lastSyncAt: now,
-								lastError: undefined,
-							},
-						);
-					} else {
-						// Create new sync metadata
-						const newMetadata = await syncMetadataService.createSyncMetadata({
-							taskId: task.id,
-							integrationId,
-							externalId: `notion-${task.id}`, // Mock external ID
-							syncStatus: "synced",
-						});
-
-						// Update with lastSyncAt
-						await syncMetadataService.updateSyncMetadata(
-							task.id,
-							integrationId,
-							{
-								lastSyncAt: now,
-							},
-						);
-					}
-
-					syncedCount++;
-				} catch (error) {
-					// Handle individual task sync errors
-					const existingMetadata = syncMetadataMap.get(task.id);
-					const errorMessage =
-						error instanceof Error ? error.message : "Unknown sync error";
-
-					if (existingMetadata) {
-						await syncMetadataService.updateSyncMetadata(
-							task.id,
-							integrationId,
-							{
-								syncStatus: "error",
-								lastSyncAt: now,
-								lastError: errorMessage,
-							},
-						);
-					} else {
-						const newMetadata = await syncMetadataService.createSyncMetadata({
-							taskId: task.id,
-							integrationId,
-							externalId: `notion-${task.id}`,
-							syncStatus: "error",
-						});
-
-						// Update with error details
-						await syncMetadataService.updateSyncMetadata(
-							task.id,
-							integrationId,
-							{
-								lastSyncAt: now,
-								lastError: errorMessage,
-							},
-						);
-					}
-
-					errorCount++;
-				}
-			}
-
-			// Calculate final status
-			let overallStatus: "synced" | "pending" | "error" = "synced";
-			if (errorCount > 0) {
-				overallStatus = "error";
-			} else if (pendingCount > 0) {
-				overallStatus = "pending";
-			}
-
 			return json({
 				success: true,
 				syncResult: {
-					status: overallStatus,
-					syncedTasks: syncedCount,
-					pendingTasks: pendingCount,
-					errorTasks: errorCount,
-					totalTasks: tasks.length,
-					lastSyncAt: now,
+					status: "completed",
+					syncDuration,
+					triggeredAt: now,
+					syncType,
+					queueStatus: {
+						queueLength: queueStatus.queueLength,
+						isProcessing: queueStatus.isProcessing,
+					},
+					statistics: syncStats
+						? {
+								totalSyncAttempts: syncStats.totalSyncAttempts,
+								successfulSyncs: syncStats.successfulSyncs,
+								failedSyncs: syncStats.failedSyncs,
+								conflictCount: syncStats.conflictCount,
+								averageSyncDuration: syncStats.averageSyncDuration,
+								lastSyncAt: syncStats.lastSyncAt,
+								manualSyncCount: syncStats.manualSyncCount,
+							}
+						: null,
 				},
 			});
 		} catch (error) {
@@ -195,7 +134,7 @@ export const PUT: RequestHandler = async (event) => {
 
 /**
  * GET /api/integrations/[id]/sync
- * Gets the current sync status for the specified integration
+ * Gets the current sync status and statistics for the specified integration
  */
 export const GET: RequestHandler = async (event) => {
 	try {
@@ -209,6 +148,17 @@ export const GET: RequestHandler = async (event) => {
 
 		const integrationService = new IntegrationService();
 		const syncMetadataService = new SyncMetadataService();
+		const syncService = new SyncService(
+			syncMetadataService,
+			new TaskService(),
+			integrationService,
+		);
+		const syncScheduler = new SyncScheduler(
+			syncService,
+			integrationService,
+			new TaskService(),
+			new SyncStatisticsService(),
+		);
 
 		try {
 			// Get the integration
@@ -218,6 +168,16 @@ export const GET: RequestHandler = async (event) => {
 				return json({ error: "Integration not found" }, { status: 404 });
 			}
 
+			// Get sync timing options
+			const timingOptions =
+				await syncService.getSyncTimingOptions(integrationId);
+
+			// Get sync statistics from scheduler
+			const syncStats = await syncScheduler.getSyncStatistics(integrationId);
+
+			// Get queue status
+			const queueStatus = syncService.getSyncQueueStatus();
+
 			// Get sync metadata for this integration
 			const syncMetadata =
 				await syncMetadataService.listSyncMetadataByIntegration(integrationId);
@@ -225,16 +185,16 @@ export const GET: RequestHandler = async (event) => {
 			// Calculate sync statistics
 			const totalTasks = syncMetadata.length;
 			const syncedTasks = syncMetadata.filter(
-				(sm: any) => sm.syncStatus === "synced",
+				(sm: SyncMetadata) => sm.syncStatus === "synced",
 			).length;
 			const pendingTasks = syncMetadata.filter(
-				(sm: any) => sm.syncStatus === "pending",
+				(sm: SyncMetadata) => sm.syncStatus === "pending",
 			).length;
 			const errorTasks = syncMetadata.filter(
-				(sm: any) => sm.syncStatus === "error",
+				(sm: SyncMetadata) => sm.syncStatus === "error",
 			).length;
 			const conflictTasks = syncMetadata.filter(
-				(sm: any) => sm.syncStatus === "conflict",
+				(sm: SyncMetadata) => sm.syncStatus === "conflict",
 			).length;
 
 			// Determine overall status
@@ -248,8 +208,10 @@ export const GET: RequestHandler = async (event) => {
 				status = "error";
 				// Get the most recent error
 				const errorMetadata = syncMetadata
-					.filter((sm: any) => sm.syncStatus === "error" && sm.lastError)
-					.sort((a: any, b: any) =>
+					.filter(
+						(sm: SyncMetadata) => sm.syncStatus === "error" && sm.lastError,
+					)
+					.sort((a: SyncMetadata, b: SyncMetadata) =>
 						(b.lastSyncAt || "").localeCompare(a.lastSyncAt || ""),
 					)[0];
 				lastError = errorMetadata?.lastError;
@@ -275,8 +237,29 @@ export const GET: RequestHandler = async (event) => {
 					syncedTasks,
 					pendingTasks,
 					errorTasks,
-					lastSyncDuration: Math.floor(Math.random() * 5000) + 500, // Mock duration
+					lastSyncDuration: syncStats?.lastSyncDuration || null,
 				},
+				timingOptions,
+				queueStatus: {
+					queueLength: queueStatus.queueLength,
+					isProcessing: queueStatus.isProcessing,
+					nextScheduledSync: queueStatus.nextScheduledSync,
+				},
+				statistics: syncStats
+					? {
+							totalSyncAttempts: syncStats.totalSyncAttempts,
+							successfulSyncs: syncStats.successfulSyncs,
+							failedSyncs: syncStats.failedSyncs,
+							conflictCount: syncStats.conflictCount,
+							averageSyncDuration: syncStats.averageSyncDuration,
+							lastSyncAt: syncStats.lastSyncAt,
+							lastSyncAttemptAt: syncStats.lastSyncAttemptAt,
+							lastSyncError: syncStats.lastSyncError,
+							lastSyncErrorAt: syncStats.lastSyncErrorAt,
+							manualSyncCount: syncStats.manualSyncCount,
+							lastManualSyncAt: syncStats.lastManualSyncAt,
+						}
+					: null,
 			});
 		} catch (error) {
 			if (error instanceof Error && error.message.includes("not found")) {

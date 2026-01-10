@@ -337,3 +337,137 @@ export interface SyncQueueOperation {
 	createdAt: string;
 	retryCount: number;
 }
+/**
+ * Sync scheduler configuration
+ */
+export interface SyncSchedulerConfig {
+	defaultSyncInterval: number; // Default sync interval in milliseconds
+	maxRetryAttempts: number; // Maximum retry attempts for failed syncs
+	retryBackoffMultiplier: number; // Multiplier for exponential backoff
+	conflictDetectionEnabled: boolean; // Whether to detect and handle conflicts
+	batchSyncThreshold: number; // Threshold for batch sync operations
+}
+
+/**
+ * Sync statistics for monitoring and performance tracking
+ */
+export interface SyncStatistics {
+	integrationId: string;
+	totalSyncAttempts: number;
+	successfulSyncs: number;
+	failedSyncs: number;
+	conflictCount: number;
+	averageSyncDuration: number; // Average duration in milliseconds
+	lastSyncAt: Date | null;
+	lastSyncAttemptAt: Date | null;
+	lastSyncDuration: number | null; // Duration in milliseconds
+	lastSyncError: string | null;
+	lastSyncErrorAt: Date | null;
+	manualSyncCount: number;
+	lastManualSyncAt: Date | null;
+}
+
+/**
+ * Sync timing control options
+ */
+export interface SyncTimingOptions {
+	autoSync: boolean; // Whether automatic sync is enabled
+	syncInterval: number; // Sync interval in seconds
+	manualSyncEnabled: boolean; // Whether manual sync is allowed
+	conflictResolution: ConflictStrategy; // Default conflict resolution strategy
+}
+
+/**
+ * Enhanced sync queue operation with timing controls
+ */
+export interface EnhancedSyncQueueOperation extends SyncQueueOperation {
+	scheduledAt?: string; // When the operation was scheduled (ISO string)
+	maxRetries?: number; // Maximum retry attempts for this operation
+	backoffMultiplier?: number; // Custom backoff multiplier
+	timeoutMs?: number; // Operation timeout in milliseconds
+}
+/**
+ * Input types for creating sync statistics
+ */
+export interface CreateSyncStatisticsInput {
+	totalSyncAttempts?: number;
+	successfulSyncs?: number;
+	failedSyncs?: number;
+	conflictCount?: number;
+	averageSyncDuration?: number;
+	lastSyncAt?: Date | null;
+	lastSyncAttemptAt?: Date | null;
+	lastSyncDuration?: number | null;
+	lastSyncError?: string | null;
+	lastSyncErrorAt?: Date | null;
+	manualSyncCount?: number;
+	lastManualSyncAt?: Date | null;
+}
+
+/**
+ * Input types for updating sync statistics
+ */
+export interface UpdateSyncStatisticsInput {
+	totalSyncAttempts?: number;
+	successfulSyncs?: number;
+	failedSyncs?: number;
+	conflictCount?: number;
+	averageSyncDuration?: number;
+	lastSyncAt?: Date | null;
+	lastSyncAttemptAt?: Date | null;
+	lastSyncDuration?: number | null;
+	lastSyncError?: string | null;
+	lastSyncErrorAt?: Date | null;
+	manualSyncCount?: number;
+	lastManualSyncAt?: Date | null;
+}
+
+/**
+ * Sync history entry for detailed monitoring
+ */
+export interface SyncHistoryEntry {
+	id: string; // Composite key: integrationId-timestamp
+	integrationId: string;
+	timestamp: Date;
+	operation: "push" | "pull" | "manual" | "scheduled";
+	success: boolean;
+	duration?: number; // Duration in milliseconds
+	tasksProcessed?: number;
+	tasksSucceeded?: number;
+	tasksFailed?: number;
+	conflictsDetected?: number;
+	error?: string;
+	metadata?: Record<string, unknown>; // Additional context
+}
+
+/**
+ * Sync performance monitoring data
+ */
+export interface SyncPerformanceMetrics {
+	integrationId: string;
+	period: {
+		startDate: Date;
+		endDate: Date;
+		days: number;
+	};
+	successRate: number; // Percentage
+	errorRate: number; // Percentage
+	conflictRate: number; // Percentage
+	averageResponseTime: number; // Milliseconds
+	totalSyncs: number;
+	peakSyncTime?: Date; // Time of highest sync activity
+	slowestSync?: {
+		timestamp: Date;
+		duration: number;
+	};
+	fastestSync?: {
+		timestamp: Date;
+		duration: number;
+	};
+	dailyStats: Array<{
+		date: string;
+		syncs: number;
+		errors: number;
+		averageDuration: number;
+	}>;
+}

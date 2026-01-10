@@ -61,6 +61,8 @@ export function getTableNames() {
 			integrations: (Resource as any).IntegrationsTable.name,
 			syncMetadata: (Resource as any).SyncMetadataTable.name,
 			guestUsers: (Resource as any).GuestUsersTable.name,
+			syncStatistics: (Resource as any).SyncStatisticsTable.name,
+			syncHistory: (Resource as any).SyncHistoryTable.name,
 			// biome-ignore-end lint/suspicious/noExplicitAny: Resource for any
 		};
 	} catch (_error) {
@@ -78,6 +80,8 @@ type TableNames = {
 	integrations: string;
 	syncMetadata: string;
 	guestUsers: string;
+	syncStatistics: string;
+	syncHistory: string;
 };
 
 /**
