@@ -28,6 +28,7 @@ interface IntegrationStatus {
 interface Props {
 	integration?: ExternalIntegration;
 	loading?: boolean;
+	disabled?: boolean;
 	workspaceId: string;
 	onToggle: (enabled: boolean) => Promise<void>;
 	onConfigure?: () => void;
@@ -44,6 +45,7 @@ interface Props {
 let {
 	integration,
 	loading = false,
+	disabled = false,
 	workspaceId,
 	onToggle,
 	onConfigure,
@@ -79,7 +81,7 @@ function triggerHapticFeedback(type: "light" | "medium" | "heavy" = "light") {
 }
 
 async function handleToggle() {
-	if (isToggling || loading) return;
+	if (isToggling || loading || disabled) return;
 
 	// Trigger haptic feedback on interaction
 	triggerHapticFeedback("medium");
@@ -288,7 +290,11 @@ const syncStatsText = $derived(() => {
 });
 </script>
 
-<div class={cn('flex items-center justify-between p-4 bg-surface-base border border-subtle-base rounded-lg', className)}>
+<div class={cn(
+	'flex items-center justify-between p-4 bg-surface-base border border-subtle-base rounded-lg',
+	disabled && 'opacity-60 pointer-events-none',
+	className
+)}>
 	<div class="flex items-center gap-3 flex-1 min-w-0">
 		<div class="flex-shrink-0">
 			<Database class="w-6 h-6 text-gray-600" />
@@ -382,7 +388,7 @@ const syncStatsText = $derived(() => {
 				onclick={handleToggle}
 				ontouchstart={handleTouchStart}
 				ontouchend={() => handleTouchEnd(handleToggle)}
-				disabled={isToggling || loading}
+				disabled={isToggling || loading || disabled}
 				class={cn(
 					'relative inline-flex items-center justify-center rounded-full transition-all duration-200',
 					'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
@@ -441,7 +447,7 @@ const syncStatsText = $derived(() => {
 				onclick={() => onToggle(true)}
 				ontouchstart={handleTouchStart}
 				ontouchend={() => handleTouchEnd(() => onToggle(true))}
-				disabled={loading}
+				disabled={loading || disabled}
 				class={cn(
 					'px-4 py-2 text-sm font-medium text-white bg-blue-600',
 					'hover:bg-blue-700 active:bg-blue-800 rounded-md transition-all duration-200',

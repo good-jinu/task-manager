@@ -6,7 +6,13 @@ import {
 } from "$lib/stores/integration-status";
 import IntegrationStatusBadge from "./IntegrationStatusBadge.svelte";
 import IntegrationToggle from "./IntegrationToggle.svelte";
-import { Close, Database, KeyboardArrowRight, RefreshRounded } from "./icons";
+import {
+	CheckCircle,
+	Close,
+	Database,
+	KeyboardArrowRight,
+	RefreshRounded,
+} from "./icons";
 import NotionIntegrationDialog from "./NotionIntegrationDialog.svelte";
 import { Button } from "./ui";
 import { cn } from "./utils";
@@ -37,6 +43,8 @@ interface Props {
 	isOpen: boolean;
 	workspaceId: string;
 	integrations?: ExternalIntegration[];
+	isAuthenticated?: boolean;
+	isGuestMode?: boolean;
 	onClose: () => void;
 	onToggleIntegration: (provider: string, enabled: boolean) => Promise<void>;
 	onConnectNotion: (
@@ -44,6 +52,7 @@ interface Props {
 		importExisting: boolean,
 	) => Promise<void>;
 	onDisconnectIntegration: (integrationId: string) => Promise<void>;
+	onSignUp?: () => void;
 	class?: string;
 }
 
@@ -51,10 +60,13 @@ let {
 	isOpen,
 	workspaceId,
 	integrations = [],
+	isAuthenticated = true,
+	isGuestMode = false,
 	onClose,
 	onToggleIntegration,
 	onConnectNotion,
 	onDisconnectIntegration,
+	onSignUp,
 	class: className = "",
 }: Props = $props();
 
@@ -62,6 +74,7 @@ let showNotionDialog = $state(false);
 let availableDatabases = $state<NotionDatabase[]>([]);
 let loadingDatabases = $state(false);
 let databaseLoadError = $state<string | null>(null);
+let showGuestUpgradePrompt = $state(false);
 
 // Create status store reactively
 let statusStore = $state<ReturnType<typeof createWorkspaceStatusStore> | null>(
@@ -139,6 +152,12 @@ async function handleRefreshStatus() {
 }
 
 async function handleNotionToggle(enabled: boolean) {
+	// Check if user is in guest mode and trying to enable integration
+	if (enabled && isGuestMode) {
+		showGuestUpgradePrompt = true;
+		return;
+	}
+
 	if (enabled && !notionIntegration) {
 		// Need to connect - initiate OAuth flow
 		try {
@@ -199,6 +218,12 @@ async function loadNotionDatabases() {
 }
 
 function handleConfigureNotion() {
+	// Check if user is in guest mode
+	if (isGuestMode) {
+		showGuestUpgradePrompt = true;
+		return;
+	}
+
 	databaseLoadError = null;
 	loadNotionDatabases();
 	showNotionDialog = true;
@@ -222,6 +247,15 @@ async function handleDisconnectNotion() {
 function handleCloseNotionDialog() {
 	showNotionDialog = false;
 	databaseLoadError = null;
+}
+
+function handleCloseGuestUpgradePrompt() {
+	showGuestUpgradePrompt = false;
+}
+
+function handleGuestSignUp() {
+	showGuestUpgradePrompt = false;
+	onSignUp?.();
 }
 
 async function handleConnectNotionDatabase(
@@ -342,12 +376,41 @@ async function handleConnectNotionDatabase(
 					</button>
 				{/if}
 			</div>
+
+			<!-- Guest User Restriction Notice -->
+			{#if isGuestMode}
+				<div class="mb-4 p-4 bg-info-alert-bg border border-info-border rounded-lg">
+					<div class="flex items-start gap-3">
+						<div class="flex-shrink-0 mt-0.5">
+							<Database class="w-5 h-5 text-info" />
+						</div>
+						<div class="flex-1">
+							<h4 class="text-sm font-medium text-foreground-emphasis mb-1">
+								Integrations require an account
+							</h4>
+							<p class="text-sm text-foreground-secondary mb-3">
+								Connect with Notion, Google Calendar, and other services to sync your tasks across platforms.
+							</p>
+							<Button
+								onclick={handleGuestSignUp}
+								variant="primary"
+								size="sm"
+								class="bg-primary hover:bg-primary-button-hover text-primary-foreground min-h-[44px]"
+							>
+								Create Free Account
+							</Button>
+						</div>
+					</div>
+				</div>
+			{/if}
+
 			<div class="space-y-4">
 				<!-- Notion Integration -->
 				<div class="space-y-3">
 					<IntegrationToggle
 						integration={notionIntegration?.integration}
 						workspaceId={workspaceId}
+						disabled={isGuestMode}
 						onToggle={handleNotionToggle}
 						onConfigure={notionIntegration ? handleConfigureNotion : undefined}
 						integrationStatus={currentIntegrationStatus || undefined}
@@ -522,3 +585,69 @@ async function handleConnectNotionDatabase(
 	onConnect={handleConnectNotionDatabase}
 	onRetry={handleRetryDatabaseLoad}
 />
+
+<!-- Guest Upgrade Prompt Dialog -->
+{#if showGuestUpgradePrompt}
+	<div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+		<div class="bg-surface-base rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
+			<div class="flex items-start gap-3">
+				<div class="flex-shrink-0 mt-0.5">
+					<Database class="w-6 h-6 text-primary" />
+				</div>
+				<div class="flex-1">
+					<h3 class="text-lg font-semibold text-foreground-base mb-2">
+						Unlock Notion Integration
+					</h3>
+					<p class="text-sm text-foreground-secondary mb-4">
+						Connect your tasks with Notion to sync across devices, collaborate with your team, and never lose your work.
+					</p>
+					
+					<!-- Benefits list -->
+					<div class="space-y-2 mb-4">
+						<div class="flex items-center gap-2 text-sm">
+							<CheckCircle class="w-4 h-4 text-success flex-shrink-0" />
+							<span class="text-foreground-secondary">Sync with your Notion databases</span>
+						</div>
+						<div class="flex items-center gap-2 text-sm">
+							<CheckCircle class="w-4 h-4 text-success flex-shrink-0" />
+							<span class="text-foreground-secondary">Access tasks from anywhere</span>
+						</div>
+						<div class="flex items-center gap-2 text-sm">
+							<CheckCircle class="w-4 h-4 text-success flex-shrink-0" />
+							<span class="text-foreground-secondary">Collaborate with your team</span>
+						</div>
+						<div class="flex items-center gap-2 text-sm">
+							<CheckCircle class="w-4 h-4 text-success flex-shrink-0" />
+							<span class="text-foreground-secondary">Keep your tasks permanently</span>
+						</div>
+					</div>
+					
+					<!-- Task preservation notice -->
+					<div class="p-3 bg-info-alert-bg border border-info-border rounded-lg mb-4">
+						<p class="text-xs text-info-foreground">
+							<strong>Don't worry!</strong> All your current tasks will be preserved when you create an account.
+						</p>
+					</div>
+				</div>
+			</div>
+			
+			<!-- Action buttons -->
+			<div class="flex flex-col sm:flex-row gap-3 pt-2">
+				<Button
+					onclick={handleGuestSignUp}
+					variant="primary"
+					class="flex-1 bg-primary hover:bg-primary-button-hover text-primary-foreground min-h-[44px]"
+				>
+					Create Free Account
+				</Button>
+				<Button
+					onclick={handleCloseGuestUpgradePrompt}
+					variant="outline"
+					class="flex-1 border-subtle-base text-foreground-secondary hover:bg-surface-muted min-h-[44px]"
+				>
+					Maybe Later
+				</Button>
+			</div>
+		</div>
+	</div>
+{/if}

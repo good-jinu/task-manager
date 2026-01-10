@@ -1,32 +1,59 @@
-import { GuestUserService, ValidationError } from "@notion-task-manager/db";
+import { GuestUserService } from "@notion-task-manager/db";
 import { json } from "@sveltejs/kit";
-import { requireAuth } from "$lib/auth";
 import type { RequestHandler } from "./$types";
 
-/**
- * POST /api/guest/migrate
- * Migrates guest user tasks to a permanent authenticated user account
- * Request body: { guestId: string }
- */
-export const POST: RequestHandler = async (event) => {
+const guestUserService = new GuestUserService();
+
+export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 	try {
-		// Require authentication - user must be signed in to migrate
-		const session = await requireAuth(event);
-
-		const { guestId } = await event.request.json();
-
-		if (!guestId) {
-			return json({ error: "guestId is required" }, { status: 400 });
+		// Check if user is authenticated
+		const session = await locals.getSession();
+		if (!session?.user?.id) {
+			return json(
+				{
+					success: false,
+					error: "Authentication required for migration",
+				},
+				{ status: 401 },
+			);
 		}
 
-		const guestUserService = new GuestUserService();
+		const { guestId } = await request.json();
+
+		if (
+			!guestId ||
+			typeof guestId !== "string" ||
+			!guestId.startsWith("guest_")
+		) {
+			return json(
+				{
+					success: false,
+					error: "Valid guest ID is required",
+				},
+				{ status: 400 },
+			);
+		}
+
+		// Verify the guest user exists
+		const guestUser = await guestUserService.getGuestUser(guestId);
+		if (!guestUser) {
+			return json(
+				{
+					success: false,
+					error: "Guest user not found",
+				},
+				{ status: 404 },
+			);
+		}
+
+		// Migrate guest tasks to the authenticated user
 		const migrationResult = await guestUserService.migrateGuestTasks(
 			guestId,
 			session.user.id,
 		);
 
-		// Clear guest ID cookie since tasks are now migrated
-		event.cookies.delete("guest-id", { path: "/" });
+		// Clear guest cookie after successful migration
+		cookies.delete("guest-id", { path: "/" });
 
 		return json({
 			success: true,
@@ -34,23 +61,15 @@ export const POST: RequestHandler = async (event) => {
 		});
 	} catch (error) {
 		console.error("Failed to migrate guest tasks:", error);
-
-		if (error instanceof Error && error.message.includes("redirect")) {
-			// Re-throw redirect errors from requireAuth
-			throw error;
-		}
-
-		if (error instanceof ValidationError) {
-			return json({ error: error.message }, { status: 400 });
-		}
-
-		if (error instanceof Error && error.message.includes("not found")) {
-			return json(
-				{ error: "Guest user not found or already migrated" },
-				{ status: 404 },
-			);
-		}
-
-		return json({ error: "Failed to migrate guest tasks" }, { status: 500 });
+		return json(
+			{
+				success: false,
+				error:
+					error instanceof Error
+						? error.message
+						: "Failed to migrate guest tasks",
+			},
+			{ status: 500 },
+		);
 	}
 };

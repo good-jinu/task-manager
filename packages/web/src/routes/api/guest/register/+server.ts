@@ -1,51 +1,60 @@
-import { GuestUserService, ValidationError } from "@notion-task-manager/db";
+import { GuestUserService } from "@notion-task-manager/db";
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
 
-/**
- * POST /api/guest/register
- * Creates a new guest user with a default workspace
- * Returns guest ID and workspace ID for client-side storage
- */
-export const POST: RequestHandler = async (event) => {
+const guestUserService = new GuestUserService();
+
+export const POST: RequestHandler = async ({ cookies }) => {
 	try {
-		const guestUserService = new GuestUserService();
+		// Check if user already has a guest ID
+		const existingGuestId = cookies.get("guest-id");
+		if (existingGuestId?.startsWith("guest_")) {
+			// Return existing guest user info
+			const guestUser = await guestUserService.getGuestUser(existingGuestId);
+			if (guestUser) {
+				const workspace =
+					await guestUserService.createGuestWorkspace(existingGuestId);
+				return json({
+					success: true,
+					data: {
+						guestId: existingGuestId,
+						workspace,
+					},
+				});
+			}
+		}
 
-		// Generate guest ID
-		const guestId = guestUserService.generateGuestId();
+		// Create new guest user
+		const guestUser = await guestUserService.createGuestUser();
+		const workspace = await guestUserService.createGuestWorkspace(guestUser.id);
 
-		// Create the guest user record in the database first
-		await guestUserService.createGuestUser(guestId);
-
-		// Create default workspace for guest user
-		const workspace = await guestUserService.createGuestWorkspace(guestId);
-
-		// Set guest ID in cookie for future requests with 1-year expiration to match database TTL
-		event.cookies.set("guest-id", guestId, {
+		// Set guest ID cookie (expires in 1 year)
+		cookies.set("guest-id", guestUser.id, {
 			path: "/",
-			maxAge: 60 * 60 * 24 * 365, // 1 year to match database TTL
-			httpOnly: true,
+			maxAge: 365 * 24 * 60 * 60, // 1 year
+			httpOnly: false, // Allow client-side access for guest mode detection
 			secure: process.env.NODE_ENV === "production",
 			sameSite: "lax",
 		});
 
-		return json(
-			{
-				success: true,
-				data: {
-					guestId,
-					workspace,
-				},
+		return json({
+			success: true,
+			data: {
+				guestId: guestUser.id,
+				workspace,
 			},
-			{ status: 201 },
-		);
+		});
 	} catch (error) {
 		console.error("Failed to register guest user:", error);
-
-		if (error instanceof ValidationError) {
-			return json({ error: error.message }, { status: 400 });
-		}
-
-		return json({ error: "Failed to register guest user" }, { status: 500 });
+		return json(
+			{
+				success: false,
+				error:
+					error instanceof Error
+						? error.message
+						: "Failed to register guest user",
+			},
+			{ status: 500 },
+		);
 	}
 };

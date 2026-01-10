@@ -6,6 +6,7 @@ import { ErrorAlert, LoadingSpinner } from "$lib/components";
 import AccountCreationDialog from "$lib/components/AccountCreationDialog.svelte";
 import AgentExecutionHistory from "$lib/components/AgentExecutionHistory.svelte";
 import FloatingAIInput from "$lib/components/FloatingAIInput.svelte";
+import GuestBanner from "$lib/components/GuestBanner.svelte";
 import SettingsDrawer from "$lib/components/SettingsDrawer.svelte";
 import TaskBoard from "$lib/components/TaskBoard.svelte";
 import TopMenu from "$lib/components/TopMenu.svelte";
@@ -33,6 +34,8 @@ let showAccountDialog = $state(false);
 let showSettingsDrawer = $state(false);
 let selectedContextTasks = $state(new Set<string>());
 let integrations = $state([]);
+let guestTaskCount = $state(0);
+let guestDaysRemaining = $state(7);
 
 onMount(async () => {
 	if (isAuthenticated) {
@@ -161,6 +164,7 @@ async function loadTasks() {
 
 function updateTaskCount() {
 	if ($isGuestMode && !isAuthenticated) {
+		guestTaskCount = tasks.length;
 		updateGuestTaskCount(tasks.length);
 	}
 }
@@ -209,6 +213,10 @@ function handleMenuAction(action: string) {
 		default:
 			console.log("Menu action:", action);
 	}
+}
+
+function handleGuestSignUp() {
+	showAccountDialog = true;
 }
 
 async function handleToggleIntegration(provider: string, enabled: boolean) {
@@ -264,6 +272,18 @@ const contextTasks = $derived(
 	<!-- Main Content -->
 	<div class="flex-1 overflow-hidden">
 		{#if currentWorkspace}
+			<!-- Guest Banner for non-authenticated users -->
+			{#if $isGuestMode && !isAuthenticated}
+				<div class="p-4 pb-0">
+					<GuestBanner
+						taskCount={guestTaskCount}
+						daysRemaining={guestDaysRemaining}
+						showIntegrationBenefits={guestTaskCount >= 5}
+						onSignUp={handleGuestSignUp}
+					/>
+				</div>
+			{/if}
+
 			<!-- Task Board Layout -->
 			<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-screen p-4">
 				<!-- Task Board - Takes up 2/3 on large screens -->
@@ -314,14 +334,17 @@ const contextTasks = $derived(
 />
 
 <!-- Settings Drawer -->
-{#if isAuthenticated && currentWorkspace}
+{#if currentWorkspace}
 	<SettingsDrawer
 		isOpen={showSettingsDrawer}
 		workspaceId={currentWorkspace.id}
 		{integrations}
+		isAuthenticated={isAuthenticated}
+		isGuestMode={$isGuestMode && !isAuthenticated}
 		onClose={() => showSettingsDrawer = false}
 		onToggleIntegration={handleToggleIntegration}
 		onConnectNotion={handleConnectNotion}
 		onDisconnectIntegration={handleDisconnectIntegration}
+		onSignUp={handleGuestSignUp}
 	/>
 {/if}
