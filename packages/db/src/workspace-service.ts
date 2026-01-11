@@ -219,6 +219,62 @@ export class WorkspaceService {
 	}
 
 	/**
+	 * Transfers ownership of a workspace from one user to another
+	 */
+	async transferWorkspaceOwnership(
+		workspaceId: string,
+		fromUserId: string,
+		toUserId: string,
+	): Promise<Workspace> {
+		// Validate inputs
+		validateWorkspaceId(workspaceId);
+		validateUserId(fromUserId);
+		validateUserId(toUserId);
+
+		try {
+			// First, verify the workspace exists and belongs to the fromUserId
+			const workspace = await this.getWorkspace(workspaceId);
+			if (!workspace) {
+				throw new Error(`Workspace with ID ${workspaceId} not found`);
+			}
+
+			if (workspace.userId !== fromUserId) {
+				throw new Error(
+					`Workspace ${workspaceId} does not belong to user ${fromUserId}`,
+				);
+			}
+
+			// Update the workspace ownership
+			const result = await this.client.send(
+				new UpdateCommand({
+					TableName: this.tableName,
+					Key: { id: workspaceId },
+					UpdateExpression: "SET userId = :toUserId, updatedAt = :updatedAt",
+					ExpressionAttributeValues: {
+						":toUserId": toUserId,
+						":updatedAt": new Date().toISOString(),
+						":fromUserId": fromUserId,
+					},
+					ConditionExpression: "attribute_exists(id) AND userId = :fromUserId",
+					ReturnValues: "ALL_NEW",
+				}),
+			);
+
+			return result.Attributes as Workspace;
+		} catch (error) {
+			if (error instanceof Error) {
+				if (error.name === "ConditionalCheckFailedException") {
+					throw new Error(
+						`Failed to transfer workspace: workspace not found or ownership mismatch`,
+					);
+				}
+				throw new Error(`Failed to transfer workspace: ${error.message}`);
+			}
+			throw new Error("Failed to transfer workspace: Unknown error");
+		}
+	}
+
+	/**
 	 * Handles tasks in a workspace according to the specified policy
 	 */
 	private async handleWorkspaceTasks(

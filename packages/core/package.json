@@ -20,8 +20,6 @@
 		"@ai-sdk/deepinfra": "^2.0.2",
 		"@ai-sdk/openai": "^2.0.0",
 		"@ai-sdk/openai-compatible": "^2.0.1",
-		"@notion-task-manager/db": "workspace:*",
-		"@notion-task-manager/notion": "workspace:*",
 		"ai": "^6.0.3",
 		"zod": "^3.25.0"
 	},

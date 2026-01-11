@@ -1,3 +1,18 @@
+// Import task types from core for use in interfaces
+import type { Task } from "@notion-task-manager/core";
+
+// Re-export task types from core for backward compatibility
+export type {
+	CreateTaskInput,
+	ListTasksOptions,
+	PaginatedResult,
+	Task,
+	TaskPriority,
+	TaskService,
+	TaskStatus,
+	UpdateTaskInput,
+} from "@notion-task-manager/core";
+
 /**
  * User model for DynamoDB storage
  */
@@ -37,32 +52,6 @@ export interface UpdateUserInput {
 	notionAccessToken?: string;
 	notionRefreshToken?: string;
 	tokenExpiresAt?: string;
-}
-
-/**
- * Task status enumeration
- */
-export type TaskStatus = "todo" | "in-progress" | "done" | "archived";
-
-/**
- * Task priority enumeration
- */
-export type TaskPriority = "low" | "medium" | "high" | "urgent";
-
-/**
- * Task model for DynamoDB storage
- */
-export interface Task {
-	id: string; // UUID, primary key
-	workspaceId: string; // Foreign key to workspace
-	title: string; // Task title (required)
-	content?: string; // Task description/content
-	status: TaskStatus; // Current status
-	priority?: TaskPriority; // Optional priority level
-	dueDate?: string; // ISO date string
-	archived: boolean; // Soft delete flag
-	createdAt: string; // ISO timestamp
-	updatedAt: string; // ISO timestamp
 }
 
 /**
@@ -118,46 +107,6 @@ export interface GuestUser {
 	createdAt: string; // Creation timestamp
 	expiresAt: string; // TTL expiration (7 days)
 	migrated: boolean; // Whether tasks were migrated to permanent account
-}
-
-/**
- * Input types for creating new tasks
- */
-export interface CreateTaskInput extends Record<string, unknown> {
-	workspaceId: string;
-	title: string;
-	content?: string;
-	status?: TaskStatus;
-	priority?: TaskPriority;
-	dueDate?: string;
-}
-
-/**
- * Input types for updating existing tasks
- */
-export interface UpdateTaskInput extends Record<string, unknown> {
-	title?: string;
-	content?: string;
-	status?: TaskStatus;
-	priority?: TaskPriority;
-	dueDate?: string;
-}
-
-/**
- * Options for listing tasks
- */
-export interface ListTasksOptions {
-	limit?: number;
-	cursor?: string;
-}
-
-/**
- * Paginated result wrapper
- */
-export interface PaginatedResult<T> {
-	items: T[];
-	nextCursor?: string;
-	hasMore: boolean;
 }
 
 /**

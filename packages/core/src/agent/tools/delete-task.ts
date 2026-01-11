@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { TaskToolCommonArgs } from "./create-task";
+import type { TaskToolCommonArgs } from "./task-common";
 
 /**
  * Input schema for deleting a task

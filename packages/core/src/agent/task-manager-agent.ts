@@ -1,6 +1,6 @@
-import type { Task, TaskService } from "@notion-task-manager/db";
 import { generateText, stepCountIs } from "ai";
 import { getModel } from "../llm/provider";
+import type { Task, TaskService } from "../types";
 import { createTaskExecutorFactory, type ExecutionStep } from "./tools";
 
 /**
@@ -12,7 +12,6 @@ export interface TaskAgentExecuteParams {
 	workspaceId: string;
 	query: string;
 	contextTasks?: Task[];
-	taskService: TaskService;
 	onStepComplete?: (step: ExecutionStep) => Promise<void>;
 }
 
@@ -32,14 +31,23 @@ export interface TaskAgentExecutionResult {
  */
 export class TaskManagerAgent {
 	private model = getModel();
+	private taskService: TaskService;
+
+	constructor({
+		taskService,
+	}: {
+		taskService: TaskService;
+	}) {
+		this.taskService = taskService;
+	}
 
 	/**
 	 * Execute the agent with the given parameters
 	 */
 	async execute(
-		params: TaskAgentExecuteParams,
+		params: Omit<TaskAgentExecuteParams, "taskService">,
 	): Promise<TaskAgentExecutionResult> {
-		const { workspaceId, query, taskService, onStepComplete } = params;
+		const { workspaceId, query, onStepComplete } = params;
 
 		// Track what actions were performed
 		let lastAction: TaskAgentExecutionResult["action"] = "none";
@@ -59,7 +67,7 @@ export class TaskManagerAgent {
 					lastTaskId = output.taskId;
 					// Get the created task for the response
 					try {
-						const task = await taskService.getTask(output.taskId);
+						const task = await this.taskService.getTask(output.taskId);
 						if (task) {
 							lastTasks = [task];
 						}
@@ -77,7 +85,7 @@ export class TaskManagerAgent {
 					lastTaskId = output.taskId;
 					// Get the updated task for the response
 					try {
-						const task = await taskService.getTask(output.taskId);
+						const task = await this.taskService.getTask(output.taskId);
 						if (task) {
 							lastTasks = [task];
 						}
@@ -112,7 +120,7 @@ export class TaskManagerAgent {
 		};
 
 		const factory = createTaskExecutorFactory(
-			taskService,
+			this.taskService,
 			workspaceId,
 			wrappedOnStepComplete,
 		);

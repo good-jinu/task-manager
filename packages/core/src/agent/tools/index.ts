@@ -1,5 +1,7 @@
 // Export all tools and common utilities
-export * from "./common";
+
+// Re-export ExecutionStep from types for convenience
+export type { ExecutionStep } from "../../types";
 export * from "./create-task";
 export * from "./delete-task";
 export * from "./get-task";

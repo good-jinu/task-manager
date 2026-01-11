@@ -1,6 +1,6 @@
-import type { TaskService } from "@notion-task-manager/db";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskManagerAgent } from "../agent/task-manager-agent";
+import type { TaskService } from "../types";
 
 // Mock the LLM provider
 vi.mock("../llm/provider", () => ({
@@ -20,8 +20,6 @@ describe("TaskManagerAgent", () => {
 	let mockTaskService: TaskService;
 
 	beforeEach(() => {
-		agent = new TaskManagerAgent();
-
 		// Create a mock task service
 		mockTaskService = {
 			createTask: vi.fn(),
@@ -31,6 +29,8 @@ describe("TaskManagerAgent", () => {
 			listTasks: vi.fn(),
 			listTasksByStatus: vi.fn(),
 		} as unknown as TaskService;
+
+		agent = new TaskManagerAgent({ taskService: mockTaskService });
 	});
 
 	it("should be instantiated correctly", () => {
@@ -55,7 +55,6 @@ describe("TaskManagerAgent", () => {
 			executionId: "test-execution",
 			workspaceId: "test-workspace",
 			query: "Create a test task",
-			taskService: mockTaskService,
 		};
 
 		const result = await agent.execute(params);
@@ -78,7 +77,6 @@ describe("TaskManagerAgent", () => {
 			executionId: "test-execution",
 			workspaceId: "test-workspace",
 			query: "Create a test task",
-			taskService: mockTaskService,
 		};
 
 		const result = await agent.execute(params);

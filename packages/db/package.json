@@ -14,6 +14,7 @@
 	"dependencies": {
 		"@aws-sdk/client-dynamodb": "^3.705.0",
 		"@aws-sdk/lib-dynamodb": "^3.705.0",
+		"@notion-task-manager/core": "workspace:*",
 		"sst": "^3.3.0"
 	},
 	"devDependencies": {

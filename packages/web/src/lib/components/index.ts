@@ -14,3 +14,5 @@ export { default as TaskDetailView } from "./TaskDetailView.svelte";
 export { default as TaskInput } from "./TaskInput.svelte";
 export { default as TaskItem } from "./TaskItem.svelte";
 export { default as TopMenu } from "./TopMenu.svelte";
+export { default as WorkspaceCreateDialog } from "./WorkspaceCreateDialog.svelte";
+export { default as WorkspaceSelector } from "./WorkspaceSelector.svelte";

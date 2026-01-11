@@ -1,5 +1,5 @@
-import type { TaskService } from "@notion-task-manager/db";
 import { z } from "zod";
+import type { TaskToolCommonArgs } from "./task-common";
 
 /**
  * Input schema for creating a task
@@ -13,14 +13,6 @@ export const createTaskInputSchema = z.object({
 });
 
 export type CreateTaskInput = z.infer<typeof createTaskInputSchema>;
-
-/**
- * Tool common arguments for task operations
- */
-export interface TaskToolCommonArgs {
-	workspaceId: string;
-	taskService: TaskService;
-}
 
 /**
  * Execute task creation

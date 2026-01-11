@@ -1,11 +1,9 @@
-import type { TaskService } from "@notion-task-manager/db";
 import type { Tool } from "ai";
-import type { ExecutionStep } from "./common";
+import type { ExecutionStep, TaskService } from "../../types";
 import {
 	type CreateTaskInput,
 	createTaskInputSchema,
 	executeCreateTask,
-	type TaskToolCommonArgs,
 } from "./create-task";
 import {
 	type DeleteTaskInput,
@@ -27,6 +25,14 @@ import {
 	type UpdateTaskInput,
 	updateTaskInputSchema,
 } from "./update-task";
+
+/**
+ * Tool common arguments for task operations
+ */
+export interface TaskToolCommonArgs {
+	workspaceId: string;
+	taskService: TaskService;
+}
 
 /**
  * Factory function to create AI SDK tools configuration for task management

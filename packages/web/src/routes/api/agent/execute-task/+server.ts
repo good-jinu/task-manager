@@ -1,5 +1,5 @@
+import type { ExecutionStep } from "@notion-task-manager/core";
 import { TaskManagerAgent } from "@notion-task-manager/core";
-import type { ExecutionStep } from "@notion-task-manager/db";
 import { AgentExecutionService, TaskService } from "@notion-task-manager/db";
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
@@ -65,7 +65,7 @@ export const POST: RequestHandler = async (event) => {
 
 		// Process the task execution
 		const taskService = new TaskService();
-		const agent = new TaskManagerAgent();
+		const agent = new TaskManagerAgent({ taskService });
 
 		const steps: ExecutionStep[] = [];
 
@@ -75,7 +75,6 @@ export const POST: RequestHandler = async (event) => {
 			workspaceId,
 			query: query.trim(),
 			contextTasks,
-			taskService,
 			onStepComplete: async (step: ExecutionStep) => {
 				steps.push(step);
 				// Record each step as it completes

@@ -11,10 +11,12 @@ import GuestBanner from "$lib/components/GuestBanner.svelte";
 import SettingsDrawer from "$lib/components/SettingsDrawer.svelte";
 import TaskBoard from "$lib/components/TaskBoard.svelte";
 import TopMenu from "$lib/components/TopMenu.svelte";
+import WorkspaceCreateDialog from "$lib/components/WorkspaceCreateDialog.svelte";
 import { guestUserService } from "$lib/services/guest-user-service";
 import { taskService } from "$lib/services/task-service";
 import { isGuestMode, updateGuestTaskCount } from "$lib/stores/guest";
 import type { PageData } from "$lib/types/page-data";
+import "$lib/types/auth"; // Import auth type extensions
 import {
 	type ComponentEvent,
 	type ComponentState,
@@ -52,11 +54,13 @@ let componentState = $state<ComponentState>({
 // Local component state
 let tasks: Task[] = $state([]);
 let currentWorkspace: Workspace | null = $state(null);
+let workspaces: Workspace[] = $state([]);
 let loading = $state(false);
 let error = $state("");
 let selectedContextTasks = $state(new Set<string>());
 let guestTaskCount = $state(0);
 let guestDaysRemaining = $state(7);
+let showWorkspaceCreateDialog = $state(false);
 
 // Derived state from component wiring
 let showSettingsDrawer = $derived(componentState.settingsDrawerOpen);
@@ -273,10 +277,13 @@ async function loadWorkspaces() {
 		const data = await response.json();
 
 		if (response.ok) {
-			const workspaces = data.workspaces || [];
+			workspaces = data.workspaces || [];
 			if (workspaces.length > 0) {
-				currentWorkspace = workspaces[0];
-				manager.updateState({ currentWorkspace: workspaces[0] });
+				// Set current workspace to the first one if none is selected
+				if (!currentWorkspace) {
+					currentWorkspace = workspaces[0];
+				}
+				manager.updateState({ currentWorkspace: currentWorkspace });
 				await loadTasks();
 				await loadIntegrations();
 			} else {
@@ -308,6 +315,7 @@ async function createDefaultWorkspace() {
 
 		if (response.ok) {
 			currentWorkspace = data.data;
+			workspaces = [data.data];
 			manager.updateState({ currentWorkspace: data.data });
 			await loadTasks();
 			await loadIntegrations();
@@ -322,34 +330,48 @@ async function createDefaultWorkspace() {
 
 async function handlePendingMigration() {
 	try {
-		// Get guest tasks from localStorage
-		const guestBackup = localStorage.getItem("guest-backup");
-		if (!guestBackup) {
+		// Check if this is a new user who might have guest data to migrate
+		if (!session?.user?.isNewUser) {
 			localStorage.removeItem("pending_migration");
 			return;
 		}
 
-		const backupData = JSON.parse(guestBackup);
-		const guestTasks = backupData.tasks || [];
-
-		if (guestTasks.length > 0) {
-			console.log(`Migrating ${guestTasks.length} guest tasks...`);
-			const migrationSuccess =
-				await guestUserService.migrateGuestData(guestTasks);
-
-			if (migrationSuccess) {
-				console.log("Guest data migration completed successfully");
-				// Reload workspaces and tasks to show migrated data
-				await loadWorkspaces();
-			} else {
-				console.warn("Guest data migration failed");
-			}
+		// Get guest ID from localStorage
+		const guestId = localStorage.getItem("guest-id");
+		if (!guestId) {
+			localStorage.removeItem("pending_migration");
+			return;
 		}
 
-		// Clear pending migration flag
-		localStorage.removeItem("pending_migration");
+		console.log("Attempting to transfer guest workspace for new user...");
+
+		// Call the migration API to transfer workspace ownership
+		const response = await fetch("/api/migrate-guest", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({ guestId }),
+		});
+
+		const result = await response.json();
+
+		if (response.ok && result.success) {
+			console.log("Guest workspace transfer completed successfully");
+			// Clear guest data from localStorage since it's now owned by the user
+			localStorage.removeItem("guest-id");
+			localStorage.removeItem("guest-backup");
+			localStorage.removeItem("pending_migration");
+
+			// Reload workspaces to show the transferred workspace
+			await loadWorkspaces();
+		} else {
+			console.warn("Guest workspace transfer failed:", result.message);
+			// Clear pending migration flag even if transfer failed
+			localStorage.removeItem("pending_migration");
+		}
 	} catch (error) {
-		console.error("Error handling pending migration:", error);
+		console.error("Error handling guest workspace transfer:", error);
 		localStorage.removeItem("pending_migration");
 	}
 }
@@ -434,6 +456,51 @@ function handleMenuAction(action: string) {
 	}
 }
 
+async function handleWorkspaceChange(workspaceId: string) {
+	const selectedWorkspace = workspaces.find((w) => w.id === workspaceId);
+	if (selectedWorkspace && selectedWorkspace.id !== currentWorkspace?.id) {
+		currentWorkspace = selectedWorkspace;
+		manager.updateState({ currentWorkspace: selectedWorkspace });
+		await loadTasks();
+		await loadIntegrations();
+	}
+}
+
+async function handleCreateWorkspace() {
+	showWorkspaceCreateDialog = true;
+}
+
+async function handleCreateWorkspaceSubmit(name: string, description?: string) {
+	try {
+		const response = await fetch("/api/workspaces", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				name,
+				description,
+			}),
+		});
+
+		const data = await response.json();
+
+		if (response.ok) {
+			const newWorkspace = data.data;
+			workspaces = [...workspaces, newWorkspace];
+			currentWorkspace = newWorkspace;
+			manager.updateState({ currentWorkspace: newWorkspace });
+			await loadTasks();
+			await loadIntegrations();
+		} else {
+			throw new Error(data.error || "Failed to create workspace");
+		}
+	} catch (err) {
+		console.error("Error creating workspace:", err);
+		throw err; // Re-throw to let the dialog handle the error display
+	}
+}
+
 function handleGuestSignUp() {
 	manager.showAccountDialog();
 }
@@ -446,7 +513,7 @@ async function handleNotionLogin(migrateData: boolean): Promise<void> {
 
 	try {
 		// Store migration preference for after authentication
-		if (migrateData && tasks.length > 0) {
+		if (migrateData && (tasks.length > 0 || localStorage.getItem("guest-id"))) {
 			localStorage.setItem("pending_migration", "true");
 		} else {
 			localStorage.removeItem("pending_migration");
@@ -513,8 +580,12 @@ const contextTasks = $derived(
 	<!-- Top Menu -->
 	<TopMenu 
 		onMenuAction={handleMenuAction}
+		onWorkspaceChange={handleWorkspaceChange}
+		onCreateWorkspace={handleCreateWorkspace}
 		{isAuthenticated}
 		isGuestMode={$isGuestMode}
+		{workspaces}
+		{currentWorkspace}
 	/>
 
 	<!-- Main Content -->
@@ -596,3 +667,9 @@ const contextTasks = $derived(
 		onSignUp={handleGuestSignUp}
 	/>
 {/if}
+
+<!-- Workspace Creation Dialog -->
+<WorkspaceCreateDialog
+	bind:open={showWorkspaceCreateDialog}
+	onCreateWorkspace={handleCreateWorkspaceSubmit}
+/>

@@ -124,6 +124,78 @@ export class GuestUserService {
 	}
 
 	/**
+	 * Transfers guest workspace ownership to a permanent user (for new Notion users only)
+	 */
+	async transferGuestWorkspace(
+		guestId: string,
+		permanentUserId: string,
+	): Promise<{ success: boolean; workspaceId?: string; message: string }> {
+		// Validate inputs
+		if (
+			!guestId ||
+			typeof guestId !== "string" ||
+			guestId.trim().length === 0
+		) {
+			throw new Error("Guest ID is required and cannot be empty");
+		}
+		validateUserId(permanentUserId);
+
+		try {
+			// Get guest user to verify it exists and hasn't been migrated
+			const guestUser = await this.getGuestUser(guestId);
+			if (!guestUser) {
+				return {
+					success: false,
+					message: "Guest user not found or expired",
+				};
+			}
+
+			if (guestUser.migrated) {
+				return {
+					success: false,
+					message: "Guest user has already been migrated",
+				};
+			}
+
+			// Get all workspaces for the guest user
+			const guestWorkspaces =
+				await this.workspaceService.listWorkspaces(guestId);
+
+			if (guestWorkspaces.length === 0) {
+				return {
+					success: false,
+					message: "No guest workspace found to transfer",
+				};
+			}
+
+			// Transfer ownership of the first (primary) workspace
+			const primaryWorkspace = guestWorkspaces[0];
+			const transferredWorkspace =
+				await this.workspaceService.transferWorkspaceOwnership(
+					primaryWorkspace.id,
+					guestId,
+					permanentUserId,
+				);
+
+			// Mark the guest user as migrated
+			await this.markGuestAsMigrated(guestId);
+
+			return {
+				success: true,
+				workspaceId: transferredWorkspace.id,
+				message: "Guest workspace successfully transferred to permanent user",
+			};
+		} catch (error) {
+			console.error("Failed to transfer guest workspace:", error);
+			return {
+				success: false,
+				message:
+					error instanceof Error ? error.message : "Unknown error occurred",
+			};
+		}
+	}
+
+	/**
 	 * Migrates guest tasks to a permanent user account
 	 */
 	async migrateGuestTasks(

@@ -5,6 +5,7 @@ import {
 	QueryCommand,
 	UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
+import type { ExecutionStep } from "@notion-task-manager/core";
 import { getDynamoDBClient, getTableName } from "./client";
 
 /**
@@ -14,15 +15,9 @@ export type ExecutionStatus = "pending" | "done" | "fail";
 
 /**
  * Individual step taken by the agent during execution
+ * Re-export from core for backward compatibility
  */
-export interface ExecutionStep {
-	stepId: string;
-	toolName: string;
-	input: Record<string, unknown>;
-	output?: Record<string, unknown>;
-	error?: string;
-	timestamp: string;
-}
+export type { ExecutionStep } from "@notion-task-manager/core";
 
 /**
  * Result of a completed agent execution

@@ -1,17 +1,27 @@
 <script lang="ts">
+import type { Workspace } from "@notion-task-manager/db";
 import { DropdownMenu } from "bits-ui";
 import { Home, Menu, NotionLogo, Settings, User } from "./icons";
+import WorkspaceSelector from "./WorkspaceSelector.svelte";
 
 interface Props {
 	onMenuAction?: (action: string) => void;
+	onWorkspaceChange?: (workspaceId: string) => void;
+	onCreateWorkspace?: () => void;
 	isAuthenticated?: boolean;
 	isGuestMode?: boolean;
+	workspaces?: Workspace[];
+	currentWorkspace?: Workspace | null;
 }
 
 let {
 	onMenuAction,
+	onWorkspaceChange,
+	onCreateWorkspace,
 	isAuthenticated = false,
 	isGuestMode = false,
+	workspaces = [],
+	currentWorkspace = null,
 }: Props = $props();
 
 // Menu state management
@@ -39,8 +49,18 @@ function handleKeyDown(event: KeyboardEvent) {
 <div class="sticky top-0 z-50 bg-surface-base border-b border-subtle-base">
 	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 		<div class="flex items-center justify-between h-14">
-			<div class="flex items-center">
+			<div class="flex items-center gap-4">
 				<h1 class="text-lg font-semibold text-foreground-base">TaskFlow</h1>
+				
+				<!-- Workspace Selector - Only show for authenticated users with multiple workspaces or ability to create -->
+				{#if isAuthenticated && !isGuestMode}
+					<WorkspaceSelector
+						{workspaces}
+						{currentWorkspace}
+						{onWorkspaceChange}
+						{onCreateWorkspace}
+					/>
+				{/if}
 			</div>
 			
 			<!-- Dropdown Menu -->

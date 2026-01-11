@@ -6,15 +6,16 @@ import {
 	QueryCommand,
 	UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
-import { getDynamoDBClient, getTableName } from "./client";
 import type {
 	CreateTaskInput,
+	TaskService as ITaskService,
 	ListTasksOptions,
 	PaginatedResult,
 	Task,
 	TaskStatus,
 	UpdateTaskInput,
-} from "./types";
+} from "@notion-task-manager/core";
+import { getDynamoDBClient, getTableName } from "./client";
 import {
 	validateCreateTaskInput,
 	validateTaskId,
@@ -22,7 +23,7 @@ import {
 	validateWorkspaceId,
 } from "./validation";
 
-export class TaskService {
+export class TaskService implements ITaskService {
 	private client = getDynamoDBClient();
 	private get tableName() {
 		return getTableName("tasks");
