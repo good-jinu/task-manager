@@ -61,6 +61,23 @@ const {
 							notionRefreshToken: account.refresh_token || undefined,
 							tokenExpiresAt,
 						});
+
+						// Create a default workspace for new users
+						try {
+							const { WorkspaceService } = await import(
+								"@notion-task-manager/db"
+							);
+							const workspaceService = new WorkspaceService();
+							await workspaceService.createWorkspace(dbUser.id, {
+								name: "My Tasks",
+							});
+						} catch (workspaceError) {
+							console.error(
+								"Failed to create default workspace:",
+								workspaceError,
+							);
+							// Don't fail the sign-in process if workspace creation fails
+						}
 					} else {
 						// Update existing user with fresh tokens
 						dbUser = await userService.updateUser(dbUser.id, {

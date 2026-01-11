@@ -20,7 +20,8 @@ let {
 
 let migrateData = $state(true);
 let isLoggingIn = $state(false);
-let step = $state<"confirm" | "logging-in" | "success">("confirm");
+let step = $state<"confirm" | "logging-in" | "success" | "error">("confirm");
+let errorMessage = $state("");
 
 // Reset state when dialog opens/closes
 $effect(() => {
@@ -28,6 +29,7 @@ $effect(() => {
 		step = "confirm";
 		migrateData = true;
 		isLoggingIn = false;
+		errorMessage = "";
 	}
 });
 
@@ -47,8 +49,11 @@ async function handleNotionLogin() {
 		}, 2000);
 	} catch (error) {
 		console.error("Notion login failed:", error);
-		step = "confirm";
-		// Could show error message here
+		step = "error";
+		errorMessage =
+			error instanceof Error
+				? error.message
+				: "Failed to connect to Notion. Please try again.";
 	} finally {
 		isLoggingIn = false;
 	}
@@ -180,6 +185,37 @@ function handleClose() {
 							Welcome to your connected task management workspace!
 						{/if}
 					</Dialog.Description>
+				</div>
+
+			{:else if step === 'error'}
+				<!-- Error state -->
+				<div class="text-center py-8">
+					<div class="w-16 h-16 bg-error-alert-bg rounded-full flex items-center justify-center mx-auto mb-4">
+						<Close class="w-8 h-8 text-error" />
+					</div>
+					<Dialog.Title class="text-lg font-medium text-foreground-base mb-2">
+						Connection Failed
+					</Dialog.Title>
+					<Dialog.Description class="text-sm text-foreground-secondary mb-6">
+						{errorMessage}
+					</Dialog.Description>
+					<div class="flex flex-col gap-3">
+						<Button
+							onclick={() => { step = "confirm"; errorMessage = ""; }}
+							variant="primary"
+							class="w-full"
+						>
+							Try Again
+						</Button>
+						<Dialog.Close>
+							<Button
+								variant="outline"
+								class="w-full"
+							>
+								Cancel
+							</Button>
+						</Dialog.Close>
+					</div>
 				</div>
 			{/if}
 		</Dialog.Content>

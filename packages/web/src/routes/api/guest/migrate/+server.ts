@@ -7,7 +7,7 @@ const guestUserService = new GuestUserService();
 export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 	try {
 		// Check if user is authenticated
-		const session = await locals.getSession();
+		const session = await locals.auth();
 		if (!session?.user?.id) {
 			return json(
 				{
@@ -18,31 +18,29 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 			);
 		}
 
-		const { guestId } = await request.json();
+		const { tasks } = await request.json();
 
-		if (
-			!guestId ||
-			typeof guestId !== "string" ||
-			!guestId.startsWith("guest_")
-		) {
+		if (!tasks || !Array.isArray(tasks)) {
 			return json(
 				{
 					success: false,
-					error: "Valid guest ID is required",
+					error: "Tasks array is required",
 				},
 				{ status: 400 },
 			);
 		}
 
-		// Verify the guest user exists
-		const guestUser = await guestUserService.getGuestUser(guestId);
-		if (!guestUser) {
+		// Get guest ID from cookie or header
+		const guestId =
+			request.headers.get("x-guest-id") || cookies.get("guest-id");
+
+		if (!guestId) {
 			return json(
 				{
 					success: false,
-					error: "Guest user not found",
+					error: "Guest ID not found",
 				},
-				{ status: 404 },
+				{ status: 400 },
 			);
 		}
 

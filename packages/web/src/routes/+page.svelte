@@ -1,4 +1,5 @@
 <script lang="ts">
+import { signIn } from "@auth/sveltekit/client";
 import type { Task, Workspace } from "@notion-task-manager/db";
 import { onDestroy, onMount } from "svelte";
 import { browser } from "$app/environment";
@@ -105,7 +106,12 @@ onMount(() => {
 		await performanceMonitor.measure("app_initialization", async () => {
 			if (isAuthenticated) {
 				await loadWorkspaces();
-				await manager.loadIntegrations(currentWorkspace?.id || "");
+				// Integration loading will happen after workspace is set in loadWorkspaces/createDefaultWorkspace
+
+				// Check for pending guest data migration
+				if (browser && localStorage.getItem("pending_migration") === "true") {
+					await handlePendingMigration();
+				}
 
 				// Check for OAuth success parameters
 				if (browser) {
@@ -276,6 +282,10 @@ async function loadWorkspaces() {
 				currentWorkspace = workspaces[0];
 				manager.updateState({ currentWorkspace: workspaces[0] });
 				await loadTasks();
+				await loadIntegrations();
+			} else {
+				// No workspaces exist, create a default one
+				await createDefaultWorkspace();
 			}
 		} else {
 			error = data.error || "Failed to load workspaces";
@@ -283,6 +293,68 @@ async function loadWorkspaces() {
 	} catch (err) {
 		error = "Failed to load workspaces";
 		console.error("Error loading workspaces:", err);
+	}
+}
+
+async function createDefaultWorkspace() {
+	try {
+		const response = await fetch("/api/workspaces", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				name: "My Tasks",
+			}),
+		});
+
+		const data = await response.json();
+
+		if (response.ok) {
+			currentWorkspace = data.data;
+			manager.updateState({ currentWorkspace: data.data });
+			await loadTasks();
+			await loadIntegrations();
+		} else {
+			error = data.error || "Failed to create default workspace";
+		}
+	} catch (err) {
+		error = "Failed to create default workspace";
+		console.error("Error creating default workspace:", err);
+	}
+}
+
+async function handlePendingMigration() {
+	try {
+		// Get guest tasks from localStorage
+		const guestBackup = localStorage.getItem("guest-backup");
+		if (!guestBackup) {
+			localStorage.removeItem("pending_migration");
+			return;
+		}
+
+		const backupData = JSON.parse(guestBackup);
+		const guestTasks = backupData.tasks || [];
+
+		if (guestTasks.length > 0) {
+			console.log(`Migrating ${guestTasks.length} guest tasks...`);
+			const migrationSuccess =
+				await guestUserService.migrateGuestData(guestTasks);
+
+			if (migrationSuccess) {
+				console.log("Guest data migration completed successfully");
+				// Reload workspaces and tasks to show migrated data
+				await loadWorkspaces();
+			} else {
+				console.warn("Guest data migration failed");
+			}
+		}
+
+		// Clear pending migration flag
+		localStorage.removeItem("pending_migration");
+	} catch (error) {
+		console.error("Error handling pending migration:", error);
+		localStorage.removeItem("pending_migration");
 	}
 }
 
@@ -368,6 +440,31 @@ function handleMenuAction(action: string) {
 
 function handleGuestSignUp() {
 	manager.showAccountDialog();
+}
+
+// Handle Notion login with guest data migration
+async function handleNotionLogin(migrateData: boolean): Promise<void> {
+	if (!browser) {
+		throw new Error("Login can only be initiated from the browser");
+	}
+
+	try {
+		// Store migration preference for after authentication
+		if (migrateData && tasks.length > 0) {
+			localStorage.setItem("pending_migration", "true");
+		} else {
+			localStorage.removeItem("pending_migration");
+		}
+
+		// Initiate Notion OAuth flow
+		await signIn("notion", {
+			callbackUrl: window.location.origin,
+			redirect: true,
+		});
+	} catch (error) {
+		console.error("Notion login failed:", error);
+		throw error;
+	}
 }
 
 async function handleOpenSettingsDrawer() {
@@ -485,7 +582,7 @@ const contextTasks = $derived(
 	bind:open={showAccountDialog}
 	guestTasks={tasks}
 	onOpenChange={(open) => showAccountDialog = open}
-	onNotionLogin={async () => { showAccountDialog = false; }}
+	onNotionLogin={handleNotionLogin}
 />
 
 <!-- Settings Drawer -->

@@ -4,6 +4,7 @@
  */
 
 import type { Task, Workspace } from "@notion-task-manager/db";
+import { browser } from "$app/environment";
 import {
 	guestUser,
 	isGuestMode,
@@ -154,41 +155,39 @@ export class GuestUserService {
 	/**
 	 * Attempt to recover guest session from server
 	 */
-	private async attemptServerRecovery(guestId: string): Promise<{
-		success: boolean;
-		workspace: Workspace;
-		tasks: Task[];
-	}> {
+	private async attemptServerRecovery(guestId: string): Promise<
+		| {
+				success: true;
+				workspace: Workspace;
+				tasks: Task[];
+		  }
+		| {
+				success: false;
+		  }
+	> {
 		try {
-			// Try to fetch guest workspace
-			const workspaceResponse = await fetch("/api/guest/workspace", {
+			// Try to fetch guest tasks directly - the tasks endpoint handles guest users
+			const tasksResponse = await fetch("/api/tasks", {
 				headers: {
 					"x-guest-id": guestId,
 				},
 			});
 
-			if (!workspaceResponse.ok) {
-				return { success: false, workspace: null as any, tasks: [] };
+			if (!tasksResponse.ok) {
+				return { success: false };
 			}
 
-			const workspaceData = await workspaceResponse.json();
-			const workspace = workspaceData.workspace;
+			const tasksData = await tasksResponse.json();
+			const tasks = tasksData.data?.items || [];
 
-			// Try to fetch guest tasks
-			const tasksResponse = await fetch(
-				`/api/tasks?workspaceId=${workspace.id}`,
-				{
-					headers: {
-						"x-guest-id": guestId,
-					},
-				},
-			);
-
-			let tasks: Task[] = [];
-			if (tasksResponse.ok) {
-				const tasksData = await tasksResponse.json();
-				tasks = tasksData.data?.items || [];
-			}
+			// Create a default workspace for the guest user
+			const workspace: Workspace = {
+				id: `guest-workspace-${guestId}`,
+				name: "My Tasks",
+				userId: guestId,
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+			};
 
 			return {
 				success: true,
@@ -197,7 +196,7 @@ export class GuestUserService {
 			};
 		} catch (error) {
 			console.error("Server recovery failed:", error);
-			return { success: false, workspace: null as any, tasks: [] };
+			return { success: false };
 		}
 	}
 
@@ -226,15 +225,13 @@ export class GuestUserService {
 	}
 
 	/**
-	 * Check if user is already a registered guest (has cookie)
+	 * Get guest task count from local storage or return 0
 	 */
 	async getGuestTaskCount(): Promise<number> {
 		try {
-			const response = await fetch("/api/guest/task-count");
-			if (response.ok) {
-				const data = await response.json();
-				return data.count || 0;
-			}
+			// Since the API endpoint doesn't exist, get count from local storage
+			const localData = loadGuestDataLocally();
+			return localData?.tasks?.length || 0;
 		} catch (error) {
 			console.error("Failed to get guest task count:", error);
 		}
@@ -245,11 +242,30 @@ export class GuestUserService {
 	 * Migrate guest data to authenticated account
 	 */
 	async migrateGuestData(guestTasks: Task[]): Promise<boolean> {
+		if (!browser) {
+			console.warn("Migration can only be performed in browser environment");
+			return false;
+		}
+
 		try {
+			// Get guest ID from localStorage or cookie
+			const guestId =
+				localStorage.getItem("taskflow_guest_id") ||
+				document.cookie
+					.split("; ")
+					.find((row) => row.startsWith("guest-id="))
+					?.split("=")[1];
+
+			if (!guestId) {
+				console.warn("No guest ID found for migration");
+				return false;
+			}
+
 			const response = await fetch("/api/guest/migrate", {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
+					"x-guest-id": guestId,
 				},
 				body: JSON.stringify({
 					tasks: guestTasks,
@@ -259,9 +275,14 @@ export class GuestUserService {
 			if (response.ok) {
 				// Clear guest data after successful migration
 				localStorage.removeItem("guest-backup");
+				localStorage.removeItem("taskflow_guest_id");
+				localStorage.removeItem("taskflow_guest_workspace");
 				isGuestMode.set(false);
 				guestUser.set(null);
 				return true;
+			} else {
+				const errorData = await response.json();
+				console.error("Migration failed:", errorData.error);
 			}
 		} catch (error) {
 			console.error("Failed to migrate guest data:", error);
