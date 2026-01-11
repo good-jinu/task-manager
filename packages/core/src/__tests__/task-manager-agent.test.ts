@@ -44,25 +44,11 @@ describe("TaskManagerAgent", () => {
 	it("should handle execution parameters correctly", async () => {
 		// Mock the generateText function to return a simple response
 		const { generateText } = await import("ai");
-		const mockResponse = {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		vi.mocked(generateText).mockResolvedValue({
 			text: "Task processed successfully",
-			content: "Task processed successfully",
-			toolCalls: [],
-			toolResults: [],
-			usage: {},
-			response: {},
-			finishReason: "stop",
-			warnings: [],
-			files: [],
-			steps: [],
-			sources: [],
-			staticToolCalls: [],
-			dynamicToolCalls: [],
-			staticToolResults: [],
-			dynamicToolResults: [],
-			roundtrips: [],
-		} as any; // Use any for test mocking
-		vi.mocked(generateText).mockResolvedValue(mockResponse);
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		} as any); // Use any for test mocking since we only need the text property
 
 		const params = {
 			userId: "test-user",

@@ -53,16 +53,16 @@ export function getTableNames() {
 	try {
 		return {
 			// biome-ignore-start lint/suspicious/noExplicitAny: Resource for any
-			users: (Resource as any).UsersTable.name,
-			databaseConfigs: (Resource as any).DatabaseConfigsTable.name,
-			agentExecutions: (Resource as any).AgentExecutionsTable.name,
-			tasks: (Resource as any).TasksTable.name,
-			workspaces: (Resource as any).WorkspacesTable.name,
-			integrations: (Resource as any).IntegrationsTable.name,
-			syncMetadata: (Resource as any).SyncMetadataTable.name,
-			guestUsers: (Resource as any).GuestUsersTable.name,
-			syncStatistics: (Resource as any).SyncStatisticsTable.name,
-			syncHistory: (Resource as any).SyncHistoryTable.name,
+			users: (Resource as any).UsersTable?.name,
+			databaseConfigs: (Resource as any).DatabaseConfigsTable?.name,
+			agentExecutions: (Resource as any).AgentExecutionsTable?.name,
+			tasks: (Resource as any).TasksTable?.name,
+			workspaces: (Resource as any).WorkspacesTable?.name,
+			integrations: (Resource as any).IntegrationsTable?.name,
+			syncMetadata: (Resource as any).SyncMetadataTable?.name,
+			guestUsers: (Resource as any).GuestUsersTable?.name,
+			syncStatistics: (Resource as any).SyncStatisticsTable?.name,
+			syncHistory: (Resource as any).SyncHistoryTable?.name,
 			// biome-ignore-end lint/suspicious/noExplicitAny: Resource for any
 		};
 	} catch (_error) {
@@ -89,11 +89,21 @@ type TableNames = {
  */
 export function getTableName(tableName: keyof TableNames): string {
 	const tableNames = getTableNames();
-	if (!tableNames) {
-		// Fallback for build time - use environment variable or placeholder
-		return (
-			process.env[`${tableName.toUpperCase()}_TABLE_NAME`] ||
-			`placeholder-${tableName}`
+	if (!tableNames || !tableNames[tableName]) {
+		// Fallback for build time or missing resources - use environment variable or placeholder
+		const envVarName = `${tableName.toUpperCase()}_TABLE_NAME`;
+		const envValue = process.env[envVarName];
+		if (envValue) {
+			return envValue;
+		}
+
+		// If no environment variable, throw a more descriptive error
+		throw new Error(
+			`Table resource '${tableName}' not found. This might indicate:\n` +
+				`1. The SST stack is not deployed yet\n` +
+				`2. The table is not defined in sst.config.ts\n` +
+				`3. The environment variable '${envVarName}' is not set\n` +
+				`Please deploy the SST stack or check your configuration.`,
 		);
 	}
 	return tableNames[tableName];

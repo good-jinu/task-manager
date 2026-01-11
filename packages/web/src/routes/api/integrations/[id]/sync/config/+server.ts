@@ -99,7 +99,7 @@ export const PUT: RequestHandler = async (event) => {
 			if (validFields.includes(key)) {
 				const typedKey = key as keyof SyncTimingOptions;
 				if (value !== undefined) {
-					(filteredUpdates as any)[typedKey] = value;
+					(filteredUpdates as Record<string, unknown>)[typedKey] = value;
 				}
 			}
 		}

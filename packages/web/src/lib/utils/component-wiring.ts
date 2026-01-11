@@ -47,7 +47,11 @@ export type ComponentEvent =
 	| { type: "sync_completed"; integrationId: string; success: boolean }
 	| { type: "guest_upgrade_prompted"; feature: string }
 	| { type: "guest_account_created"; guestId: string; userId: string }
-	| { type: "error_occurred"; error: any; context?: Record<string, unknown> }
+	| {
+			type: "error_occurred";
+			error: Error | string;
+			context?: Record<string, unknown>;
+	  }
 	| {
 			type: "performance_measured";
 			metric: string;
@@ -444,7 +448,11 @@ export class ComponentWiringManager {
 		}
 
 		// Emit error event
-		this.emit({ type: "error_occurred", error, context });
+		this.emit({
+			type: "error_occurred",
+			error: error instanceof Error ? error : String(error),
+			context,
+		});
 	}
 
 	/**
@@ -545,7 +553,7 @@ export class ComponentLogger {
 	private logs: Array<{
 		timestamp: Date;
 		type: "event" | "state_change" | "performance" | "error";
-		data: any;
+		data: ComponentEvent | ComponentState | Record<string, unknown> | Error;
 	}> = [];
 
 	private maxLogs = 1000;
@@ -619,7 +627,11 @@ export class ComponentLogger {
 		}
 	}
 
-	getLogs(): Array<{ timestamp: Date; type: string; data: any }> {
+	getLogs(): Array<{
+		timestamp: Date;
+		type: string;
+		data: ComponentEvent | ComponentState | Record<string, unknown> | Error;
+	}> {
 		return [...this.logs];
 	}
 
@@ -633,7 +645,7 @@ export class ComponentLogger {
 
 	private addLog(
 		type: "event" | "state_change" | "performance" | "error",
-		data: any,
+		data: ComponentEvent | ComponentState | Record<string, unknown> | Error,
 	): void {
 		this.logs.unshift({
 			timestamp: new Date(),
@@ -650,8 +662,8 @@ export class ComponentLogger {
 	private getStateChanges(
 		previous: ComponentState,
 		current: ComponentState,
-	): Record<string, { from: any; to: any }> {
-		const changes: Record<string, { from: any; to: any }> = {};
+	): Record<string, { from: unknown; to: unknown }> {
+		const changes: Record<string, { from: unknown; to: unknown }> = {};
 
 		for (const key in current) {
 			const currentValue = current[key as keyof ComponentState];
@@ -743,7 +755,9 @@ export class PerformanceMonitor {
 			this.metrics.set(name, []);
 		}
 
-		const measurements = this.metrics.get(name)!;
+		const measurements = this.metrics.get(name);
+		if (!measurements) return;
+
 		measurements.push(duration);
 
 		// Keep only the last 100 measurements

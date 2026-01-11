@@ -112,6 +112,28 @@ export default $config({
 			ttl: "expiresAt", // Enable TTL on expiresAt field
 		});
 
+		const syncStatisticsTable = new sst.aws.Dynamo("SyncStatisticsTable", {
+			fields: {
+				integrationId: "string", // Primary key (Foreign key to integration)
+			},
+			primaryIndex: { hashKey: "integrationId" },
+		});
+
+		const syncHistoryTable = new sst.aws.Dynamo("SyncHistoryTable", {
+			fields: {
+				id: "string", // Primary key (UUID)
+				integrationId: "string", // Foreign key to integration
+				createdAt: "string", // For sorting by creation time
+			},
+			primaryIndex: { hashKey: "id" },
+			globalIndexes: {
+				"integrationId-index": {
+					hashKey: "integrationId",
+					rangeKey: "createdAt",
+				},
+			},
+		});
+
 		// Domain configuration from environment variables
 		const webDomain = process.env.WEB_DOMAIN;
 
@@ -128,6 +150,8 @@ export default $config({
 				integrationsTable,
 				syncMetadataTable,
 				guestUsersTable,
+				syncStatisticsTable,
+				syncHistoryTable,
 			],
 			environment: {
 				// Authentication
@@ -164,6 +188,8 @@ export default $config({
 			integrationsTable: integrationsTable.name,
 			syncMetadataTable: syncMetadataTable.name,
 			guestUsersTable: guestUsersTable.name,
+			syncStatisticsTable: syncStatisticsTable.name,
+			syncHistoryTable: syncHistoryTable.name,
 		};
 	},
 });

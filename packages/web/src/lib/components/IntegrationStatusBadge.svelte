@@ -182,7 +182,7 @@ const iconSizes = {
 };
 
 // Format last sync time
-const lastSyncText = $derived(() => {
+const lastSyncText = $derived.by(() => {
 	const lastSync =
 		integrationStatus?.lastSyncAt ||
 		(integration?.lastSyncAt ? new Date(integration.lastSyncAt) : null);

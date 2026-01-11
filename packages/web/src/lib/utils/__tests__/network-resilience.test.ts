@@ -8,12 +8,18 @@ import { errorStateManager } from "../error-handling";
 import {
 	getNetworkStatusIndicator,
 	NetworkResilienceManager,
+	type NetworkStatus,
 	networkResilienceManager,
+	type RetryConfig,
 	resilientFetch,
 	resilientOAuthOperation,
 	resilientSyncOperation,
 	withRetry,
 } from "../network-resilience";
+
+// Type for accessing private methods in tests
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type NetworkResilienceManagerTestAccess = any;
 
 // Mock fetch for testing
 const mockFetch = vi.fn();
@@ -37,6 +43,11 @@ Object.defineProperty(global, "window", {
 	},
 	writable: true,
 });
+
+// Type for navigator with onLine property
+interface NavigatorWithOnLine extends Navigator {
+	onLine: boolean;
+}
 
 // Mock sessionStorage
 Object.defineProperty(global, "sessionStorage", {
@@ -70,7 +81,7 @@ describe("NetworkResilienceManager", () => {
 
 		it("should detect online status from navigator", () => {
 			// Simulate online status
-			(global.navigator as any).onLine = true;
+			(global.navigator as NavigatorWithOnLine).onLine = true;
 			const newManager = new NetworkResilienceManager();
 
 			// Should detect online status
@@ -80,7 +91,7 @@ describe("NetworkResilienceManager", () => {
 
 		it("should detect offline status from navigator", () => {
 			// Simulate offline status
-			(global.navigator as any).onLine = false;
+			(global.navigator as NavigatorWithOnLine).onLine = false;
 			const newManager = new NetworkResilienceManager();
 
 			// Should detect offline status
@@ -94,7 +105,9 @@ describe("NetworkResilienceManager", () => {
 			const operation = vi.fn().mockResolvedValue("success");
 
 			// Set offline status
-			(manager as any).updateNetworkStatus("offline");
+			(manager as NetworkResilienceManagerTestAccess).updateNetworkStatus(
+				"offline",
+			);
 
 			const operationId = manager.queueOperation("sync", operation);
 
@@ -107,7 +120,9 @@ describe("NetworkResilienceManager", () => {
 			const operation = vi.fn().mockResolvedValue("success");
 
 			// Set online status
-			(manager as any).updateNetworkStatus("online");
+			(manager as NetworkResilienceManagerTestAccess).updateNetworkStatus(
+				"online",
+			);
 
 			manager.queueOperation("sync", operation);
 
@@ -119,7 +134,9 @@ describe("NetworkResilienceManager", () => {
 
 		it("should respect queue size limits", () => {
 			// Set offline status
-			(manager as any).updateNetworkStatus("offline");
+			(manager as NetworkResilienceManagerTestAccess).updateNetworkStatus(
+				"offline",
+			);
 
 			// Fill queue beyond limit
 			for (let i = 0; i < 105; i++) {
@@ -135,7 +152,9 @@ describe("NetworkResilienceManager", () => {
 
 		it("should prioritize high-priority operations", () => {
 			// Set offline status
-			(manager as any).updateNetworkStatus("offline");
+			(manager as NetworkResilienceManagerTestAccess).updateNetworkStatus(
+				"offline",
+			);
 
 			manager.queueOperation("sync", vi.fn(), {}, 0); // Low priority
 			manager.queueOperation("oauth", vi.fn(), {}, 10); // High priority
@@ -150,39 +169,63 @@ describe("NetworkResilienceManager", () => {
 
 	describe("Retry Logic", () => {
 		it("should implement exponential backoff", () => {
-			const config = (manager as any).retryConfigs.sync;
+			const config = (manager as NetworkResilienceManagerTestAccess)
+				.retryConfigs.sync;
 
-			const delay1 = (manager as any).calculateRetryDelay(1, config);
-			const delay2 = (manager as any).calculateRetryDelay(2, config);
-			const delay3 = (manager as any).calculateRetryDelay(3, config);
+			const delay1 = (
+				manager as NetworkResilienceManagerTestAccess
+			).calculateRetryDelay(1, config);
+			const delay2 = (
+				manager as NetworkResilienceManagerTestAccess
+			).calculateRetryDelay(2, config);
+			const delay3 = (
+				manager as NetworkResilienceManagerTestAccess
+			).calculateRetryDelay(3, config);
 
 			expect(delay2).toBeGreaterThan(delay1);
 			expect(delay3).toBeGreaterThan(delay2);
 		});
 
 		it("should respect maximum delay", () => {
-			const config = (manager as any).retryConfigs.sync;
+			const config = (manager as NetworkResilienceManagerTestAccess)
+				.retryConfigs.sync;
 
-			const delay = (manager as any).calculateRetryDelay(10, config);
+			const delay = (
+				manager as NetworkResilienceManagerTestAccess
+			).calculateRetryDelay(10, config);
 
 			expect(delay).toBeLessThanOrEqual(config.maxDelay);
 		});
 
 		it("should add jitter when configured", () => {
-			const config = { ...(manager as any).retryConfigs.sync, jitter: true };
+			const config = {
+				...(manager as NetworkResilienceManagerTestAccess).retryConfigs.sync,
+				jitter: true,
+			};
 
-			const delay1 = (manager as any).calculateRetryDelay(1, config);
-			const delay2 = (manager as any).calculateRetryDelay(1, config);
+			const delay1 = (
+				manager as NetworkResilienceManagerTestAccess
+			).calculateRetryDelay(1, config);
+			const delay2 = (
+				manager as NetworkResilienceManagerTestAccess
+			).calculateRetryDelay(1, config);
 
 			// With jitter, delays should be different
 			expect(delay1).not.toBe(delay2);
 		});
 
 		it("should not add jitter when disabled", () => {
-			const config = { ...(manager as any).retryConfigs.sync, jitter: false };
+			const config = {
+				...(manager as NetworkResilienceManagerTestAccess).retryConfigs.sync,
+				jitter: false,
+			};
 
-			const delay1 = (manager as any).calculateRetryDelay(1, config);
-			const delay2 = (manager as any).calculateRetryDelay(1, config);
+			const delay1 = (
+				manager as NetworkResilienceManagerTestAccess
+			).calculateRetryDelay(1, config);
+			const delay2 = (
+				manager as NetworkResilienceManagerTestAccess
+			).calculateRetryDelay(1, config);
 
 			// Without jitter, delays should be the same
 			expect(delay1).toBe(delay2);
@@ -194,7 +237,9 @@ describe("NetworkResilienceManager", () => {
 			const operation = vi.fn().mockRejectedValue(new Error("Test error"));
 
 			// Set online status
-			(manager as any).updateNetworkStatus("online");
+			(manager as NetworkResilienceManagerTestAccess).updateNetworkStatus(
+				"online",
+			);
 
 			const operationId = manager.queueOperation("api_call", operation);
 
@@ -209,7 +254,9 @@ describe("NetworkResilienceManager", () => {
 			const operation = vi.fn().mockRejectedValue(new Error("Test error"));
 
 			// Set online status
-			(manager as any).updateNetworkStatus("online");
+			(manager as NetworkResilienceManagerTestAccess).updateNetworkStatus(
+				"online",
+			);
 
 			manager.queueOperation("sync", operation);
 
@@ -244,7 +291,9 @@ describe("Utility Functions", () => {
 			const operation = vi.fn().mockResolvedValue("success");
 
 			// Set offline status
-			(networkResilienceManager as any).updateNetworkStatus("offline");
+			(
+				networkResilienceManager as NetworkResilienceManagerTestAccess
+			).updateNetworkStatus("offline");
 
 			// This should queue the operation
 			const promise = withRetry(operation);
@@ -253,7 +302,9 @@ describe("Utility Functions", () => {
 			expect(networkResilienceManager.getQueuedOperations()).toHaveLength(1);
 
 			// Bring network back online
-			(networkResilienceManager as any).updateNetworkStatus("online");
+			(
+				networkResilienceManager as NetworkResilienceManagerTestAccess
+			).updateNetworkStatus("online");
 
 			// Wait for operation to complete
 			await new Promise((resolve) => setTimeout(resolve, 50));
@@ -316,7 +367,9 @@ describe("Utility Functions", () => {
 			const operation = vi.fn().mockResolvedValue("sync success");
 
 			// Set offline status
-			(networkResilienceManager as any).updateNetworkStatus("offline");
+			(
+				networkResilienceManager as NetworkResilienceManagerTestAccess
+			).updateNetworkStatus("offline");
 
 			const promise = resilientSyncOperation(
 				operation,
@@ -351,7 +404,9 @@ describe("Utility Functions", () => {
 			const operation = vi.fn().mockResolvedValue("oauth success");
 
 			// Set offline status
-			(networkResilienceManager as any).updateNetworkStatus("offline");
+			(
+				networkResilienceManager as NetworkResilienceManagerTestAccess
+			).updateNetworkStatus("offline");
 
 			const promise = resilientOAuthOperation(
 				operation,
@@ -376,7 +431,9 @@ describe("Network Status Indicator", () => {
 	});
 
 	it("should return correct indicator for online status", () => {
-		(networkResilienceManager as any).updateNetworkStatus("online");
+		(
+			networkResilienceManager as NetworkResilienceManagerTestAccess
+		).updateNetworkStatus("online");
 
 		const indicator = getNetworkStatusIndicator();
 
@@ -387,7 +444,9 @@ describe("Network Status Indicator", () => {
 	});
 
 	it("should return correct indicator for offline status", () => {
-		(networkResilienceManager as any).updateNetworkStatus("offline");
+		(
+			networkResilienceManager as NetworkResilienceManagerTestAccess
+		).updateNetworkStatus("offline");
 
 		const indicator = getNetworkStatusIndicator();
 
@@ -398,7 +457,9 @@ describe("Network Status Indicator", () => {
 	});
 
 	it("should return correct indicator for slow connection", () => {
-		(networkResilienceManager as any).updateNetworkStatus("slow");
+		(
+			networkResilienceManager as NetworkResilienceManagerTestAccess
+		).updateNetworkStatus("slow");
 
 		const indicator = getNetworkStatusIndicator();
 
@@ -409,7 +470,9 @@ describe("Network Status Indicator", () => {
 	});
 
 	it("should show queued operations count", () => {
-		(networkResilienceManager as any).updateNetworkStatus("offline");
+		(
+			networkResilienceManager as NetworkResilienceManagerTestAccess
+		).updateNetworkStatus("offline");
 
 		// Add some operations to queue
 		networkResilienceManager.queueOperation("sync", vi.fn());
@@ -430,7 +493,9 @@ describe("Integration with Error Handling", () => {
 	});
 
 	it("should add error when going offline", () => {
-		(networkResilienceManager as any).updateNetworkStatus("offline");
+		(
+			networkResilienceManager as NetworkResilienceManagerTestAccess
+		).updateNetworkStatus("offline");
 
 		const errors = errorStateManager.getErrors();
 		expect(errors).toHaveLength(1);
@@ -440,11 +505,15 @@ describe("Integration with Error Handling", () => {
 
 	it("should clear errors when coming back online", () => {
 		// Go offline first
-		(networkResilienceManager as any).updateNetworkStatus("offline");
+		(
+			networkResilienceManager as NetworkResilienceManagerTestAccess
+		).updateNetworkStatus("offline");
 		expect(errorStateManager.getErrors()).toHaveLength(1);
 
 		// Come back online
-		(networkResilienceManager as any).updateNetworkStatus("online");
+		(
+			networkResilienceManager as NetworkResilienceManagerTestAccess
+		).updateNetworkStatus("online");
 
 		// Network errors should be cleared
 		const networkErrors = errorStateManager.getErrorsByType("network");
@@ -453,7 +522,9 @@ describe("Integration with Error Handling", () => {
 
 	it("should show recovery message when coming back online with queued operations", () => {
 		// Add operations to queue while offline
-		(networkResilienceManager as any).updateNetworkStatus("offline");
+		(
+			networkResilienceManager as NetworkResilienceManagerTestAccess
+		).updateNetworkStatus("offline");
 		networkResilienceManager.queueOperation("sync", vi.fn());
 		networkResilienceManager.queueOperation("api_call", vi.fn());
 
@@ -461,7 +532,9 @@ describe("Integration with Error Handling", () => {
 		errorStateManager.clearErrors();
 
 		// Come back online
-		(networkResilienceManager as any).updateNetworkStatus("online");
+		(
+			networkResilienceManager as NetworkResilienceManagerTestAccess
+		).updateNetworkStatus("online");
 
 		// Should show recovery message
 		const errors = errorStateManager.getErrors();

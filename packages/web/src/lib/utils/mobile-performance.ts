@@ -3,6 +3,14 @@
  * Provides touch gesture optimization, reduced motion support, and performance monitoring
  */
 
+// Extended navigator interface for device memory and connection
+interface ExtendedNavigator extends Navigator {
+	deviceMemory?: number;
+	connection?: {
+		effectiveType?: string;
+	};
+}
+
 export interface TouchGestureConfig {
 	swipeThreshold: number;
 	tapTimeout: number;
@@ -30,21 +38,40 @@ export interface MobileCapabilities {
  * Detect mobile capabilities and preferences
  */
 export function detectMobileCapabilities(): MobileCapabilities {
-	const hasTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
-	const hasHaptics = "vibrate" in navigator;
+	// Return default values during SSR
+	if (typeof window === "undefined") {
+		return {
+			hasTouch: false,
+			hasHaptics: false,
+			prefersReducedMotion: false,
+			isLowEndDevice: false,
+			connectionType: "unknown",
+			devicePixelRatio: 1,
+		};
+	}
+
+	const hasTouch =
+		"ontouchstart" in window ||
+		(typeof navigator !== "undefined" && navigator.maxTouchPoints > 0);
+	const hasHaptics = typeof navigator !== "undefined" && "vibrate" in navigator;
 	const prefersReducedMotion = window.matchMedia(
 		"(prefers-reduced-motion: reduce)",
 	).matches;
 
 	// Detect low-end devices based on hardware concurrency and memory
 	const isLowEndDevice = (() => {
+		if (typeof navigator === "undefined") return false;
+
 		const hardwareConcurrency = navigator.hardwareConcurrency || 1;
-		const deviceMemory = (navigator as any).deviceMemory || 1;
+		const deviceMemory = (navigator as ExtendedNavigator).deviceMemory || 1;
 		return hardwareConcurrency <= 2 || deviceMemory <= 2;
 	})();
 
 	// Get connection type if available
-	const connection = (navigator as any).connection;
+	const connection =
+		typeof navigator !== "undefined"
+			? (navigator as ExtendedNavigator).connection
+			: null;
 	const connectionType = connection
 		? connection.effectiveType || "unknown"
 		: "unknown";
@@ -107,7 +134,7 @@ export class TouchGestureHandler {
 		this.clearTimeouts();
 
 		// Set up long press detection
-		if (callbacks.onLongPress) {
+		if (callbacks.onLongPress && typeof window !== "undefined") {
 			this.longPressTimeout = window.setTimeout(() => {
 				if (this.touchStart) {
 					callbacks.onLongPress?.(event);
@@ -202,11 +229,11 @@ export class TouchGestureHandler {
 	 * Clear all timeouts
 	 */
 	private clearTimeouts(): void {
-		if (this.touchTimeout) {
+		if (this.touchTimeout && typeof window !== "undefined") {
 			clearTimeout(this.touchTimeout);
 			this.touchTimeout = null;
 		}
-		if (this.longPressTimeout) {
+		if (this.longPressTimeout && typeof window !== "undefined") {
 			clearTimeout(this.longPressTimeout);
 			this.longPressTimeout = null;
 		}
@@ -228,7 +255,12 @@ export class HapticFeedback {
 	private isSupported: boolean;
 
 	constructor() {
-		this.isSupported = "vibrate" in navigator;
+		// Only initialize in browser environment
+		if (typeof navigator !== "undefined") {
+			this.isSupported = "vibrate" in navigator;
+		} else {
+			this.isSupported = false;
+		}
 	}
 
 	/**
@@ -294,13 +326,18 @@ export class MobilePerformanceMonitor {
 	private observer?: PerformanceObserver;
 
 	constructor() {
-		this.setupPerformanceObserver();
+		// Only setup performance observer in browser environment
+		if (typeof window !== "undefined") {
+			this.setupPerformanceObserver();
+		}
 	}
 
 	/**
 	 * Measure touch latency
 	 */
 	measureTouchLatency(startTime: number): number {
+		if (typeof performance === "undefined") return 0;
+
 		const latency = performance.now() - startTime;
 		this.recordMetric("touchLatency", latency);
 		return latency;
@@ -311,6 +348,12 @@ export class MobilePerformanceMonitor {
 	 */
 	measureRenderTime(callback: () => void): Promise<number> {
 		return new Promise((resolve) => {
+			if (typeof window === "undefined") {
+				// Return 0 during SSR
+				resolve(0);
+				return;
+			}
+
 			const startTime = performance.now();
 
 			callback();
@@ -330,6 +373,11 @@ export class MobilePerformanceMonitor {
 	 * Measure scroll performance
 	 */
 	measureScrollPerformance(): () => void {
+		// Return no-op function during SSR
+		if (typeof window === "undefined") {
+			return () => {};
+		}
+
 		let lastScrollTime = 0;
 		let frameCount = 0;
 		let totalTime = 0;
@@ -379,7 +427,13 @@ export class MobilePerformanceMonitor {
 	 * Get memory usage if available
 	 */
 	getMemoryUsage(): number | undefined {
-		const memory = (performance as any).memory;
+		if (typeof performance === "undefined") return undefined;
+
+		const memory = (
+			performance as {
+				memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number };
+			}
+		).memory;
 		if (memory) {
 			return memory.usedJSHeapSize / memory.jsHeapSizeLimit;
 		}
@@ -410,20 +464,22 @@ export class MobilePerformanceMonitor {
 	 * Setup performance observer for additional metrics
 	 */
 	private setupPerformanceObserver(): void {
-		if ("PerformanceObserver" in window) {
-			try {
-				this.observer = new PerformanceObserver((list) => {
-					for (const entry of list.getEntries()) {
-						if (entry.entryType === "measure") {
-							this.recordMetric("renderTime", entry.duration);
-						}
-					}
-				});
+		if (typeof window === "undefined" || !("PerformanceObserver" in window)) {
+			return;
+		}
 
-				this.observer.observe({ entryTypes: ["measure"] });
-			} catch (error) {
-				console.warn("Performance observer not supported:", error);
-			}
+		try {
+			this.observer = new PerformanceObserver((list) => {
+				for (const entry of list.getEntries()) {
+					if (entry.entryType === "measure") {
+						this.recordMetric("renderTime", entry.duration);
+					}
+				}
+			});
+
+			this.observer.observe({ entryTypes: ["measure"] });
+		} catch (error) {
+			console.warn("Performance observer not supported:", error);
 		}
 	}
 
@@ -458,7 +514,12 @@ export class MobilePerformanceMonitor {
 			};
 		};
 
-		const stats: any = {
+		const stats: {
+			touchLatency: { avg: number; max: number; min: number };
+			renderTime: { avg: number; max: number; min: number };
+			scrollPerformance: { avg: number; max: number; min: number };
+			memoryUsage?: { avg: number; max: number; min: number };
+		} = {
 			touchLatency: calculateStats(touchLatencies),
 			renderTime: calculateStats(renderTimes),
 			scrollPerformance: calculateStats(scrollPerfs),
@@ -586,11 +647,39 @@ export class ProgressiveEnhancement {
 	}
 }
 
-// Global instances
-export const mobileCapabilities = detectMobileCapabilities();
-export const hapticFeedback = new HapticFeedback();
-export const performanceMonitor = new MobilePerformanceMonitor();
-export const progressiveEnhancement = new ProgressiveEnhancement();
+// Global instances - lazy initialization to avoid SSR issues
+let _mobileCapabilities: MobileCapabilities | null = null;
+let _hapticFeedback: HapticFeedback | null = null;
+let _performanceMonitor: MobilePerformanceMonitor | null = null;
+let _progressiveEnhancement: ProgressiveEnhancement | null = null;
+
+export const mobileCapabilities = (() => {
+	if (!_mobileCapabilities) {
+		_mobileCapabilities = detectMobileCapabilities();
+	}
+	return _mobileCapabilities;
+})();
+
+export const hapticFeedback = (() => {
+	if (!_hapticFeedback) {
+		_hapticFeedback = new HapticFeedback();
+	}
+	return _hapticFeedback;
+})();
+
+export const performanceMonitor = (() => {
+	if (!_performanceMonitor) {
+		_performanceMonitor = new MobilePerformanceMonitor();
+	}
+	return _performanceMonitor;
+})();
+
+export const progressiveEnhancement = (() => {
+	if (!_progressiveEnhancement) {
+		_progressiveEnhancement = new ProgressiveEnhancement();
+	}
+	return _progressiveEnhancement;
+})();
 
 /**
  * Svelte action for touch gesture handling
@@ -607,6 +696,14 @@ export function touchGestures(
 		gestureConfig?: Partial<TouchGestureConfig>;
 	},
 ) {
+	// Skip setup during SSR
+	if (typeof window === "undefined") {
+		return {
+			update() {},
+			destroy() {},
+		};
+	}
+
 	const handler = new TouchGestureHandler(config.gestureConfig);
 	let currentConfig = config;
 
@@ -673,6 +770,13 @@ export function progressiveEnhance(
 		performanceOptimizations?: boolean;
 	} = {},
 ) {
+	// Skip during SSR
+	if (typeof window === "undefined") {
+		return {
+			destroy() {},
+		};
+	}
+
 	progressiveEnhancement.enhance(node, options);
 
 	return {
@@ -685,6 +789,8 @@ export function progressiveEnhance(
 // Cleanup on page unload
 if (typeof window !== "undefined") {
 	window.addEventListener("beforeunload", () => {
-		performanceMonitor.destroy();
+		if (_performanceMonitor) {
+			_performanceMonitor.destroy();
+		}
 	});
 }

@@ -256,7 +256,7 @@ const statusConfig = {
 const currentStatus = $derived(statusConfig[status()]);
 
 // Format last sync time
-const lastSyncText = $derived(() => {
+const lastSyncText = $derived.by(() => {
 	const lastSync =
 		integrationStatus?.lastSyncAt ||
 		(integration?.lastSyncAt ? new Date(integration.lastSyncAt) : null);
@@ -275,7 +275,7 @@ const lastSyncText = $derived(() => {
 });
 
 // Sync statistics text
-const syncStatsText = $derived(() => {
+const syncStatsText = $derived.by(() => {
 	if (!integrationStatus) return null;
 
 	const parts = [];

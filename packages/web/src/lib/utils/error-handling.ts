@@ -401,7 +401,14 @@ export function createErrorFromTemplate(
 		};
 	}
 
-	const template = errorType[subtype as keyof typeof errorType];
+	const template = errorType[subtype as keyof typeof errorType] as
+		| {
+				message: string;
+				details: string;
+				severity: ErrorSeverity;
+				retryable: boolean;
+		  }
+		| undefined;
 
 	if (!template) {
 		return {
@@ -417,11 +424,11 @@ export function createErrorFromTemplate(
 
 	return {
 		type,
-		severity: (template as any).severity,
-		message: (template as any).message,
-		details: (template as any).details,
-		actionable: (template as any).retryable,
-		retryable: (template as any).retryable,
+		severity: template.severity,
+		message: template.message,
+		details: template.details,
+		actionable: template.retryable,
+		retryable: template.retryable,
 		context,
 	};
 }
