@@ -37,34 +37,92 @@ let integrations = $state([]);
 let guestTaskCount = $state(0);
 let guestDaysRemaining = $state(7);
 
-onMount(async () => {
-	if (isAuthenticated) {
-		await loadWorkspaces();
-		await loadIntegrations();
+onMount(() => {
+	// Async initialization
+	const initializeApp = async () => {
+		if (isAuthenticated) {
+			await loadWorkspaces();
+			await loadIntegrations();
 
-		// Check for OAuth success parameters
-		if (browser) {
-			const urlParams = new URLSearchParams(window.location.search);
-			const oauthSuccess = urlParams.get("oauth_success");
-			const workspaceId = urlParams.get("workspace_id");
+			// Check for OAuth success parameters
+			if (browser) {
+				const urlParams = new URLSearchParams(window.location.search);
+				const oauthSuccess = urlParams.get("oauth_success");
+				const workspaceId = urlParams.get("workspace_id");
+				const openSettings = urlParams.get("settings");
+				const openSignup = urlParams.get("signup");
 
-			if (
-				oauthSuccess === "notion" &&
-				workspaceId &&
-				currentWorkspace?.id === workspaceId
-			) {
-				// OAuth was successful, open settings drawer to show database selection
-				showSettingsDrawer = true;
+				if (
+					oauthSuccess === "notion" &&
+					workspaceId &&
+					currentWorkspace?.id === workspaceId
+				) {
+					// OAuth was successful, open settings drawer to show database selection
+					showSettingsDrawer = true;
 
-				// Clean up URL parameters
-				const url = new URL(window.location.href);
-				url.searchParams.delete("oauth_success");
-				url.searchParams.delete("workspace_id");
-				window.history.replaceState({}, "", url.toString());
+					// Clean up URL parameters
+					const url = new URL(window.location.href);
+					url.searchParams.delete("oauth_success");
+					url.searchParams.delete("workspace_id");
+					window.history.replaceState({}, "", url.toString());
+				}
+
+				// Handle settings parameter from navigation
+				if (openSettings === "true") {
+					showSettingsDrawer = true;
+					// Clean up URL parameter
+					const url = new URL(window.location.href);
+					url.searchParams.delete("settings");
+					window.history.replaceState({}, "", url.toString());
+				}
+
+				// Handle signup parameter from navigation
+				if (openSignup === "true") {
+					showAccountDialog = true;
+					// Clean up URL parameter
+					const url = new URL(window.location.href);
+					url.searchParams.delete("signup");
+					window.history.replaceState({}, "", url.toString());
+				}
+			}
+		} else {
+			await initializeGuestSession();
+
+			// Check for signup parameter for guest users
+			if (browser) {
+				const urlParams = new URLSearchParams(window.location.search);
+				const openSignup = urlParams.get("signup");
+
+				if (openSignup === "true") {
+					showAccountDialog = true;
+					// Clean up URL parameter
+					const url = new URL(window.location.href);
+					url.searchParams.delete("signup");
+					window.history.replaceState({}, "", url.toString());
+				}
 			}
 		}
-	} else {
-		await initializeGuestSession();
+	};
+
+	// Start async initialization
+	initializeApp();
+
+	// Add global keyboard navigation support
+	if (browser) {
+		const handleGlobalKeyDown = (event: KeyboardEvent) => {
+			// Handle escape key to close settings drawer
+			if (event.key === "Escape" && showSettingsDrawer) {
+				handleCloseSettingsDrawer();
+				event.preventDefault();
+			}
+		};
+
+		document.addEventListener("keydown", handleGlobalKeyDown);
+
+		// Return cleanup function
+		return () => {
+			document.removeEventListener("keydown", handleGlobalKeyDown);
+		};
 	}
 });
 
@@ -205,10 +263,16 @@ function handleMenuAction(action: string) {
 			showAccountDialog = true;
 			break;
 		case "notion":
-			showSettingsDrawer = true;
+			handleOpenSettingsDrawer();
 			break;
 		case "settings":
-			showSettingsDrawer = true;
+			handleOpenSettingsDrawer();
+			break;
+		case "home":
+			// Navigate to home or refresh current view
+			if (browser) {
+				window.location.href = "/";
+			}
 			break;
 		default:
 			console.log("Menu action:", action);
@@ -217,6 +281,42 @@ function handleMenuAction(action: string) {
 
 function handleGuestSignUp() {
 	showAccountDialog = true;
+}
+
+function handleOpenSettingsDrawer() {
+	showSettingsDrawer = true;
+
+	// Focus management for accessibility
+	if (browser) {
+		// Wait for the drawer to render, then focus the first focusable element
+		setTimeout(() => {
+			const drawer = document.querySelector(
+				'[role="dialog"], .settings-drawer',
+			);
+			if (drawer) {
+				const firstFocusable = drawer.querySelector(
+					'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+				);
+				if (firstFocusable instanceof HTMLElement) {
+					firstFocusable.focus();
+				}
+			}
+		}, 100);
+	}
+}
+
+function handleCloseSettingsDrawer() {
+	showSettingsDrawer = false;
+
+	// Return focus to the menu trigger for accessibility
+	if (browser) {
+		setTimeout(() => {
+			const menuTrigger = document.querySelector('[aria-label="Open menu"]');
+			if (menuTrigger instanceof HTMLElement) {
+				menuTrigger.focus();
+			}
+		}, 100);
+	}
 }
 
 async function handleToggleIntegration(provider: string, enabled: boolean) {
@@ -341,7 +441,7 @@ const contextTasks = $derived(
 		{integrations}
 		isAuthenticated={isAuthenticated}
 		isGuestMode={$isGuestMode && !isAuthenticated}
-		onClose={() => showSettingsDrawer = false}
+		onClose={handleCloseSettingsDrawer}
 		onToggleIntegration={handleToggleIntegration}
 		onConnectNotion={handleConnectNotion}
 		onDisconnectIntegration={handleDisconnectIntegration}

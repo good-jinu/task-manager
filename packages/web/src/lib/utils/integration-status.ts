@@ -35,7 +35,7 @@ export class IntegrationStatusManager {
 	async getStatus(
 		workspaceId: string,
 		integrationId: string,
-		forceRefresh = false,
+		_forceRefresh = false,
 	): Promise<IntegrationStatusData | null> {
 		// Note: We don't use cache for getStatus since it returns IntegrationStatusData
 		// and the cache only stores IntegrationStatus objects
@@ -82,7 +82,7 @@ export class IntegrationStatusManager {
 	 */
 	async getAllStatuses(
 		workspaceId: string,
-		forceRefresh = false,
+		_forceRefresh = false,
 	): Promise<IntegrationStatusData[]> {
 		// Note: We don't use cache for getAllStatuses since it returns full IntegrationStatusData
 		// and the cache only stores IntegrationStatus objects

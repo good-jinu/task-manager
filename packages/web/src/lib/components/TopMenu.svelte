@@ -14,8 +14,24 @@ let {
 	isGuestMode = false,
 }: Props = $props();
 
+// Menu state management
+let isMenuOpen = $state(false);
+
 function handleMenuItemClick(action: string) {
 	onMenuAction?.(action);
+	// Close menu after action
+	isMenuOpen = false;
+}
+
+function handleMenuOpenChange(open: boolean) {
+	isMenuOpen = open;
+}
+
+// Handle keyboard navigation
+function handleKeyDown(event: KeyboardEvent) {
+	if (event.key === "Escape" && isMenuOpen) {
+		isMenuOpen = false;
+	}
 }
 </script>
 
@@ -28,22 +44,23 @@ function handleMenuItemClick(action: string) {
 			</div>
 			
 			<!-- Dropdown Menu -->
-			<DropdownMenu.Root>
+			<DropdownMenu.Root bind:open={isMenuOpen} onOpenChange={handleMenuOpenChange}>
 				<DropdownMenu.Trigger
-					class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-subtle-base bg-surface-base hover:bg-surface-muted text-foreground-base transition-colors"
+					class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-subtle-base bg-surface-base hover:bg-surface-muted text-foreground-base transition-colors min-w-[44px] min-h-[44px] touch-manipulation"
+					aria-label="Open menu"
 				>
 					<Menu class="h-5 w-5" />
 				</DropdownMenu.Trigger>
 				
 				<DropdownMenu.Portal>
 					<DropdownMenu.Content
-						class="w-64 rounded-xl border border-subtle-base bg-surface-base shadow-lg px-1 py-1.5"
+						class="w-64 rounded-xl border border-subtle-base bg-surface-base shadow-lg px-1 py-1.5 z-50"
 						sideOffset={8}
 						align="end"
 					>
 						<!-- Home Option -->
 						<DropdownMenu.Item
-							class="flex h-10 items-center rounded-lg px-3 py-2 text-sm font-medium hover:bg-surface-muted focus:bg-surface-muted focus:outline-none cursor-pointer"
+							class="flex h-10 items-center rounded-lg px-3 py-2 text-sm font-medium hover:bg-surface-muted focus:bg-surface-muted focus:outline-none cursor-pointer min-h-[44px] touch-manipulation"
 							onSelect={() => handleMenuItemClick('home')}
 						>
 							<div class="flex items-center gap-2">
@@ -62,15 +79,16 @@ function handleMenuItemClick(action: string) {
 									<span class="text-sm font-medium text-accent">Guest Mode</span>
 								</div>
 								<p class="text-xs text-muted-foreground">Your tasks are saved locally</p>
+								<p class="text-xs text-info mt-1">Create an account to unlock integrations</p>
 							</div>
 							
 							<DropdownMenu.Item
-								class="flex h-10 items-center rounded-lg px-3 py-2 text-sm font-medium hover:bg-surface-muted focus:bg-surface-muted focus:outline-none cursor-pointer"
+								class="flex h-10 items-center rounded-lg px-3 py-2 text-sm font-medium hover:bg-surface-muted focus:bg-surface-muted focus:outline-none cursor-pointer min-h-[44px] touch-manipulation"
 								onSelect={() => handleMenuItemClick('signup')}
 							>
 								<div class="flex items-center gap-2">
-									<User class="h-4 w-4 text-foreground-secondary" />
-									<span>Sign Up (Optional)</span>
+									<User class="h-4 w-4 text-primary" />
+									<span class="font-medium text-primary">Sign Up (Unlock Features)</span>
 								</div>
 							</DropdownMenu.Item>
 						{/if}
@@ -86,7 +104,7 @@ function handleMenuItemClick(action: string) {
 							</div>
 							
 							<DropdownMenu.Item
-								class="flex h-10 items-center rounded-lg px-3 py-2 text-sm font-medium hover:bg-surface-muted focus:bg-surface-muted focus:outline-none cursor-pointer"
+								class="flex h-10 items-center rounded-lg px-3 py-2 text-sm font-medium hover:bg-surface-muted focus:bg-surface-muted focus:outline-none cursor-pointer min-h-[44px] touch-manipulation"
 								onSelect={() => handleMenuItemClick('notion')}
 							>
 								<div class="flex items-center gap-2">
@@ -98,14 +116,14 @@ function handleMenuItemClick(action: string) {
 
 						<DropdownMenu.Separator class="my-1 h-px bg-subtle-base" />
 
-						<!-- Settings -->
+						<!-- Settings - Enhanced with clear icon and improved styling -->
 						<DropdownMenu.Item
-							class="flex h-10 items-center rounded-lg px-3 py-2 text-sm font-medium hover:bg-surface-muted focus:bg-surface-muted focus:outline-none cursor-pointer"
+							class="flex h-10 items-center rounded-lg px-3 py-2 text-sm font-medium hover:bg-surface-muted focus:bg-surface-muted focus:outline-none cursor-pointer min-h-[44px] touch-manipulation"
 							onSelect={() => handleMenuItemClick('settings')}
 						>
 							<div class="flex items-center gap-2">
 								<Settings class="h-4 w-4 text-foreground-secondary" />
-								<span>Settings</span>
+								<span class="font-medium">Settings</span>
 							</div>
 						</DropdownMenu.Item>
 					</DropdownMenu.Content>

@@ -54,7 +54,12 @@ function handleMenuAction(action: string) {
 			goto("/");
 			break;
 		case "settings":
-			// TODO: Implement settings
+			// Navigate to home with settings drawer open
+			goto("/?settings=true");
+			break;
+		case "signup":
+			// Navigate to home with signup dialog open
+			goto("/?signup=true");
 			break;
 		default:
 			console.log("Menu action:", action);
