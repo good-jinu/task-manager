@@ -22,6 +22,35 @@ export interface ApiRequestOptions extends RequestInit {
 	context?: Record<string, unknown>;
 }
 
+// API Response Types
+export interface SyncResponse {
+	status: "pending" | "running" | "completed" | "failed";
+	progress?: number;
+	message?: string;
+	lastSync?: string;
+	nextSync?: string;
+}
+
+export interface SyncStatistics {
+	totalTasks: number;
+	syncedTasks: number;
+	failedTasks: number;
+	lastSyncTime: string;
+	syncDuration: number;
+	errorCount: number;
+}
+
+export interface TokenStatus {
+	valid: boolean;
+	expiresAt?: string;
+	provider: string;
+	scopes?: string[];
+}
+
+export interface ApiError extends Error {
+	errorId?: string;
+}
+
 /**
  * Enhanced API client class with network resilience
  */
@@ -83,9 +112,9 @@ export class ApiClient {
 			});
 
 			// Re-throw with error ID for tracking
-			const enhancedError =
+			const enhancedError: ApiError =
 				error instanceof Error ? error : new Error(String(error));
-			(enhancedError as any).errorId = errorId;
+			enhancedError.errorId = errorId;
 			throw enhancedError;
 		}
 	}
@@ -191,7 +220,7 @@ export class SyncApiClient extends ApiClient {
 			immediate?: boolean;
 			syncType?: "full" | "incremental";
 		} = {},
-	): Promise<any> {
+	): Promise<SyncResponse> {
 		return resilientSyncOperation(
 			async () => {
 				return this.put(`/api/integrations/${integrationId}/sync`, options, {
@@ -211,7 +240,7 @@ export class SyncApiClient extends ApiClient {
 	/**
 	 * Get sync status with resilience
 	 */
-	async getSyncStatus(integrationId: string): Promise<any> {
+	async getSyncStatus(integrationId: string): Promise<SyncResponse> {
 		return this.get(`/api/integrations/${integrationId}/sync`, {
 			retryType: "sync",
 			context: {
@@ -224,7 +253,7 @@ export class SyncApiClient extends ApiClient {
 	/**
 	 * Get sync statistics with resilience
 	 */
-	async getSyncStatistics(integrationId: string): Promise<any> {
+	async getSyncStatistics(integrationId: string): Promise<SyncStatistics> {
 		return this.get(`/api/integrations/${integrationId}/sync/statistics`, {
 			retryType: "sync",
 			context: {
@@ -242,7 +271,7 @@ export class OAuthApiClient extends ApiClient {
 	/**
 	 * Refresh OAuth token with resilience
 	 */
-	async refreshToken(provider: string = "notion"): Promise<any> {
+	async refreshToken(provider: string = "notion"): Promise<TokenStatus> {
 		return resilientOAuthOperation(async () => {
 			return this.post(
 				`/api/integrations/${provider}/oauth/refresh`,
@@ -261,7 +290,7 @@ export class OAuthApiClient extends ApiClient {
 	/**
 	 * Check token status with resilience
 	 */
-	async checkTokenStatus(provider: string = "notion"): Promise<any> {
+	async checkTokenStatus(provider: string = "notion"): Promise<TokenStatus> {
 		return this.get(`/api/integrations/${provider}/oauth/refresh`, {
 			retryType: "oauth",
 			context: {

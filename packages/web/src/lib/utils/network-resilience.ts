@@ -495,7 +495,7 @@ export class NetworkResilienceManager {
 export const networkResilienceManager =
 	typeof window !== "undefined"
 		? new NetworkResilienceManager()
-		: (null as any as NetworkResilienceManager);
+		: (null as unknown as NetworkResilienceManager);
 
 /**
  * Utility function to wrap API calls with retry logic

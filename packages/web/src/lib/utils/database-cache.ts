@@ -26,6 +26,12 @@ export interface DatabaseCacheEntry {
 	workspaceId: string;
 }
 
+export interface DatabaseMetadata {
+	icon: { type: "emoji" | "default"; content?: string };
+	createdDate?: string;
+	propertyCount?: number;
+}
+
 /**
  * Enhanced database cache manager
  */
@@ -50,7 +56,10 @@ export class DatabaseCacheManager {
 		// Check if already loading to prevent duplicate requests
 		const loadingKey = `databases:${workspaceId}`;
 		if (this.loadingPromises.has(loadingKey)) {
-			return this.loadingPromises.get(loadingKey)!;
+			const existingPromise = this.loadingPromises.get(loadingKey);
+			if (existingPromise) {
+				return existingPromise;
+			}
 		}
 
 		// Create loading promise
@@ -149,12 +158,10 @@ export class DatabaseCacheManager {
 	/**
 	 * Get database metadata for display
 	 */
-	getDatabaseMetadata(database: NotionDatabase): {
-		icon: { type: "emoji" | "default"; content?: string };
-		createdDate?: string;
-		propertyCount?: number;
-	} {
-		const metadata: any = {};
+	getDatabaseMetadata(database: NotionDatabase): DatabaseMetadata {
+		const metadata: DatabaseMetadata = {
+			icon: { type: "default" },
+		};
 
 		// Handle icon
 		if (database.icon?.type === "emoji" && database.icon.emoji) {

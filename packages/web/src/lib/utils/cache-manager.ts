@@ -3,6 +3,39 @@
  * Provides efficient caching for database lists, integration status, and sync statistics
  */
 
+// Type definitions for cached data
+export interface NotionDatabase {
+	id: string;
+	name: string;
+	url?: string;
+	icon?: {
+		type: "emoji" | "external" | "file";
+		emoji?: string;
+		external?: { url: string };
+		file?: { url: string };
+	};
+	properties?: Record<string, unknown>;
+	created_time?: string;
+	last_edited_time?: string;
+}
+
+export interface IntegrationStatus {
+	status: "connected" | "disconnected" | "syncing" | "error";
+	lastSync?: string;
+	nextSync?: string;
+	syncEnabled?: boolean;
+	error?: string;
+}
+
+export interface SyncStatistics {
+	totalTasks: number;
+	syncedTasks: number;
+	failedTasks: number;
+	lastSyncTime: string;
+	syncDuration: number;
+	errorCount: number;
+}
+
 export interface CacheEntry<T> {
 	data: T;
 	timestamp: number;
@@ -26,7 +59,7 @@ export interface CacheStats {
 /**
  * Generic cache manager with TTL and size limits
  */
-export class CacheManager<T = any> {
+export class CacheManager<T = unknown> {
 	private cache = new Map<string, CacheEntry<T>>();
 	private stats = { hits: 0, misses: 0 };
 	private cleanupTimer: number | null = null;
@@ -233,9 +266,9 @@ export class CacheManager<T = any> {
  * Specialized cache for integration data
  */
 export class IntegrationCache {
-	private databaseCache: CacheManager<any>;
-	private statusCache: CacheManager<any>;
-	private statsCache: CacheManager<any>;
+	private databaseCache: CacheManager<NotionDatabase[]>;
+	private statusCache: CacheManager<IntegrationStatus | IntegrationStatus[]>;
+	private statsCache: CacheManager<SyncStatistics>;
 
 	constructor() {
 		// Different TTL for different types of data
@@ -256,11 +289,11 @@ export class IntegrationCache {
 	}
 
 	// Database caching methods
-	setDatabases(workspaceId: string, databases: any[]): void {
+	setDatabases(workspaceId: string, databases: NotionDatabase[]): void {
 		this.databaseCache.set(`databases:${workspaceId}`, databases);
 	}
 
-	getDatabases(workspaceId: string): any[] | null {
+	getDatabases(workspaceId: string): NotionDatabase[] | null {
 		return this.databaseCache.get(`databases:${workspaceId}`);
 	}
 
@@ -273,20 +306,24 @@ export class IntegrationCache {
 	}
 
 	// Status caching methods
-	setStatus(integrationId: string, status: any): void {
+	setStatus(integrationId: string, status: IntegrationStatus): void {
 		this.statusCache.set(`status:${integrationId}`, status);
 	}
 
-	getStatus(integrationId: string): any | null {
-		return this.statusCache.get(`status:${integrationId}`);
+	getStatus(integrationId: string): IntegrationStatus | null {
+		return this.statusCache.get(
+			`status:${integrationId}`,
+		) as IntegrationStatus | null;
 	}
 
-	setWorkspaceStatus(workspaceId: string, statuses: any[]): void {
+	setWorkspaceStatus(workspaceId: string, statuses: IntegrationStatus[]): void {
 		this.statusCache.set(`workspace:${workspaceId}`, statuses);
 	}
 
-	getWorkspaceStatus(workspaceId: string): any[] | null {
-		return this.statusCache.get(`workspace:${workspaceId}`);
+	getWorkspaceStatus(workspaceId: string): IntegrationStatus[] | null {
+		return this.statusCache.get(`workspace:${workspaceId}`) as
+			| IntegrationStatus[]
+			| null;
 	}
 
 	invalidateStatus(integrationId?: string, workspaceId?: string): void {
@@ -302,11 +339,11 @@ export class IntegrationCache {
 	}
 
 	// Statistics caching methods
-	setStats(integrationId: string, stats: any): void {
+	setStats(integrationId: string, stats: SyncStatistics): void {
 		this.statsCache.set(`stats:${integrationId}`, stats);
 	}
 
-	getStats(integrationId: string): any | null {
+	getStats(integrationId: string): SyncStatistics | null {
 		return this.statsCache.get(`stats:${integrationId}`);
 	}
 

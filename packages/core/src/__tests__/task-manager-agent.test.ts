@@ -44,13 +44,25 @@ describe("TaskManagerAgent", () => {
 	it("should handle execution parameters correctly", async () => {
 		// Mock the generateText function to return a simple response
 		const { generateText } = await import("ai");
-		vi.mocked(generateText).mockResolvedValue({
+		const mockResponse = {
 			text: "Task processed successfully",
+			content: "Task processed successfully",
 			toolCalls: [],
 			toolResults: [],
-			usage: {} as any,
-			response: {} as any,
-		} as any);
+			usage: {},
+			response: {},
+			finishReason: "stop",
+			warnings: [],
+			files: [],
+			steps: [],
+			sources: [],
+			staticToolCalls: [],
+			dynamicToolCalls: [],
+			staticToolResults: [],
+			dynamicToolResults: [],
+			roundtrips: [],
+		} as any; // Use any for test mocking
+		vi.mocked(generateText).mockResolvedValue(mockResponse);
 
 		const params = {
 			userId: "test-user",

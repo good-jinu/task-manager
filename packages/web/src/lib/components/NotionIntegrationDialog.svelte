@@ -300,69 +300,73 @@ const selectedDatabase = $derived(
 						{:else}
 							<div class="space-y-3">
 								{#each availableDatabases as database}
-									<label
-										class={cn(
-											'flex items-start p-4 border rounded-xl cursor-pointer transition-all',
-											'hover:bg-surface-muted hover:border-subtle-hover',
-											// Touch-friendly sizing
-											'min-h-[60px]',
-											// Performance optimization for low-end devices
-											capabilities.isLowEndDevice ? 'duration-100' : 'duration-200',
-											// Progressive enhancement classes
-											capabilities.hasTouch && 'touch-manipulation select-none',
-											selectedDatabaseId === database.id
-												? 'border-primary bg-primary/5 ring-1 ring-primary/20'
-												: 'border-subtle-base'
-										)}
-										onclick={() => handleDatabaseSelect(database.id)}
-									>
-										<input
-											type="radio"
-											bind:group={selectedDatabaseId}
-											value={database.id}
-											class="sr-only"
-										/>
-										<div class="flex items-start gap-3 flex-1 min-w-0">
-											<!-- Database Icon -->
-											<div class="flex items-center justify-center w-10 h-10 bg-surface-muted rounded-lg flex-shrink-0 mt-0.5">
-												{#if getDatabaseIcon(database).type === 'emoji'}
-													<span class="text-lg">{getDatabaseIcon(database).content}</span>
-												{:else}
-													<Database class={cn(
-														'w-5 h-5',
-														selectedDatabaseId === database.id ? 'text-primary' : 'text-muted-foreground'
-													)} />
-												{/if}
-											</div>
-											
-											<!-- Database Info -->
-											<div class="flex-1 min-w-0">
-												<p class="font-medium text-foreground-emphasis truncate text-sm sm:text-base">
-													{database.name}
-												</p>
-												{#if database.url}
-													<p class="text-xs text-muted-foreground truncate mt-0.5">
-														{database.url}
-													</p>
-												{/if}
-												{#if formatDatabaseMetadata(database)}
-													<p class="text-xs text-muted-foreground mt-1">
-														{formatDatabaseMetadata(database)}
-													</p>
-												{/if}
-											</div>
-										</div>
-										
-										<!-- Selection Indicator -->
-										{#if selectedDatabaseId === database.id}
-											<div class="flex items-center justify-center w-6 h-6 bg-primary rounded-full flex-shrink-0 mt-2">
-												<Check class="w-4 h-4 text-primary-foreground" />
-											</div>
-										{:else}
-											<div class="w-6 h-6 border-2 border-subtle-base rounded-full flex-shrink-0 mt-2"></div>
-										{/if}
-									</label>
-								{/each}
+    <!-- 
+        1. Change <label> to <button type="button">. 
+        2. Add role="radio" and aria-checked for screen readers.
+        3. Add w-full and text-left to maintain the original layout.
+    -->
+    <button
+        type="button"
+        class={cn(
+            'flex items-start p-4 border rounded-xl cursor-pointer transition-all w-full text-left',
+            'hover:bg-surface-muted hover:border-subtle-hover',
+            // Touch-friendly sizing
+            'min-h-[60px]',
+            // Performance optimization for low-end devices
+            capabilities.isLowEndDevice ? 'duration-100' : 'duration-200',
+            // Progressive enhancement classes
+            capabilities.hasTouch && 'touch-manipulation select-none',
+            selectedDatabaseId === database.id
+                ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                : 'border-subtle-base'
+        )}
+        onclick={() => handleDatabaseSelect(database.id)}
+        role="radio"
+        aria-checked={selectedDatabaseId === database.id}
+    >
+        <!-- Database Icon -->
+        <div class="flex items-start gap-3 flex-1 min-w-0">
+            <div class="flex items-center justify-center w-10 h-10 bg-surface-muted rounded-lg flex-shrink-0 mt-0.5">
+                {#if getDatabaseIcon(database).type === 'emoji'}
+                    <span class="text-lg">{getDatabaseIcon(database).content}</span>
+                {:else}
+                    <Database 
+                        class={cn(
+                            'w-5 h-5',
+                            selectedDatabaseId === database.id ? 'text-primary' : 'text-muted-foreground'
+                        )} 
+                    />
+                {/if}
+            </div>
+            
+            <!-- Database Info -->
+            <div class="flex-1 min-w-0">
+                <p class="font-medium text-foreground-emphasis truncate text-sm sm:text-base">
+                    {database.name}
+                </p>
+                {#if database.url}
+                    <p class="text-xs text-muted-foreground truncate mt-0.5">
+                        {database.url}
+                    </p>
+                {/if}
+                {#if formatDatabaseMetadata(database)}
+                    <p class="text-xs text-muted-foreground mt-1">
+                        {formatDatabaseMetadata(database)}
+                    </p>
+                {/if}
+            </div>
+        </div>
+        
+        <!-- Selection Indicator -->
+        {#if selectedDatabaseId === database.id}
+            <div class="flex items-center justify-center w-6 h-6 bg-primary rounded-full flex-shrink-0 mt-2">
+                <Check class="w-4 h-4 text-primary-foreground" />
+            </div>
+        {:else}
+            <div class="w-6 h-6 border-2 border-subtle-base rounded-full flex-shrink-0 mt-2"></div>
+        {/if}
+    </button>
+{/each}
 							</div>
 						{/if}
 					</div>
@@ -525,10 +529,5 @@ const selectedDatabase = $derived(
 		.animate-in {
 			animation: none;
 		}
-	}
-
-	/* Performance optimization for low-end devices */
-	.low-end-device .animate-in {
-		animation-duration: 0.1s;
 	}
 </style>

@@ -1,21 +1,12 @@
 import type { ExternalIntegration } from "@notion-task-manager/db";
-import { integrationCache } from "./cache-manager";
+import {
+	type IntegrationStatus,
+	integrationCache,
+	type SyncStatistics,
+} from "./cache-manager";
 
-export interface IntegrationStatus {
-	status: "disconnected" | "disabled" | "synced" | "pending" | "error";
-	lastSyncAt?: Date;
-	lastError?: string;
-	syncCount?: number;
-	conflictCount?: number;
-}
-
-export interface SyncStatistics {
-	totalTasks: number;
-	syncedTasks: number;
-	pendingTasks: number;
-	errorTasks: number;
-	lastSyncDuration?: number;
-}
+// Re-export types for convenience
+export type { IntegrationStatus, SyncStatistics };
 
 export interface IntegrationStatusData {
 	integration: ExternalIntegration;
@@ -46,13 +37,8 @@ export class IntegrationStatusManager {
 		integrationId: string,
 		forceRefresh = false,
 	): Promise<IntegrationStatusData | null> {
-		// Check cache first (unless force refresh)
-		if (!forceRefresh) {
-			const cached = integrationCache.getStatus(integrationId);
-			if (cached) {
-				return cached;
-			}
-		}
+		// Note: We don't use cache for getStatus since it returns IntegrationStatusData
+		// and the cache only stores IntegrationStatus objects
 
 		try {
 			// Fetch from API
@@ -78,8 +64,8 @@ export class IntegrationStatusManager {
 			};
 
 			// Update cache with smart invalidation
-			integrationCache.setStatus(integrationId, statusData);
-			integrationCache.setStats(integrationId, data.stats);
+			integrationCache.setStatus(integrationId, statusData.status);
+			integrationCache.setStats(integrationId, statusData.stats);
 
 			// Notify subscribers
 			this.notifySubscribers(`${workspaceId}:${integrationId}`, statusData);
@@ -98,13 +84,8 @@ export class IntegrationStatusManager {
 		workspaceId: string,
 		forceRefresh = false,
 	): Promise<IntegrationStatusData[]> {
-		// Check cache first (unless force refresh)
-		if (!forceRefresh) {
-			const cached = integrationCache.getWorkspaceStatus(workspaceId);
-			if (cached) {
-				return cached;
-			}
-		}
+		// Note: We don't use cache for getAllStatuses since it returns full IntegrationStatusData
+		// and the cache only stores IntegrationStatus objects
 
 		try {
 			// Fetch from API
@@ -148,11 +129,17 @@ export class IntegrationStatusManager {
 			);
 
 			// Update cache with smart invalidation
-			integrationCache.setWorkspaceStatus(workspaceId, statusDataArray);
+			integrationCache.setWorkspaceStatus(
+				workspaceId,
+				statusDataArray.map((item) => item.status),
+			);
 
 			// Update individual integration caches
 			for (const statusData of statusDataArray) {
-				integrationCache.setStatus(statusData.integration.id, statusData);
+				integrationCache.setStatus(
+					statusData.integration.id,
+					statusData.status,
+				);
 				integrationCache.setStats(statusData.integration.id, statusData.stats);
 
 				// Notify subscribers

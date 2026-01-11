@@ -80,7 +80,14 @@ function getErrorTemplate(errorType: string, message: string) {
 
 	// Default error template
 	return {
-		type: errorType as any,
+		type: errorType as
+			| "oauth"
+			| "network"
+			| "permission"
+			| "validation"
+			| "sync"
+			| "database"
+			| "unknown",
 		severity: "error" as const,
 		message,
 		actionable: showRetry && !!onRetry,

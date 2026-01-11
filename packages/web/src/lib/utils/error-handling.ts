@@ -387,7 +387,21 @@ export function createErrorFromTemplate(
 	subtype: string,
 	context?: Record<string, unknown>,
 ): Omit<UIErrorState, "id" | "timestamp"> {
-	const template = (errorMessages as any)[type]?.[subtype];
+	const errorType = errorMessages[type as keyof typeof errorMessages];
+
+	if (!errorType) {
+		return {
+			type: "unknown",
+			severity: "error",
+			message: "An unexpected error occurred.",
+			details: `Unknown error type: ${type}.${subtype}`,
+			actionable: false,
+			retryable: false,
+			context,
+		};
+	}
+
+	const template = errorType[subtype as keyof typeof errorType];
 
 	if (!template) {
 		return {
@@ -403,11 +417,11 @@ export function createErrorFromTemplate(
 
 	return {
 		type,
-		severity: template.severity,
-		message: template.message,
-		details: template.details,
-		actionable: template.retryable,
-		retryable: template.retryable,
+		severity: (template as any).severity,
+		message: (template as any).message,
+		details: (template as any).details,
+		actionable: (template as any).retryable,
+		retryable: (template as any).retryable,
 		context,
 	};
 }

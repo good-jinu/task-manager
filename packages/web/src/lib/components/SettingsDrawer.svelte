@@ -8,6 +8,10 @@ import {
 	databaseCache,
 	preloadDatabasesForWorkspace,
 } from "$lib/utils/database-cache";
+import type {
+	IntegrationStatus as CacheIntegrationStatus,
+	SyncStatistics as CacheSyncStatistics,
+} from "$lib/utils/integration-status";
 import {
 	lazyLoader,
 	lazyOnHover,
@@ -32,6 +36,21 @@ interface NotionDatabase {
 	url?: string;
 }
 
+// Component-specific interfaces (different from cache types)
+interface IntegrationStatus {
+	status:
+		| "disconnected"
+		| "disabled"
+		| "synced"
+		| "pending"
+		| "conflict"
+		| "error";
+	lastSyncAt?: Date;
+	lastError?: string;
+	syncCount?: number;
+	conflictCount?: number;
+}
+
 interface SyncStatistics {
 	totalTasks: number;
 	syncedTasks: number;
@@ -40,12 +59,69 @@ interface SyncStatistics {
 	lastSyncDuration?: number;
 }
 
-interface IntegrationStatus {
+// Adapter functions to convert between cache types and component types
+function adaptIntegrationStatus(
+	cacheStatus: CacheIntegrationStatus,
+): IntegrationStatus {
+	// Map cache status values to component status values
+	let status: IntegrationStatus["status"];
+	switch (cacheStatus.status) {
+		case "connected":
+			status = "synced";
+			break;
+		case "syncing":
+			status = "pending";
+			break;
+		default:
+			status = cacheStatus.status; // "disconnected", "error"
+	}
+
+	return {
+		status,
+		lastSyncAt: cacheStatus.lastSync
+			? new Date(cacheStatus.lastSync)
+			: undefined,
+		lastError: cacheStatus.error,
+	};
+}
+
+function adaptIntegrationStatusForToggle(cacheStatus: CacheIntegrationStatus): {
 	status: "disconnected" | "disabled" | "synced" | "pending" | "error";
 	lastSyncAt?: Date;
 	lastError?: string;
 	syncCount?: number;
 	conflictCount?: number;
+} {
+	// Map cache status values to toggle component status values (no "conflict")
+	let status: "disconnected" | "disabled" | "synced" | "pending" | "error";
+	switch (cacheStatus.status) {
+		case "connected":
+			status = "synced";
+			break;
+		case "syncing":
+			status = "pending";
+			break;
+		default:
+			status = cacheStatus.status; // "disconnected", "error"
+	}
+
+	return {
+		status,
+		lastSyncAt: cacheStatus.lastSync
+			? new Date(cacheStatus.lastSync)
+			: undefined,
+		lastError: cacheStatus.error,
+	};
+}
+
+function adaptSyncStatistics(cacheStats: CacheSyncStatistics): SyncStatistics {
+	return {
+		totalTasks: cacheStats.totalTasks,
+		syncedTasks: cacheStats.syncedTasks,
+		pendingTasks: 0, // Not available in cache stats
+		errorTasks: cacheStats.failedTasks,
+		lastSyncDuration: cacheStats.syncDuration,
+	};
 }
 
 interface Props {
@@ -111,9 +187,22 @@ const notionIntegration = $derived(
 		: null,
 );
 
-// Get current integration status and stats
-const currentIntegrationStatus = $derived(notionIntegration?.status || null);
-const syncStats = $derived(notionIntegration?.stats || null);
+// Get current integration status and stats with type adaptation
+const currentIntegrationStatus = $derived(
+	notionIntegration?.status
+		? adaptIntegrationStatus(notionIntegration.status)
+		: null,
+);
+const currentIntegrationStatusForToggle = $derived(
+	notionIntegration?.status
+		? adaptIntegrationStatusForToggle(notionIntegration.status)
+		: null,
+);
+const syncStats = $derived(
+	notionIntegration?.stats
+		? adaptSyncStatistics(notionIntegration.stats)
+		: null,
+);
 
 // Enhanced drawer management with preloading
 $effect(() => {
@@ -437,7 +526,7 @@ async function handleConnectNotionDatabase(
 						disabled={isGuestMode}
 						onToggle={handleNotionToggle}
 						onConfigure={notionIntegration ? handleConfigureNotion : undefined}
-						integrationStatus={currentIntegrationStatus || undefined}
+						integrationStatus={currentIntegrationStatusForToggle || undefined}
 					/>
 
 					{#if notionIntegration}
@@ -473,10 +562,6 @@ async function handleConnectNotionDatabase(
 										<div>
 											<span class="text-muted-foreground">Synced:</span>
 											<span class="ml-1 font-medium text-success">{syncStats.syncedTasks}</span>
-										</div>
-										<div>
-											<span class="text-muted-foreground">Pending:</span>
-											<span class="ml-1 font-medium text-warning">{syncStats.pendingTasks}</span>
 										</div>
 										<div>
 											<span class="text-muted-foreground">Errors:</span>

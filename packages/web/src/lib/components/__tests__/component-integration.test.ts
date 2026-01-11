@@ -26,13 +26,26 @@ describe("Component Integration Tests", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		// Reset fetch mock
-		(global.fetch as any).mockReset();
+		const mockFetch = global.fetch as unknown as { mockReset: () => void };
+		mockFetch.mockReset();
 	});
 
 	describe("Integration Status Logic", () => {
 		it("should determine correct status based on integration state", () => {
 			// Test status determination logic
-			const determineStatus = (integration: any, integrationStatus: any) => {
+			interface Integration {
+				syncEnabled?: boolean;
+				lastSyncAt?: string;
+			}
+
+			interface IntegrationStatus {
+				status: string;
+			}
+
+			const determineStatus = (
+				integration: Integration | null,
+				integrationStatus: IntegrationStatus | null,
+			) => {
 				if (integrationStatus) {
 					return integrationStatus.status;
 				}
@@ -124,18 +137,22 @@ describe("Component Integration Tests", () => {
 		});
 
 		it("should generate correct sync statistics text", () => {
-			const generateSyncStatsText = (syncStats: any) => {
+			interface SyncStats {
+				totalTasks?: number;
+				syncedTasks?: number;
+				failedTasks?: number;
+				lastSyncDuration?: number;
+			}
+
+			const generateSyncStatsText = (syncStats: SyncStats | null) => {
 				if (!syncStats) return null;
 
 				const parts = [];
-				if (syncStats.syncedTasks > 0) {
+				if (syncStats.syncedTasks && syncStats.syncedTasks > 0) {
 					parts.push(`${syncStats.syncedTasks} synced`);
 				}
-				if (syncStats.pendingTasks > 0) {
-					parts.push(`${syncStats.pendingTasks} pending`);
-				}
-				if (syncStats.errorTasks > 0) {
-					parts.push(`${syncStats.errorTasks} errors`);
+				if (syncStats.failedTasks && syncStats.failedTasks > 0) {
+					parts.push(`${syncStats.failedTasks} failed`);
 				}
 
 				return parts.length > 0 ? parts.join(", ") : null;
@@ -145,17 +162,15 @@ describe("Component Integration Tests", () => {
 			expect(
 				generateSyncStatsText({
 					syncedTasks: 5,
-					pendingTasks: 2,
-					errorTasks: 1,
+					failedTasks: 1,
 				}),
-			).toBe("5 synced, 2 pending, 1 errors");
+			).toBe("5 synced, 1 failed");
 
 			// Test with only synced
 			expect(
 				generateSyncStatsText({
 					syncedTasks: 3,
-					pendingTasks: 0,
-					errorTasks: 0,
+					failedTasks: 0,
 				}),
 			).toBe("3 synced");
 
@@ -163,8 +178,7 @@ describe("Component Integration Tests", () => {
 			expect(
 				generateSyncStatsText({
 					syncedTasks: 0,
-					pendingTasks: 0,
-					errorTasks: 0,
+					failedTasks: 0,
 				}),
 			).toBe(null);
 
@@ -251,7 +265,10 @@ describe("Component Integration Tests", () => {
 	describe("OAuth Flow Logic", () => {
 		it("should handle OAuth initiation properly", async () => {
 			// Mock successful OAuth response
-			(global.fetch as any).mockResolvedValueOnce({
+			const mockFetch = global.fetch as unknown as {
+				mockResolvedValueOnce: (value: unknown) => void;
+			};
+			mockFetch.mockResolvedValueOnce({
 				ok: true,
 				json: async () => ({
 					authUrl:
@@ -292,7 +309,10 @@ describe("Component Integration Tests", () => {
 
 		it("should handle OAuth errors gracefully", async () => {
 			// Mock OAuth error response
-			(global.fetch as any).mockResolvedValueOnce({
+			const mockFetch = global.fetch as unknown as {
+				mockResolvedValueOnce: (value: unknown) => void;
+			};
+			mockFetch.mockResolvedValueOnce({
 				ok: false,
 				json: async () => ({
 					error: "Invalid client credentials",
@@ -324,7 +344,10 @@ describe("Component Integration Tests", () => {
 	describe("Database Selection Logic", () => {
 		it("should handle database loading", async () => {
 			// Mock database response
-			(global.fetch as any).mockResolvedValueOnce({
+			const mockFetch = global.fetch as unknown as {
+				mockResolvedValueOnce: (value: unknown) => void;
+			};
+			mockFetch.mockResolvedValueOnce({
 				ok: true,
 				json: async () => ({
 					databases: [
@@ -356,9 +379,14 @@ describe("Component Integration Tests", () => {
 		});
 
 		it("should validate database selection", () => {
+			interface Database {
+				id: string;
+				name: string;
+			}
+
 			const validateDatabaseSelection = (
 				selectedId: string,
-				availableDatabases: any[],
+				availableDatabases: Database[],
 			) => {
 				if (!selectedId) {
 					return { valid: false, error: "No database selected" };

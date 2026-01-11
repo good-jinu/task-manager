@@ -3,9 +3,15 @@
  * Provides efficient component loading with preloading strategies
  */
 
+// Component type definitions
+export type ComponentModule = {
+	default: unknown;
+	[key: string]: unknown;
+};
+
 export interface LazyComponentConfig {
-	loader: () => Promise<any>;
-	fallback?: any;
+	loader: () => Promise<ComponentModule>;
+	fallback?: ComponentModule;
 	preload?: boolean;
 	preloadTrigger?: "hover" | "focus" | "visible" | "immediate";
 	retryAttempts?: number;
@@ -13,7 +19,7 @@ export interface LazyComponentConfig {
 }
 
 export interface PreloadConfig {
-	components: Record<string, () => Promise<any>>;
+	components: Record<string, () => Promise<ComponentModule>>;
 	triggers: Record<string, string[]>;
 	strategy: "eager" | "lazy" | "viewport" | "interaction";
 }
@@ -22,8 +28,8 @@ export interface PreloadConfig {
  * Lazy component loader with preloading support
  */
 export class LazyComponentLoader {
-	private loadedComponents = new Map<string, any>();
-	private loadingPromises = new Map<string, Promise<any>>();
+	private loadedComponents = new Map<string, ComponentModule>();
+	private loadingPromises = new Map<string, Promise<ComponentModule>>();
 	private preloadConfig: PreloadConfig;
 	private intersectionObserver?: IntersectionObserver;
 
@@ -38,15 +44,21 @@ export class LazyComponentLoader {
 	async loadComponent(
 		name: string,
 		config?: LazyComponentConfig,
-	): Promise<any> {
+	): Promise<ComponentModule> {
 		// Return cached component if already loaded
 		if (this.loadedComponents.has(name)) {
-			return this.loadedComponents.get(name);
+			const cached = this.loadedComponents.get(name);
+			if (cached) {
+				return cached;
+			}
 		}
 
 		// Return existing loading promise if already loading
 		if (this.loadingPromises.has(name)) {
-			return this.loadingPromises.get(name);
+			const existing = this.loadingPromises.get(name);
+			if (existing) {
+				return existing;
+			}
 		}
 
 		// Get loader from config or provided config
@@ -164,11 +176,11 @@ export class LazyComponentLoader {
 	 * Load with retry logic
 	 */
 	private async loadWithRetry(
-		loader: () => Promise<any>,
+		loader: () => Promise<ComponentModule>,
 		maxAttempts: number,
 		delay: number,
-	): Promise<any> {
-		let lastError: Error;
+	): Promise<ComponentModule> {
+		let lastError: Error | undefined;
 
 		for (let attempt = 1; attempt <= maxAttempts; attempt++) {
 			try {
@@ -187,7 +199,10 @@ export class LazyComponentLoader {
 			}
 		}
 
-		throw lastError!;
+		if (lastError) {
+			throw lastError;
+		}
+		throw new Error("Failed to load component after all retry attempts");
 	}
 
 	/**
@@ -229,7 +244,7 @@ export class LazyComponentLoader {
  */
 export class ResourcePreloader {
 	private preloadedResources = new Set<string>();
-	private preloadPromises = new Map<string, Promise<any>>();
+	private preloadPromises = new Map<string, Promise<Response | null>>();
 
 	/**
 	 * Preload API endpoint
@@ -243,13 +258,14 @@ export class ResourcePreloader {
 		}
 
 		if (this.preloadPromises.has(url)) {
-			return this.preloadPromises.get(url);
+			const existingPromise = this.preloadPromises.get(url);
+			return existingPromise || null;
 		}
 
 		const preloadPromise = fetch(url, {
 			...options,
 			// Use low priority for preloading
-			priority: "low" as any,
+			priority: "low" as RequestInit["priority"],
 		})
 			.then((response) => {
 				this.preloadedResources.add(url);
