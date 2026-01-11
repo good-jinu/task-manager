@@ -1,6 +1,6 @@
 <script lang="ts">
 import type { Task, Workspace } from "@notion-task-manager/db";
-import { onMount } from "svelte";
+import { onDestroy, onMount } from "svelte";
 import { browser } from "$app/environment";
 import { ErrorAlert, LoadingSpinner } from "$lib/components";
 import AccountCreationDialog from "$lib/components/AccountCreationDialog.svelte";
@@ -18,6 +18,13 @@ import {
 } from "$lib/stores/guest";
 import { saveGuestDataLocally } from "$lib/stores/guestPersistence";
 import type { PageData } from "$lib/types/page-data";
+import {
+	type ComponentEvent,
+	type ComponentState,
+	performanceMonitor,
+	useComponentWiring,
+} from "$lib/utils/component-wiring";
+import { errorStateManager } from "$lib/utils/error-handling";
 
 let { data }: { data: PageData } = $props();
 
@@ -25,83 +32,140 @@ let { data }: { data: PageData } = $props();
 let session = $derived(data.session);
 let isAuthenticated = $derived(!!session);
 
-// Component state
+// Component wiring setup
+const { manager, subscribe, subscribeToEvents, emit, cleanup } =
+	useComponentWiring();
+
+// Component state from wiring manager
+let componentState = $state<ComponentState>({
+	settingsDrawerOpen: false,
+	notionDialogOpen: false,
+	guestUpgradePromptOpen: false,
+	accountDialogOpen: false,
+	currentWorkspace: null,
+	integrations: [],
+	tasks: [],
+	loadingIntegrations: false,
+	loadingDatabases: false,
+	loadingTasks: false,
+	errors: [],
+	performanceMetrics: new Map(),
+});
+
+// Local component state
 let tasks: Task[] = $state([]);
 let currentWorkspace: Workspace | null = $state(null);
 let loading = $state(false);
 let error = $state("");
-let showAccountDialog = $state(false);
-let showSettingsDrawer = $state(false);
 let selectedContextTasks = $state(new Set<string>());
-let integrations = $state([]);
 let guestTaskCount = $state(0);
 let guestDaysRemaining = $state(7);
 
+// Derived state from component wiring
+let showSettingsDrawer = $derived(componentState.settingsDrawerOpen);
+let showAccountDialog = $derived(componentState.accountDialogOpen);
+let integrations = $derived(componentState.integrations);
+
+// Cleanup functions
+let cleanupFunctions: Array<() => void> = [];
+
 onMount(() => {
-	// Async initialization
-	const initializeApp = async () => {
-		if (isAuthenticated) {
-			await loadWorkspaces();
-			await loadIntegrations();
-
-			// Check for OAuth success parameters
-			if (browser) {
-				const urlParams = new URLSearchParams(window.location.search);
-				const oauthSuccess = urlParams.get("oauth_success");
-				const workspaceId = urlParams.get("workspace_id");
-				const openSettings = urlParams.get("settings");
-				const openSignup = urlParams.get("signup");
-
-				if (
-					oauthSuccess === "notion" &&
-					workspaceId &&
-					currentWorkspace?.id === workspaceId
-				) {
-					// OAuth was successful, open settings drawer to show database selection
-					showSettingsDrawer = true;
-
-					// Clean up URL parameters
-					const url = new URL(window.location.href);
-					url.searchParams.delete("oauth_success");
-					url.searchParams.delete("workspace_id");
-					window.history.replaceState({}, "", url.toString());
-				}
-
-				// Handle settings parameter from navigation
-				if (openSettings === "true") {
-					showSettingsDrawer = true;
-					// Clean up URL parameter
-					const url = new URL(window.location.href);
-					url.searchParams.delete("settings");
-					window.history.replaceState({}, "", url.toString());
-				}
-
-				// Handle signup parameter from navigation
-				if (openSignup === "true") {
-					showAccountDialog = true;
-					// Clean up URL parameter
-					const url = new URL(window.location.href);
-					url.searchParams.delete("signup");
-					window.history.replaceState({}, "", url.toString());
-				}
-			}
-		} else {
-			await initializeGuestSession();
-
-			// Check for signup parameter for guest users
-			if (browser) {
-				const urlParams = new URLSearchParams(window.location.search);
-				const openSignup = urlParams.get("signup");
-
-				if (openSignup === "true") {
-					showAccountDialog = true;
-					// Clean up URL parameter
-					const url = new URL(window.location.href);
-					url.searchParams.delete("signup");
-					window.history.replaceState({}, "", url.toString());
-				}
-			}
+	// Subscribe to component wiring state changes
+	const unsubscribeState = subscribe((state) => {
+		componentState = state;
+		// Sync local state with component state
+		if (state.currentWorkspace) {
+			currentWorkspace = state.currentWorkspace;
 		}
+		if (state.tasks.length > 0) {
+			tasks = state.tasks;
+		}
+	});
+	cleanupFunctions.push(unsubscribeState);
+
+	// Subscribe to component events
+	const unsubscribeEvents = subscribeToEvents((event: ComponentEvent) => {
+		handleComponentEvent(event);
+	});
+	cleanupFunctions.push(unsubscribeEvents);
+
+	// Subscribe to error state changes
+	const unsubscribeErrors = errorStateManager.subscribe((errors) => {
+		if (errors.length > 0) {
+			const latestError = errors[0];
+			error = latestError.message;
+		} else {
+			error = "";
+		}
+	});
+	cleanupFunctions.push(unsubscribeErrors);
+
+	// Async initialization with performance monitoring
+	const initializeApp = async () => {
+		await performanceMonitor.measure("app_initialization", async () => {
+			if (isAuthenticated) {
+				await loadWorkspaces();
+				await manager.loadIntegrations(currentWorkspace?.id || "");
+
+				// Check for OAuth success parameters
+				if (browser) {
+					const urlParams = new URLSearchParams(window.location.search);
+					const oauthSuccess = urlParams.get("oauth_success");
+					const workspaceId = urlParams.get("workspace_id");
+					const openSettings = urlParams.get("settings");
+					const openSignup = urlParams.get("signup");
+
+					if (
+						oauthSuccess === "notion" &&
+						workspaceId &&
+						currentWorkspace?.id === workspaceId
+					) {
+						// OAuth was successful, open settings drawer to show database selection
+						await manager.openSettingsDrawer(workspaceId);
+
+						// Clean up URL parameters
+						const url = new URL(window.location.href);
+						url.searchParams.delete("oauth_success");
+						url.searchParams.delete("workspace_id");
+						window.history.replaceState({}, "", url.toString());
+					}
+
+					// Handle settings parameter from navigation
+					if (openSettings === "true") {
+						await manager.openSettingsDrawer(currentWorkspace?.id || "");
+						// Clean up URL parameter
+						const url = new URL(window.location.href);
+						url.searchParams.delete("settings");
+						window.history.replaceState({}, "", url.toString());
+					}
+
+					// Handle signup parameter from navigation
+					if (openSignup === "true") {
+						manager.showAccountDialog();
+						// Clean up URL parameter
+						const url = new URL(window.location.href);
+						url.searchParams.delete("signup");
+						window.history.replaceState({}, "", url.toString());
+					}
+				}
+			} else {
+				await initializeGuestSession();
+
+				// Check for signup parameter for guest users
+				if (browser) {
+					const urlParams = new URLSearchParams(window.location.search);
+					const openSignup = urlParams.get("signup");
+
+					if (openSignup === "true") {
+						manager.showAccountDialog();
+						// Clean up URL parameter
+						const url = new URL(window.location.href);
+						url.searchParams.delete("signup");
+						window.history.replaceState({}, "", url.toString());
+					}
+				}
+			}
+		});
 	};
 
 	// Start async initialization
@@ -112,18 +176,24 @@ onMount(() => {
 		const handleGlobalKeyDown = (event: KeyboardEvent) => {
 			// Handle escape key to close settings drawer
 			if (event.key === "Escape" && showSettingsDrawer) {
-				handleCloseSettingsDrawer();
+				manager.closeSettingsDrawer();
 				event.preventDefault();
 			}
 		};
 
 		document.addEventListener("keydown", handleGlobalKeyDown);
-
-		// Return cleanup function
-		return () => {
+		cleanupFunctions.push(() => {
 			document.removeEventListener("keydown", handleGlobalKeyDown);
-		};
+		});
 	}
+});
+
+onDestroy(() => {
+	// Clean up all subscriptions and event listeners
+	cleanupFunctions.forEach((cleanup) => {
+		cleanup();
+	});
+	cleanupFunctions = [];
 });
 
 async function initializeGuestSession() {
@@ -136,6 +206,12 @@ async function initializeGuestSession() {
 			currentWorkspace = result.workspace;
 			tasks = result.tasks;
 			updateGuestStore(result.workspace);
+
+			// Update component wiring state
+			manager.updateState({
+				currentWorkspace: result.workspace,
+				tasks: result.tasks,
+			});
 		} else {
 			error = result.message || "Failed to initialize workspace";
 		}
@@ -144,6 +220,44 @@ async function initializeGuestSession() {
 		error = "Failed to initialize workspace";
 	} finally {
 		loading = false;
+	}
+}
+
+function handleComponentEvent(event: ComponentEvent) {
+	switch (event.type) {
+		case "oauth_completed":
+			if (event.success && event.workspaceId === currentWorkspace?.id) {
+				// OAuth successful, database selection dialog should open
+				// This is handled by the component wiring manager
+			}
+			break;
+
+		case "integration_created":
+			// Refresh tasks after integration is created
+			if (currentWorkspace) {
+				loadTasks();
+			}
+			break;
+
+		case "guest_upgrade_prompted":
+			// Show account dialog for guest upgrade
+			manager.showAccountDialog();
+			break;
+
+		case "error_occurred":
+			// Error handling is managed by error state manager
+			console.error("Component error:", event.error, event.context);
+			break;
+
+		case "performance_measured":
+			// Log performance metrics
+			if (event.duration > 1000) {
+				// Log slow operations
+				console.warn(
+					`Slow operation detected: ${event.metric} took ${event.duration}ms`,
+				);
+			}
+			break;
 	}
 }
 
@@ -158,22 +272,9 @@ function updateGuestStore(workspace: Workspace) {
 
 async function loadIntegrations() {
 	if (!currentWorkspace) return;
-
-	try {
-		const response = await fetch(
-			`/api/integrations?workspaceId=${currentWorkspace.id}`,
-		);
-		const data = await response.json();
-
-		if (response.ok) {
-			integrations = data.integrations || [];
-		} else {
-			console.error("Failed to load integrations:", data.error);
-		}
-	} catch (err) {
-		console.error("Error loading integrations:", err);
-	}
+	await manager.loadIntegrations(currentWorkspace.id);
 }
+
 async function loadWorkspaces() {
 	try {
 		const response = await fetch("/api/workspaces");
@@ -183,6 +284,7 @@ async function loadWorkspaces() {
 			const workspaces = data.workspaces || [];
 			if (workspaces.length > 0) {
 				currentWorkspace = workspaces[0];
+				manager.updateState({ currentWorkspace: workspaces[0] });
 				await loadTasks();
 			}
 		} else {
@@ -208,6 +310,7 @@ async function loadTasks() {
 
 		if (response.ok) {
 			tasks = data.data?.items || [];
+			manager.updateState({ tasks: tasks });
 			updateTaskCount();
 		} else {
 			error = data.error || "Failed to load tasks";
@@ -229,6 +332,7 @@ function updateTaskCount() {
 
 function handleTasksUpdate(updatedTasks: Task[]) {
 	tasks = updatedTasks;
+	manager.updateState({ tasks: updatedTasks });
 	updateTaskCount();
 	saveGuestData();
 }
@@ -260,7 +364,7 @@ function handleClearContext() {
 function handleMenuAction(action: string) {
 	switch (action) {
 		case "signup":
-			showAccountDialog = true;
+			manager.showAccountDialog();
 			break;
 		case "notion":
 			handleOpenSettingsDrawer();
@@ -280,73 +384,41 @@ function handleMenuAction(action: string) {
 }
 
 function handleGuestSignUp() {
-	showAccountDialog = true;
+	manager.showAccountDialog();
 }
 
-function handleOpenSettingsDrawer() {
-	showSettingsDrawer = true;
-
-	// Focus management for accessibility
-	if (browser) {
-		// Wait for the drawer to render, then focus the first focusable element
-		setTimeout(() => {
-			const drawer = document.querySelector(
-				'[role="dialog"], .settings-drawer',
-			);
-			if (drawer) {
-				const firstFocusable = drawer.querySelector(
-					'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-				);
-				if (firstFocusable instanceof HTMLElement) {
-					firstFocusable.focus();
-				}
-			}
-		}, 100);
+async function handleOpenSettingsDrawer() {
+	if (currentWorkspace) {
+		await manager.openSettingsDrawer(currentWorkspace.id);
 	}
 }
 
 function handleCloseSettingsDrawer() {
-	showSettingsDrawer = false;
-
-	// Return focus to the menu trigger for accessibility
-	if (browser) {
-		setTimeout(() => {
-			const menuTrigger = document.querySelector('[aria-label="Open menu"]');
-			if (menuTrigger instanceof HTMLElement) {
-				menuTrigger.focus();
-			}
-		}, 100);
-	}
+	manager.closeSettingsDrawer();
 }
 
 async function handleToggleIntegration(provider: string, enabled: boolean) {
-	// This will be handled by the SettingsDrawer component
-	console.log("Toggle integration:", provider, enabled);
+	if (currentWorkspace) {
+		await manager.toggleIntegration(provider, enabled, currentWorkspace.id);
+	}
 }
 
 async function handleConnectNotion(
-	_databaseId: string,
-	_importExisting: boolean,
+	databaseId: string,
+	importExisting: boolean,
 ) {
-	// Reload integrations after successful connection
-	await loadIntegrations();
+	if (currentWorkspace) {
+		await manager.selectDatabase(
+			databaseId,
+			currentWorkspace.id,
+			importExisting,
+		);
+	}
 }
 
 async function handleDisconnectIntegration(integrationId: string) {
-	try {
-		const response = await fetch(`/api/integrations/${integrationId}`, {
-			method: "DELETE",
-		});
-
-		if (response.ok) {
-			// Reload integrations after successful disconnection
-			await loadIntegrations();
-		} else {
-			const data = await response.json();
-			console.error("Failed to disconnect integration:", data.error);
-		}
-	} catch (err) {
-		console.error("Error disconnecting integration:", err);
+	if (currentWorkspace) {
+		await manager.disconnectIntegration(integrationId, currentWorkspace.id);
 	}
 }
 
