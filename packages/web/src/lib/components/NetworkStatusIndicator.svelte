@@ -36,6 +36,11 @@ let unsubscribeStatus: (() => void) | undefined;
 let unsubscribeQueue: (() => void) | undefined;
 
 onMount(() => {
+	// Only subscribe if we're in the browser and have a manager
+	if (typeof window === "undefined" || !networkResilienceManager) {
+		return;
+	}
+
 	// Subscribe to network status changes
 	unsubscribeStatus = networkResilienceManager.subscribeToNetworkStatus(
 		(status) => {
@@ -91,6 +96,11 @@ function getStatusBgColor(status: NetworkStatus): string {
 }
 
 function retryQueuedOperations(): void {
+	// Only retry if we're in the browser and have a manager
+	if (typeof window === "undefined" || !networkResilienceManager) {
+		return;
+	}
+
 	// This will trigger a retry of all queued operations
 	networkResilienceManager.getQueuedOperations().forEach((op) => {
 		// Reset next attempt time to trigger immediate retry
@@ -99,6 +109,11 @@ function retryQueuedOperations(): void {
 }
 
 function clearQueue(): void {
+	// Only clear if we're in the browser and have a manager
+	if (typeof window === "undefined" || !networkResilienceManager) {
+		return;
+	}
+
 	networkResilienceManager.clearQueue();
 }
 

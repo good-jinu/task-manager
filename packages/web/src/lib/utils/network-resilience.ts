@@ -118,6 +118,11 @@ export class NetworkResilienceManager {
 	 * Start periodic connectivity check to detect slow connections
 	 */
 	private startConnectivityCheck(): void {
+		if (typeof window === "undefined") {
+			// Skip connectivity check on server-side
+			return;
+		}
+
 		setInterval(async () => {
 			if (this.networkStatus === "offline") return;
 
@@ -152,20 +157,50 @@ export class NetworkResilienceManager {
 	 */
 	private updateNetworkStatus(status: NetworkStatus): void {
 		if (this.networkStatus !== status) {
+			const previousStatus = this.networkStatus;
 			this.networkStatus = status;
 			this.notifyStatusListeners();
 
 			// Add user notification for network changes
 			if (status === "offline") {
 				errorStateManager.addError(
-					createErrorFromTemplate("network", "connection_failed", {
+					createErrorFromTemplate("network", "offline_mode", {
 						networkStatus: status,
+						previousStatus,
+						timestamp: new Date(),
+						queuedOperations: this.operationQueue.size,
+					}),
+				);
+			} else if (status === "slow") {
+				errorStateManager.addError(
+					createErrorFromTemplate("network", "slow_connection", {
+						networkStatus: status,
+						previousStatus,
 						timestamp: new Date(),
 					}),
 				);
-			} else if (status === "online") {
-				// Clear network errors when back online
+			} else if (status === "online" && previousStatus === "offline") {
+				// Clear network errors when back online and show recovery message
 				errorStateManager.clearErrorsByType("network");
+
+				// If there are queued operations, show a brief notification
+				if (this.operationQueue.size > 0) {
+					errorStateManager.addError({
+						type: "network",
+						severity: "info",
+						message: `Connection restored. Processing ${this.operationQueue.size} queued operations.`,
+						details:
+							"Your queued requests are now being processed automatically.",
+						actionable: false,
+						retryable: false,
+						context: {
+							networkStatus: status,
+							previousStatus,
+							queuedOperations: this.operationQueue.size,
+							timestamp: new Date(),
+						},
+					});
+				}
 			}
 		}
 	}
@@ -204,6 +239,34 @@ export class NetworkResilienceManager {
 		context?: Record<string, unknown>,
 		priority: number = 0,
 	): string {
+		// Check queue size limits to prevent memory issues
+		const maxQueueSize = 100;
+		if (this.operationQueue.size >= maxQueueSize) {
+			// Remove oldest low-priority operations to make room
+			const operations = this.getQueuedOperations();
+			const lowPriorityOps = operations
+				.filter((op) => op.priority <= 0)
+				.sort(
+					(a, b) =>
+						(a.lastAttempt?.getTime() || 0) - (b.lastAttempt?.getTime() || 0),
+				);
+
+			if (lowPriorityOps.length > 0) {
+				this.operationQueue.delete(lowPriorityOps[0].id);
+			} else {
+				// Queue is full with high-priority operations
+				errorStateManager.addError(
+					createErrorFromTemplate("network", "queue_full", {
+						queueSize: this.operationQueue.size,
+						maxQueueSize,
+						operationType: type,
+						timestamp: new Date(),
+					}),
+				);
+				throw new Error("Operation queue is full");
+			}
+		}
+
 		const id = this.generateOperationId();
 		const config = this.retryConfigs[type];
 
@@ -343,6 +406,11 @@ export class NetworkResilienceManager {
 	 * Start the retry processor that runs periodically
 	 */
 	private startRetryProcessor(): void {
+		if (typeof window === "undefined") {
+			// Skip retry processor on server-side
+			return;
+		}
+
 		this.retryTimer = window.setInterval(() => {
 			this.processQueuedOperations();
 		}, 5000); // Check every 5 seconds
@@ -352,7 +420,7 @@ export class NetworkResilienceManager {
 	 * Stop the retry processor
 	 */
 	stopRetryProcessor(): void {
-		if (this.retryTimer) {
+		if (this.retryTimer && typeof window !== "undefined") {
 			clearInterval(this.retryTimer);
 			this.retryTimer = undefined;
 		}
@@ -422,9 +490,12 @@ export class NetworkResilienceManager {
 }
 
 /**
- * Global network resilience manager instance
+ * Global network resilience manager instance (browser-only)
  */
-export const networkResilienceManager = new NetworkResilienceManager();
+export const networkResilienceManager =
+	typeof window !== "undefined"
+		? new NetworkResilienceManager()
+		: (null as any as NetworkResilienceManager);
 
 /**
  * Utility function to wrap API calls with retry logic
@@ -434,6 +505,11 @@ export async function withRetry<T>(
 	type: QueuedOperationType = "api_call",
 	context?: Record<string, unknown>,
 ): Promise<T> {
+	// On server-side, just execute the operation directly
+	if (typeof window === "undefined" || !networkResilienceManager) {
+		return await operation();
+	}
+
 	try {
 		return await operation();
 	} catch (error) {
@@ -521,6 +597,36 @@ export async function resilientFetch(
 }
 
 /**
+ * Enhanced sync operation wrapper with specific retry logic for sync operations
+ */
+export async function resilientSyncOperation<T>(
+	operation: () => Promise<T>,
+	integrationId: string,
+	syncType: "manual" | "automatic" = "automatic",
+): Promise<T> {
+	return withRetry(operation, "sync", {
+		integrationId,
+		syncType,
+		timestamp: new Date(),
+	});
+}
+
+/**
+ * Enhanced OAuth operation wrapper with specific retry logic for OAuth flows
+ */
+export async function resilientOAuthOperation<T>(
+	operation: () => Promise<T>,
+	provider: string,
+	workspaceId?: string,
+): Promise<T> {
+	return withRetry(operation, "oauth", {
+		provider,
+		workspaceId,
+		timestamp: new Date(),
+	});
+}
+
+/**
  * Network status indicator component data
  */
 export interface NetworkStatusIndicator {
@@ -535,6 +641,17 @@ export interface NetworkStatusIndicator {
  * Get network status indicator data for UI components
  */
 export function getNetworkStatusIndicator(): NetworkStatusIndicator {
+	// Default values for server-side rendering
+	if (typeof window === "undefined" || !networkResilienceManager) {
+		return {
+			status: "unknown",
+			message: "Checking connection...",
+			color: "text-muted-foreground",
+			icon: "⚪",
+			queuedOperations: 0,
+		};
+	}
+
 	const status = networkResilienceManager.getNetworkStatus();
 	const queuedOperations =
 		networkResilienceManager.getQueuedOperations().length;
@@ -584,7 +701,7 @@ export function getNetworkStatusIndicator(): NetworkStatusIndicator {
 /**
  * Cleanup function for when the app is unloaded
  */
-if (typeof window !== "undefined") {
+if (typeof window !== "undefined" && networkResilienceManager) {
 	window.addEventListener("beforeunload", () => {
 		networkResilienceManager.destroy();
 	});

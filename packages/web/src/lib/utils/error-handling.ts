@@ -324,6 +324,29 @@ export const errorMessages = {
 			severity: "error" as ErrorSeverity,
 			retryable: true,
 		},
+		offline_mode: {
+			message:
+				"You're currently offline. Operations will resume when connection is restored.",
+			details:
+				"Your requests are being queued and will be processed automatically when you're back online.",
+			severity: "info" as ErrorSeverity,
+			retryable: true,
+		},
+		slow_connection: {
+			message:
+				"Slow connection detected. Operations may take longer than usual.",
+			details:
+				"Your internet connection appears to be slow. Please be patient while requests complete.",
+			severity: "warning" as ErrorSeverity,
+			retryable: false,
+		},
+		queue_full: {
+			message: "Too many operations are queued. Some requests may be dropped.",
+			details:
+				"The offline queue is full. Please wait for some operations to complete before trying again.",
+			severity: "warning" as ErrorSeverity,
+			retryable: true,
+		},
 	},
 	validation: {
 		invalid_input: {

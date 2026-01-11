@@ -54,7 +54,11 @@ onMount(() => {
 	});
 
 	// Subscribe to network status changes if enabled
-	if (showNetworkStatus) {
+	if (
+		showNetworkStatus &&
+		typeof window !== "undefined" &&
+		networkResilienceManager
+	) {
 		unsubscribeNetwork = networkResilienceManager.subscribeToNetworkStatus(
 			() => {
 				networkStatus = getNetworkStatusIndicator();

@@ -3,6 +3,7 @@ import { json } from "@sveltejs/kit";
 import { AUTH_NOTION_ID, AUTH_NOTION_SECRET } from "$env/static/private";
 import { requireAuth } from "$lib/auth";
 import { getUserFromDatabase } from "$lib/user";
+import { resilientOAuthOperation } from "$lib/utils/network-resilience";
 import type { RequestHandler } from "./$types";
 
 interface NotionTokenRefreshResponse {
@@ -60,10 +61,9 @@ export const POST: RequestHandler = async (event) => {
 			}
 		}
 
-		// Attempt to refresh the token
-		const refreshResponse = await fetch(
-			"https://api.notion.com/v1/oauth/token",
-			{
+		// Attempt to refresh the token with network resilience
+		const refreshResponse = await resilientOAuthOperation(async () => {
+			return await fetch("https://api.notion.com/v1/oauth/token", {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
@@ -73,8 +73,8 @@ export const POST: RequestHandler = async (event) => {
 					grant_type: "refresh_token",
 					refresh_token: user.notionRefreshToken,
 				}),
-			},
-		);
+			});
+		}, "notion");
 
 		if (!refreshResponse.ok) {
 			const errorData: NotionErrorResponse = await refreshResponse.json();

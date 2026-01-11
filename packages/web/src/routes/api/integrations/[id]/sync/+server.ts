@@ -10,6 +10,7 @@ import {
 } from "@notion-task-manager/db";
 import { json } from "@sveltejs/kit";
 import { requireAuth } from "$lib/auth";
+import { resilientSyncOperation } from "$lib/utils/network-resilience";
 import type { RequestHandler } from "./$types";
 
 /**
@@ -61,9 +62,15 @@ export const PUT: RequestHandler = async (event) => {
 				);
 			}
 
-			// Trigger manual sync using the scheduler
+			// Trigger manual sync using the scheduler with network resilience
 			const startTime = Date.now();
-			await syncScheduler.triggerManualSync(integrationId);
+			await resilientSyncOperation(
+				async () => {
+					await syncScheduler.triggerManualSync(integrationId);
+				},
+				integrationId,
+				"manual",
+			);
 			const syncDuration = Date.now() - startTime;
 
 			// Get updated sync statistics

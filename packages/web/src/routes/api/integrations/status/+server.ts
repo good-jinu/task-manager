@@ -23,7 +23,7 @@ interface SyncStatistics {
 	lastSyncDuration?: number;
 }
 
-export const GET: RequestHandler = async ({ url, locals }) => {
+export const GET: RequestHandler = async ({ url }) => {
 	try {
 		const workspaceId = url.searchParams.get("workspaceId");
 		const integrationId = url.searchParams.get("integrationId");
@@ -137,7 +137,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	}
 };
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+export const POST: RequestHandler = async ({ request }) => {
 	try {
 		const { integrationId, action } = await request.json();
 
