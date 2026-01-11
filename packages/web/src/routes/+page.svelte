@@ -13,11 +13,7 @@ import TaskBoard from "$lib/components/TaskBoard.svelte";
 import TopMenu from "$lib/components/TopMenu.svelte";
 import { guestUserService } from "$lib/services/guest-user-service";
 import { taskService } from "$lib/services/task-service";
-import {
-	guestUser,
-	isGuestMode,
-	updateGuestTaskCount,
-} from "$lib/stores/guest";
+import { isGuestMode, updateGuestTaskCount } from "$lib/stores/guest";
 import type { PageData } from "$lib/types/page-data";
 import {
 	type ComponentEvent,

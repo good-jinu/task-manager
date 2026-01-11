@@ -13,7 +13,6 @@ import {
 import {
 	type GuestBackupData,
 	loadGuestDataLocally,
-	mergeTasks,
 	saveGuestDataLocally,
 } from "$lib/stores/guestPersistence";
 
@@ -81,39 +80,7 @@ export class GuestUserService {
 		// Strategy 1: Try to load from local storage
 		const localData = loadGuestDataLocally();
 		if (localData) {
-			console.log("Found local guest data, attempting server recovery...");
-
-			// Try to restore the server session with the stored guest ID
-			const serverRecovery = await this.attemptServerRecovery(
-				localData.guestId,
-			);
-			if (serverRecovery.success) {
-				// Merge local and server tasks
-				const mergedTasks = mergeTasks(localData.tasks, serverRecovery.tasks);
-
-				// Update local storage with merged data
-				this.saveGuestData({
-					guestId: localData.guestId,
-					workspaceId: localData.workspaceId,
-					tasks: mergedTasks,
-					lastSync: new Date().toISOString(),
-					deviceFingerprint: localData.deviceFingerprint,
-				});
-
-				// Update stores
-				this.updateGuestStore(serverRecovery.workspace, mergedTasks);
-
-				return {
-					success: true,
-					workspace: serverRecovery.workspace,
-					tasks: mergedTasks,
-					recoveredFromLocal: true,
-					message: "Session recovered successfully with local data merged",
-				};
-			}
-
-			// Server recovery failed, use local data only
-			console.log("Server recovery failed, using local data only");
+			console.log("Found local guest data, using local data only");
 			return {
 				success: true,
 				workspace: {
@@ -149,54 +116,6 @@ export class GuestUserService {
 				recoveredFromLocal: false,
 				message: "Failed to initialize guest session",
 			};
-		}
-	}
-
-	/**
-	 * Attempt to recover guest session from server
-	 */
-	private async attemptServerRecovery(guestId: string): Promise<
-		| {
-				success: true;
-				workspace: Workspace;
-				tasks: Task[];
-		  }
-		| {
-				success: false;
-		  }
-	> {
-		try {
-			// Try to fetch guest tasks directly - the tasks endpoint handles guest users
-			const tasksResponse = await fetch("/api/tasks", {
-				headers: {
-					"x-guest-id": guestId,
-				},
-			});
-
-			if (!tasksResponse.ok) {
-				return { success: false };
-			}
-
-			const tasksData = await tasksResponse.json();
-			const tasks = tasksData.data?.items || [];
-
-			// Create a default workspace for the guest user
-			const workspace: Workspace = {
-				id: `guest-workspace-${guestId}`,
-				name: "My Tasks",
-				userId: guestId,
-				createdAt: new Date().toISOString(),
-				updatedAt: new Date().toISOString(),
-			};
-
-			return {
-				success: true,
-				workspace,
-				tasks,
-			};
-		} catch (error) {
-			console.error("Server recovery failed:", error);
-			return { success: false };
 		}
 	}
 

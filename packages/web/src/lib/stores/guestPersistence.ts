@@ -83,38 +83,3 @@ export function loadGuestDataLocally(): GuestBackupData | null {
 		return null;
 	}
 }
-
-// Sync local tasks with server tasks, merging any differences
-export function mergeTasks(localTasks: Task[], serverTasks: Task[]): Task[] {
-	const taskMap = new Map<string, Task>();
-
-	// Add server tasks first
-	serverTasks.forEach((task) => {
-		taskMap.set(task.id, task);
-	});
-
-	// Add local tasks, preferring newer ones
-	localTasks.forEach((localTask) => {
-		const serverTask = taskMap.get(localTask.id);
-		if (!serverTask) {
-			// Local task doesn't exist on server, keep it
-			taskMap.set(localTask.id, localTask);
-		} else {
-			// Compare timestamps and keep the newer one
-			const localTime = new Date(
-				localTask.updatedAt || localTask.createdAt,
-			).getTime();
-			const serverTime = new Date(
-				serverTask.updatedAt || serverTask.createdAt,
-			).getTime();
-
-			if (localTime > serverTime) {
-				taskMap.set(localTask.id, localTask);
-			}
-		}
-	});
-
-	return Array.from(taskMap.values()).sort(
-		(a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-	);
-}
