@@ -39,7 +39,7 @@ function handleMenuOpenChange(open: boolean) {
 </script>
 
 <!-- Sticky Top Menu -->
-<div class="sticky top-0 z-50 bg-surface-base border-b border-subtle-base">
+<div class="sticky top-0 z-2 bg-surface-base border-b border-subtle-base">
 	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 		<div class="flex items-center justify-between h-14">
 			<div class="flex items-center gap-3">

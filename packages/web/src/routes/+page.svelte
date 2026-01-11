@@ -69,6 +69,7 @@ let componentState = $state<ComponentState>({
 // Derived state from stores and component wiring
 let showSettingsDrawer = $derived(componentState.settingsDrawerOpen);
 let showAccountDialog = $derived(componentState.accountDialogOpen);
+let integrations = $derived(componentState.integrations);
 
 // App state from store
 let {

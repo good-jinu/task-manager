@@ -1,11 +1,13 @@
 <script lang="ts">
 import type { Snippet } from "svelte";
 import "./layout.css";
+import { QueryClientProvider } from "@tanstack/svelte-query";
 import { onMount } from "svelte";
 import { page } from "$app/stores";
 import favicon from "$lib/assets/favicon.svg";
 import ResponsiveContainer from "$lib/components/layout/ResponsiveContainer.svelte";
 import { initializePWA } from "$lib/pwa-install";
+import { queryClient } from "$lib/queries";
 import type { LayoutData } from "./$types";
 
 let { children, data }: { children: Snippet; data: LayoutData } = $props();
@@ -21,6 +23,8 @@ onMount(() => {
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 
-<ResponsiveContainer {session} {currentPath}>
-	{@render children()}
-</ResponsiveContainer>
+<QueryClientProvider client={queryClient}>
+	<ResponsiveContainer {session} {currentPath}>
+		{@render children()}
+	</ResponsiveContainer>
+</QueryClientProvider>

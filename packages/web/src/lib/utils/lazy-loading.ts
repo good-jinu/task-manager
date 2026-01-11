@@ -342,7 +342,6 @@ export function preloadIntegrationResources(workspaceId: string): void {
 	const commonEndpoints = [
 		`/api/integrations/status?workspaceId=${workspaceId}`,
 		"/api/integrations/notion/databases",
-		`/api/workspaces/${workspaceId}/integrations`,
 	];
 
 	resourcePreloader.preloadEndpoints(commonEndpoints);

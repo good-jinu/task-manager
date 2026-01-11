@@ -69,7 +69,7 @@ function handleKeydown(event: KeyboardEvent) {
 }
 </script>
 
-<div class="fixed bottom-4 left-4 right-4 z-50">
+<div class="fixed bottom-4 left-4 right-4 z-5">
 	<div class="max-w-4xl mx-auto">
 		<!-- Context Tasks Display -->
 		{#if selectedTasks.length > 0}

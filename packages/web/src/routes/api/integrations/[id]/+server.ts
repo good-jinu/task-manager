@@ -108,6 +108,67 @@ export const PUT: RequestHandler = async (event) => {
 };
 
 /**
+ * PATCH /api/integrations/[id]
+ * Partially updates an existing integration (e.g., toggling syncEnabled).
+ * Added to support the toggleIntegration client function.
+ */
+export const PATCH: RequestHandler = async (event) => {
+	try {
+		const session = await requireAuth(event);
+
+		const integrationId = event.params.id;
+		if (!integrationId) {
+			return json({ error: "Integration ID is required" }, { status: 400 });
+		}
+
+		const body = await event.request.json();
+
+		// Ensure the integration exists
+		const integrationService = new IntegrationService();
+		const existing = await integrationService.getIntegration(integrationId);
+
+		if (!existing) {
+			return json({ error: "Integration not found" }, { status: 404 });
+		}
+
+		// Perform the update
+		// We pass the body directly, assuming the service handles partial updates
+		// or we merge specific fields here if the service requires full objects.
+		const updatedIntegration = await integrationService.updateIntegration(
+			integrationId,
+			body,
+		);
+
+		return json({
+			success: true,
+			integration: updatedIntegration,
+		});
+	} catch (error) {
+		console.error("Failed to patch integration:", error);
+
+		if (error instanceof Error && error.message.includes("redirect")) {
+			throw error;
+		}
+
+		if (error instanceof ValidationError) {
+			return json(
+				{
+					error: error.message,
+				},
+				{ status: 400 },
+			);
+		}
+
+		return json(
+			{
+				error: "Failed to update integration",
+			},
+			{ status: 500 },
+		);
+	}
+};
+
+/**
  * DELETE /api/integrations/[id]
  * Deletes an integration and all associated sync metadata with proper cleanup
  */

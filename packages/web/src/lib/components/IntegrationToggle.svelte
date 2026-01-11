@@ -1,10 +1,12 @@
 <script lang="ts">
 import type { ExternalIntegration } from "@notion-task-manager/db";
+import { Switch } from "bits-ui";
 import {
 	classifyOAuthError,
 	initiateOAuth,
 	OAuthRetryManager,
 } from "$lib/utils/oauth";
+import DatabaseSelector from "./DatabaseSelector.svelte";
 import {
 	CheckCircle,
 	Clock,
@@ -14,6 +16,18 @@ import {
 	X,
 } from "./icons";
 import { cn } from "./utils";
+
+interface NotionDatabase {
+	id: string;
+	title: string;
+	url?: string;
+	icon?: {
+		type: "emoji" | "external" | "file";
+		emoji?: string;
+		external?: { url: string };
+		file?: { url: string };
+	};
+}
 
 interface IntegrationStatus {
 	status: "disconnected" | "disabled" | "synced" | "pending" | "error";
@@ -33,9 +47,13 @@ interface Props {
 	onStatusClick?: () => void;
 	onOAuthSuccess?: (data: Record<string, unknown>) => void;
 	onOAuthError?: (error: string) => void;
+	onDatabaseChange?: (databaseId: string) => void;
 	class?: string;
 	// Enhanced status information
 	integrationStatus?: IntegrationStatus;
+	// Database selection
+	availableDatabases?: NotionDatabase[];
+	currentDatabase?: NotionDatabase | null;
 	// Mobile optimization
 	hapticFeedback?: boolean;
 }
@@ -50,8 +68,11 @@ let {
 	onStatusClick,
 	onOAuthSuccess,
 	onOAuthError,
+	onDatabaseChange,
 	class: className = "",
 	integrationStatus,
+	availableDatabases = [],
+	currentDatabase = null,
 	hapticFeedback = true,
 }: Props = $props();
 
@@ -97,6 +118,38 @@ async function handleToggle() {
 		} else {
 			// Just toggling existing integration
 			await onToggle(newState);
+		}
+	} catch (error) {
+		console.error("Toggle error:", error);
+		const errorMessage =
+			error instanceof Error ? error.message : "Failed to toggle integration";
+		oauthError = errorMessage;
+
+		if (onOAuthError) {
+			onOAuthError(errorMessage);
+		}
+	} finally {
+		isToggling = false;
+	}
+}
+
+async function handleSwitchChange(checked: boolean) {
+	if (isToggling || loading || disabled) return;
+
+	// Trigger haptic feedback on interaction
+	triggerHapticFeedback("medium");
+
+	isToggling = true;
+	oauthError = null;
+
+	try {
+		if (checked && !integration) {
+			// Enabling integration for the first time - check if user has Notion tokens
+			// If they do, show database selection; if not, initiate OAuth
+			await handleIntegrationSetup();
+		} else {
+			// Just toggling existing integration
+			await onToggle(checked);
 		}
 	} catch (error) {
 		console.error("Toggle error:", error);
@@ -313,182 +366,162 @@ const syncStatsText = $derived.by(() => {
 
 	return parts.length > 0 ? parts.join(", ") : null;
 });
+
+async function handleDatabaseChange(databaseId: string) {
+	if (onDatabaseChange) {
+		await onDatabaseChange(databaseId);
+	}
+}
+
+async function handleSetupNotion() {
+	await handleIntegrationSetup();
+}
 </script>
 
 <div class={cn(
-	'flex items-center justify-between p-4 bg-surface-base border border-subtle-base rounded-lg',
+	'flex flex-col gap-3 p-4 bg-surface-base border border-subtle-base rounded-lg',
 	disabled && 'opacity-60 pointer-events-none',
 	className
 )}>
-	<div class="flex items-center gap-3 flex-1 min-w-0">
-		<div class="flex-shrink-0">
-			<Database class="w-6 h-6 text-gray-600" />
+	<!-- Header Section -->
+	<div class="flex items-center justify-between">
+		<div class="flex items-center gap-3 flex-1 min-w-0">
+			<div class="flex-shrink-0">
+				<Database class="w-5 h-5 text-foreground-secondary" />
+			</div>
+			<div class="min-w-0 flex-1">
+				<h3 class="font-medium text-foreground-base text-sm">Notion Integration</h3>
+			</div>
 		</div>
 		
-		<div class="flex-1 min-w-0">
-			<div class="flex items-center gap-2 mb-1">
-				<h3 class="font-medium text-gray-900">Notion Integration</h3>
-				
-				<!-- Enhanced Status Badge -->
-				<button
-					onclick={currentStatus.clickable ? handleStatusClick : undefined}
-					ontouchstart={currentStatus.clickable ? handleTouchStart : undefined}
-					ontouchend={currentStatus.clickable ? () => handleTouchEnd(handleStatusClick) : undefined}
-					disabled={!currentStatus.clickable}
-					class={cn(
-						'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-200',
-						'border',
-						// Touch target optimization for mobile
-						'min-h-[32px] min-w-[32px]',
-						currentStatus.clickable && 'hover:opacity-80 active:scale-95 cursor-pointer',
-						!currentStatus.clickable && 'cursor-default'
-					)}
-					style={`
-						background-color: ${currentStatus.bgColor};
-						color: ${currentStatus.textColor};
-						border-color: ${currentStatus.borderColor};
-					`}
-					aria-label={currentStatus.clickable ? `${currentStatus.label} - Tap for details` : currentStatus.label}
-				>
-					{#if currentStatus.icon}
-						{@const IconComponent = currentStatus.icon}
-						<IconComponent class="w-3 h-3 flex-shrink-0" />
-					{/if}
-					<span class="whitespace-nowrap">{currentStatus.label}</span>
-					
-					<!-- Loading indicator overlay for pending status -->
-					{#if status() === 'pending' || isToggling}
-						<Spinner class="w-3 h-3 ml-1" />
-					{/if}
-				</button>
-			</div>
+		<!-- Status Badge -->
+		<button
+			onclick={currentStatus.clickable ? handleStatusClick : undefined}
+			ontouchstart={currentStatus.clickable ? handleTouchStart : undefined}
+			ontouchend={currentStatus.clickable ? () => handleTouchEnd(handleStatusClick) : undefined}
+			disabled={!currentStatus.clickable}
+			class={cn(
+				'inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-all duration-200',
+				'border flex-shrink-0',
+				// Touch target optimization for mobile
+				'min-h-[28px]',
+				currentStatus.clickable && 'hover:opacity-80 active:scale-95 cursor-pointer',
+				!currentStatus.clickable && 'cursor-default'
+			)}
+			style={`
+				background-color: ${currentStatus.bgColor};
+				color: ${currentStatus.textColor};
+				border-color: ${currentStatus.borderColor};
+			`}
+			aria-label={currentStatus.clickable ? `${currentStatus.label} - Tap for details` : currentStatus.label}
+		>
+			{#if currentStatus.icon}
+				{@const IconComponent = currentStatus.icon}
+				<IconComponent class="w-3 h-3 flex-shrink-0" />
+			{/if}
+			<span class="whitespace-nowrap">{currentStatus.label}</span>
 			
-			<!-- Status description -->
-			<p class="text-sm text-gray-600 mb-1">
-				{currentStatus.description}
-			</p>
-			
-			<!-- Enhanced sync information -->
-			<div class="flex flex-col gap-1">
-				{#if lastSyncText}
-					<p class="text-xs text-gray-500">
-						Last synced: {lastSyncText}
-					</p>
-				{/if}
-				
-				{#if syncStatsText}
-					<p class="text-xs text-gray-500">
-						{syncStatsText}
-					</p>
-				{/if}
-				
-				{#if integrationStatus?.lastError && status() === 'error'}
-					<p class="text-xs text-red-600 font-medium">
-						{integrationStatus.lastError}
-					</p>
-				{/if}
-				
-				{#if oauthError}
-					<div class="flex items-center gap-2 mt-1">
-						<p class="text-xs text-red-600 font-medium">
-							{oauthError}
-						</p>
-						<button
-							onclick={handleRetryOAuth}
-							class="text-xs text-blue-600 hover:text-blue-700 underline"
-						>
-							Retry
-						</button>
-					</div>
-				{/if}
-			</div>
-		</div>
+			<!-- Loading indicator overlay for pending status -->
+			{#if status() === 'pending' || isToggling}
+				<Spinner class="w-3 h-3" />
+			{/if}
+		</button>
 	</div>
 
-	<!-- Action buttons with enhanced mobile touch targets -->
-	<div class="flex items-center gap-2 flex-shrink-0">
+	<!-- Description -->
+	<p class="text-xs text-foreground-secondary">
+		{currentStatus.description}
+	</p>
+
+	<!-- Database Selector and Toggle Row -->
+	<div class="flex items-center gap-2 flex-wrap">
+		<!-- Database Selector -->
+		<div class="flex-1 min-w-0">
+			<DatabaseSelector
+				databases={availableDatabases}
+				currentDatabase={currentDatabase}
+				onDatabaseChange={handleDatabaseChange}
+				onSetupNotion={handleSetupNotion}
+				disabled={disabled || loading}
+				loading={loading}
+			/>
+		</div>
+
 		{#if integration}
-			<!-- Enhanced Toggle switch with better mobile interaction -->
-			<button
-				onclick={handleToggle}
-				ontouchstart={handleTouchStart}
-				ontouchend={() => handleTouchEnd(handleToggle)}
-				disabled={isToggling || loading || disabled}
-				class={cn(
-					'relative inline-flex items-center justify-center rounded-full transition-all duration-200',
-					'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
-					'disabled:opacity-50 disabled:cursor-not-allowed',
-					// Enhanced touch target for mobile (44px minimum)
-					'min-w-[44px] min-h-[44px] p-2',
-					// Visual feedback for touch interactions
-					'active:scale-95 hover:shadow-md',
-					integration.syncEnabled ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-200 hover:bg-gray-300'
-				)}
-				aria-label={integration.syncEnabled ? 'Disable sync' : 'Enable sync'}
-			>
-				<!-- Toggle switch visual -->
-				<div class={cn(
-					'relative w-11 h-6 rounded-full transition-colors',
-					integration.syncEnabled ? 'bg-blue-600' : 'bg-gray-200'
-				)}>
-					<span
-						class={cn(
-							'absolute top-0.5 inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm',
-							integration.syncEnabled ? 'translate-x-6' : 'translate-x-0.5'
-						)}
-					></span>
-				</div>
+			<!-- Toggle Switch using bits-ui -->
+			<div class="relative flex-shrink-0">
+				<Switch.Root
+					checked={integration.syncEnabled}
+					onCheckedChange={handleSwitchChange}
+					disabled={isToggling || loading || disabled}
+					class="data-[state=checked]:bg-primary data-[state=unchecked]:bg-surface-muted inline-flex h-5 w-10 shrink-0 cursor-pointer items-center rounded-full px-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
+				>
+					<Switch.Thumb class="pointer-events-none block h-4 w-4 rounded-full bg-surface-base shadow-sm transition-transform data-[state=checked]:translate-x-5 data-[state=unchecked]:translate-x-0" />
+				</Switch.Root>
 				
 				<!-- Loading indicator overlay -->
 				{#if isToggling}
-					<div class="absolute inset-0 flex items-center justify-center">
-						<Spinner class="w-4 h-4 text-white" />
+					<div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+						<Spinner class="w-3 h-3 text-primary" />
 					</div>
 				{/if}
-			</button>
-
-			<!-- Configure button with enhanced mobile touch target -->
-			{#if onConfigure}
-				<button
-					onclick={handleConfigure}
-					ontouchstart={handleTouchStart}
-					ontouchend={() => handleTouchEnd(handleConfigure)}
-					class={cn(
-						'px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100',
-						'hover:bg-gray-200 active:bg-gray-300 rounded-md transition-all duration-200',
-						// Enhanced touch target for mobile
-						'min-h-[44px] min-w-[44px] flex items-center justify-center',
-						// Visual feedback for touch interactions
-						'active:scale-95 hover:shadow-sm'
-					)}
-					aria-label="Configure integration settings"
-				>
-					Configure
-				</button>
-			{/if}
-		{:else}
-			<!-- Connect button with enhanced mobile interaction -->
-			<button
-				onclick={() => handleIntegrationSetup()}
-				ontouchstart={handleTouchStart}
-				ontouchend={() => handleTouchEnd(() => handleIntegrationSetup())}
-				disabled={loading || disabled}
-				class={cn(
-					'px-4 py-2 text-sm font-medium text-white bg-blue-600',
-					'hover:bg-blue-700 active:bg-blue-800 rounded-md transition-all duration-200',
-					'disabled:opacity-50 disabled:cursor-not-allowed',
-					// Enhanced touch target for mobile
-					'min-h-[44px] flex items-center justify-center gap-2',
-					// Visual feedback for touch interactions
-					'active:scale-95 hover:shadow-md'
-				)}
-				aria-label="Setup Notion integration"
-			>
-				{#if loading}
-					<Spinner class="w-4 h-4" />
-				{/if}
-				<span>Setup Notion</span>
-			</button>
+			</div>
 		{/if}
 	</div>
+
+	<!-- Sync Information (Collapsible on Mobile) -->
+	{#if lastSyncText || syncStatsText || (integrationStatus?.lastError && status() === 'error') || oauthError}
+		<div class="flex flex-col gap-1 pt-1 border-t border-subtle-base">
+			{#if lastSyncText}
+				<p class="text-xs text-muted-foreground">
+					Last synced: {lastSyncText}
+				</p>
+			{/if}
+			
+			{#if syncStatsText}
+				<p class="text-xs text-muted-foreground">
+					{syncStatsText}
+				</p>
+			{/if}
+			
+			{#if integrationStatus?.lastError && status() === 'error'}
+				<p class="text-xs text-error font-medium">
+					{integrationStatus.lastError}
+				</p>
+			{/if}
+			
+			{#if oauthError}
+				<div class="flex items-center gap-2">
+					<p class="text-xs text-error font-medium flex-1">
+						{oauthError}
+					</p>
+					<button
+						onclick={handleRetryOAuth}
+						class="text-xs text-primary hover:text-primary-button-hover underline flex-shrink-0"
+					>
+						Retry
+					</button>
+				</div>
+			{/if}
+		</div>
+	{/if}
+
+	<!-- Configure Button (Mobile Friendly) -->
+	{#if integration && onConfigure}
+		<button
+			onclick={handleConfigure}
+			ontouchstart={handleTouchStart}
+			ontouchend={() => handleTouchEnd(handleConfigure)}
+			class={cn(
+				'w-full px-3 py-2 text-sm font-medium text-foreground-base bg-surface-muted',
+				'hover:bg-subtle-hover active:bg-subtle-base rounded-md transition-all duration-200',
+				'min-h-[44px] flex items-center justify-center gap-2',
+				'active:scale-[0.98] border border-subtle-base'
+			)}
+			aria-label="Configure integration settings"
+		>
+			<Database class="w-4 h-4" />
+			<span>Configure Integration</span>
+		</button>
+	{/if}
 </div>

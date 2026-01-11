@@ -1,12 +1,12 @@
 <script lang="ts">
 import {
-	createWorkspaceStatusStore,
-	refreshIntegrationStatus,
-} from "$lib/stores/integration-status";
-import {
-	databaseCache,
-	preloadDatabasesForWorkspace,
-} from "$lib/utils/database-cache";
+	useConnectDatabase,
+	useDatabases,
+	useDisconnectIntegration,
+	useIntegrations,
+	useToggleIntegration,
+} from "$lib/queries";
+import { refreshIntegrationStatus } from "$lib/stores/integration-status";
 import type {
 	IntegrationStatus as CacheIntegrationStatus,
 	SyncStatistics as CacheSyncStatistics,
@@ -20,18 +20,18 @@ import IntegrationStatusBadge from "./IntegrationStatusBadge.svelte";
 import IntegrationToggle from "./IntegrationToggle.svelte";
 import {
 	CheckCircle,
-	Close,
 	Database,
 	KeyboardArrowRight,
 	RefreshRounded,
 } from "./icons";
 import NotionIntegrationDialog from "./NotionIntegrationDialog.svelte";
-import { Button } from "./ui";
+import { Button, Drawer } from "./ui";
 import { cn } from "./utils";
 
 interface NotionDatabase {
 	id: string;
 	name: string;
+	title: string;
 	url?: string;
 }
 
@@ -153,34 +153,39 @@ let {
 }: Props = $props();
 
 let showNotionDialog = $state(false);
-let availableDatabases = $state<NotionDatabase[]>([]);
-let loadingDatabases = $state(false);
-let databaseLoadError = $state<string | null>(null);
 let showGuestUpgradePrompt = $state(false);
 
-// Create status store reactively
-let statusStore = $state<ReturnType<typeof createWorkspaceStatusStore> | null>(
-	null,
-);
+// Use TanStack Query hooks - make them reactive to workspaceId changes
+let databasesQuery = $state<any>(null);
+let integrationsQuery = $state<any>(null);
+let toggleIntegrationMutation = $state<any>(null);
+let connectDatabaseMutation = $state<any>(null);
+let disconnectIntegrationMutation = $state<any>(null);
 
-// Initialize status store when component mounts
 $effect(() => {
 	if (workspaceId) {
-		statusStore = createWorkspaceStatusStore(workspaceId, false);
+		databasesQuery = useDatabases(workspaceId);
+		integrationsQuery = useIntegrations(workspaceId);
+		toggleIntegrationMutation = useToggleIntegration(workspaceId);
+		connectDatabaseMutation = useConnectDatabase(workspaceId);
+		disconnectIntegrationMutation = useDisconnectIntegration(workspaceId);
 	}
 });
 
-// Reactive access to status store properties
-const statusIntegrations = $derived(
-	statusStore ? statusStore.integrations : null,
+// Derived data from queries
+const availableDatabases = $derived(
+	(databasesQuery?.data as NotionDatabase[]) || [],
 );
-const statusLoading = $derived(statusStore ? statusStore.loading : null);
+const loadingDatabases = $derived(databasesQuery?.isLoading || false);
+const databaseLoadError = $derived(databasesQuery?.error?.message || null);
 
-// Find Notion integration from status data
+const integrations = $derived((integrationsQuery?.data as any[]) || []);
+const statusLoading = $derived(integrationsQuery?.isLoading || false);
+
+// Find Notion integration from query data
 const notionIntegration = $derived(
-	statusIntegrations && $statusIntegrations
-		? $statusIntegrations.find((item) => item.integration.provider === "notion")
-		: null,
+	integrations.find((item: any) => item.integration.provider === "notion") ||
+		null,
 );
 
 // Get current integration status and stats with type adaptation
@@ -205,55 +210,17 @@ $effect(() => {
 	if (typeof document === "undefined") return;
 
 	if (isOpen) {
-		document.body.style.overflow = "hidden";
-
-		// Start polling for status updates when drawer opens
-		if (statusStore) {
-			statusStore.startPolling();
-		}
-
 		// Preload integration resources
 		preloadIntegrationResources(workspaceId);
 
-		// Preload databases for faster dialog opening
-		if (isAuthenticated && !isGuestMode) {
-			preloadDatabasesForWorkspace(workspaceId);
-		}
-
 		// Preload components that might be needed
 		lazyLoader.preloadForTrigger("settingsOpen");
-
-		// Handle escape key to close drawer
-		const handleKeyDown = (e: KeyboardEvent) => {
-			if (e.key === "Escape") {
-				onClose();
-			}
-		};
-
-		document.addEventListener("keydown", handleKeyDown);
-
-		return () => {
-			document.body.style.overflow = "";
-			document.removeEventListener("keydown", handleKeyDown);
-			// Stop polling when drawer closes
-			if (statusStore) {
-				statusStore.stopPolling();
-			}
-		};
-	} else {
-		document.body.style.overflow = "";
-		if (statusStore) {
-			statusStore.stopPolling();
-		}
 	}
 });
 
 async function handleRefreshStatus() {
-	if (notionIntegration && statusStore) {
-		await refreshIntegrationStatus(notionIntegration.integration.id);
-		// Also refresh the workspace status
-		await statusStore.refresh();
-	}
+	// Refetch integrations data
+	integrationsQuery?.refetch();
 }
 
 async function handleNotionToggle(enabled: boolean) {
@@ -263,57 +230,16 @@ async function handleNotionToggle(enabled: boolean) {
 		return;
 	}
 
-	if (enabled && !notionIntegration) {
-		// Need to connect - initiate OAuth flow
-		try {
-			const response = await fetch("/api/integrations/notion/oauth", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					workspaceId,
-				}),
-			});
-
-			if (!response.ok) {
-				const errorData = await response.json();
-				throw new Error(errorData.error || "Failed to initiate OAuth");
-			}
-
-			const data = await response.json();
-
-			// Redirect to Notion OAuth
-			window.location.href = data.authUrl;
-		} catch (error) {
-			console.error("Failed to initiate OAuth:", error);
-			// Could show error message to user here
-		}
-	} else if (notionIntegration) {
-		// Toggle existing integration
-		await onToggleIntegration("notion", enabled);
-		// Refresh status after toggle
-		if (statusStore) {
-			setTimeout(() => statusStore?.refresh(), 500);
-		}
-	}
-}
-
-async function loadNotionDatabases() {
-	loadingDatabases = true;
-	databaseLoadError = null;
-
 	try {
-		// Use cached databases with enhanced loading
-		const databases = await databaseCache.getDatabases(workspaceId);
-		availableDatabases = databases;
+		await toggleIntegrationMutation?.mutateAsync({
+			integrationId: notionIntegration?.integration.id,
+			workspaceId,
+			provider: "notion",
+			enabled,
+		} as any);
 	} catch (error) {
-		console.error("Failed to load databases:", error);
-		availableDatabases = [];
-		databaseLoadError =
-			error instanceof Error ? error.message : "Failed to load databases";
-	} finally {
-		loadingDatabases = false;
+		console.error("Failed to toggle integration:", error);
+		// Error handling is managed by the mutation
 	}
 }
 
@@ -327,35 +253,29 @@ async function handleConfigureNotion() {
 	// Preload dialog component
 	lazyLoader.preloadForTrigger("integrationToggle");
 
-	// Check if databases are already cached
-	if (databaseCache.hasCachedDatabases(workspaceId)) {
-		availableDatabases = (await databaseCache.getDatabases(workspaceId)) || [];
-		showNotionDialog = true;
-	} else {
-		// Load databases and show dialog
-		loadNotionDatabases();
-		showNotionDialog = true;
-	}
+	// Show dialog - databases will be loaded by the query
+	showNotionDialog = true;
 }
 
 function handleRetryDatabaseLoad() {
-	databaseLoadError = null;
-	loadNotionDatabases();
+	// Refetch databases
+	databasesQuery?.refetch();
 }
 
 async function handleDisconnectNotion() {
 	if (notionIntegration) {
-		await onDisconnectIntegration(notionIntegration.integration.id);
-		// Refresh status after disconnect
-		if (statusStore) {
-			setTimeout(() => statusStore?.refresh(), 500);
+		try {
+			await disconnectIntegrationMutation?.mutateAsync(
+				notionIntegration.integration.id,
+			);
+		} catch (error) {
+			console.error("Failed to disconnect integration:", error);
 		}
 	}
 }
 
 function handleCloseNotionDialog() {
 	showNotionDialog = false;
-	databaseLoadError = null;
 }
 
 function handleCloseGuestUpgradePrompt() {
@@ -369,99 +289,45 @@ function handleGuestSignUp() {
 
 async function handleConnectNotionDatabase(
 	databaseId: string,
-	importExisting: boolean,
+	importExisting?: boolean,
 ) {
 	try {
-		// Create the integration record
-		const response = await fetch("/api/integrations", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				workspaceId,
-				provider: "notion",
-				externalId: databaseId,
-				config: {
-					databaseId,
-					databaseName:
-						availableDatabases.find((db) => db.id === databaseId)?.name ||
-						"Unknown Database",
-					importExisting,
-				},
-				syncEnabled: true,
-			}),
-		});
+		// If this is just a database change (not from dialog), use default import setting
+		const shouldImportExisting = importExisting ?? false;
 
-		if (!response.ok) {
-			const errorData = await response.json();
-			throw new Error(errorData.error || "Failed to create integration");
-		}
+		const database = availableDatabases.find(
+			(db: NotionDatabase) => db.id === databaseId,
+		);
+
+		await connectDatabaseMutation?.mutateAsync({
+			workspaceId,
+			databaseId,
+			databaseName: database?.name || database?.title || "Unknown Database",
+			importExisting: shouldImportExisting,
+		} as any);
 
 		// Call the parent handler to update the integrations list
-		await onConnectNotion(databaseId, importExisting);
+		await onConnectNotion(databaseId, shouldImportExisting);
 
-		showNotionDialog = false;
-		databaseLoadError = null;
+		// Close dialog if it was open
+		if (showNotionDialog) {
+			showNotionDialog = false;
+		}
 	} catch (error) {
 		console.error("Failed to connect database:", error);
-		// The error will be handled by the dialog component
+		// The error will be handled by the mutation
 		throw error;
 	}
 }
 </script>
 
-<!-- Backdrop -->
-{#if isOpen}
-	<div 
-		class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-		role="button"
-		tabindex="0"
-		onclick={onClose}
-		onkeydown={(e) => e.key === 'Escape' && onClose()}
-		aria-label="Close settings drawer"
-	></div>
-{/if}
-
-<!-- Drawer -->
-<div class={cn(
-	// Base positioning and sizing with responsive breakpoints
-	'fixed top-0 right-0 h-full bg-surface-base shadow-xl z-50',
-	'transform transition-transform duration-200 ease-out',
-	'overflow-y-auto overscroll-contain',
-	// Mobile-first responsive width
-	'w-full max-w-[400px]',
-	// Tablet breakpoint
-	'sm:max-w-[480px]',
-	// Desktop breakpoint  
-	'lg:max-w-[520px]',
-	// Animation state
-	isOpen ? 'translate-x-0' : 'translate-x-full',
-	className
-)}>
-	<!-- Header -->
-	<div class="sticky top-0 bg-surface-base/95 backdrop-blur-sm border-b border-subtle-base px-4 py-4 sm:px-6">
-		<div class="flex items-center justify-between">
-			<h2 class="text-lg font-semibold text-foreground-base">Settings</h2>
-			<button
-				onclick={onClose}
-				class={cn(
-					'p-2 rounded-lg text-muted-foreground hover:text-foreground-base',
-					'hover:bg-surface-muted active:bg-surface-muted/80 transition-colors',
-					// Ensure 44px minimum touch target
-					'min-w-[44px] min-h-[44px] flex items-center justify-center',
-					// Enhanced mobile touch feedback
-					'touch-manipulation select-none'
-				)}
-				aria-label="Close settings"
-			>
-				<Close class="w-5 h-5" />
-			</button>
-		</div>
-	</div>
-
-	<!-- Content -->
-	<div class="p-4 sm:p-6 space-y-6 sm:space-y-8 pb-safe-area-inset-bottom">
+<Drawer
+	{isOpen}
+	title="Settings"
+	size="lg"
+	{onClose}
+	class={className}
+>
 		<!-- Integrations Section -->
 		<section>
 			<div class="flex items-center justify-between mb-4">
@@ -469,13 +335,13 @@ async function handleConnectNotionDatabase(
 				{#if notionIntegration}
 					<button
 						onclick={handleRefreshStatus}
-						disabled={statusLoading ? $statusLoading : false}
+						disabled={statusLoading}
 						class={cn(
 							'p-2 rounded-lg text-muted-foreground hover:text-foreground-base',
 							'hover:bg-surface-muted active:bg-surface-muted/80 transition-colors',
 							'min-w-[44px] min-h-[44px] flex items-center justify-center',
 							'touch-manipulation select-none',
-							(statusLoading && $statusLoading) && 'animate-spin'
+							statusLoading && 'animate-spin'
 						)}
 						aria-label="Refresh integration status"
 					>
@@ -518,119 +384,117 @@ async function handleConnectNotionDatabase(
 						integration={notionIntegration?.integration}
 						workspaceId={workspaceId}
 						disabled={isGuestMode}
+						loading={loadingDatabases}
 						onToggle={handleNotionToggle}
 						onConfigure={notionIntegration ? handleConfigureNotion : undefined}
+						onDatabaseChange={handleConnectNotionDatabase}
+						availableDatabases={availableDatabases.map((db: NotionDatabase) => ({
+							id: db.id,
+							title: db.name || db.title,
+							url: db.url
+						}))}
+						currentDatabase={(() => {
+							const dbId = notionIntegration?.integration.config?.databaseId;
+							const dbName = notionIntegration?.integration.config?.databaseName;
+							const foundDb = availableDatabases.find((db: NotionDatabase) => db.id === dbId);
+							
+							if (dbId && dbName) {
+								return {
+									id: dbId as string,
+									title: dbName as string,
+									url: foundDb?.url
+								};
+							}
+							return null;
+						})()}
 						integrationStatus={currentIntegrationStatusForToggle || undefined}
 					/>
 
 					{#if notionIntegration}
-						<!-- Integration Status and Statistics -->
-						<div class="ml-2 sm:ml-9 space-y-3">
-							<!-- Status Badge and Details -->
-							<div class="flex items-center gap-3">
-								<IntegrationStatusBadge 
-									integration={notionIntegration.integration}
-									integrationStatus={currentIntegrationStatus || undefined}
-									syncStats={syncStats || undefined}
-									size="md"
-									showDetails={false}
-									loading={statusLoading ? ($statusLoading || false) : false}
-									class="flex-shrink-0"
-								/>
-								{#if currentIntegrationStatus?.lastSyncAt}
-									<span class="text-xs text-muted-foreground">
-										Last synced: {currentIntegrationStatus.lastSyncAt.toLocaleString()}
-									</span>
-								{/if}
-							</div>
-
-							<!-- Sync Statistics -->
-							{#if syncStats}
-								<div class="bg-surface-muted rounded-lg p-3 space-y-2">
-									<h4 class="text-sm font-medium text-foreground-base">Sync Statistics</h4>
-									<div class="grid grid-cols-2 gap-3 text-xs">
-										<div>
-											<span class="text-muted-foreground">Total Tasks:</span>
-											<span class="ml-1 font-medium">{syncStats.totalTasks}</span>
-										</div>
-										<div>
-											<span class="text-muted-foreground">Synced:</span>
-											<span class="ml-1 font-medium text-success">{syncStats.syncedTasks}</span>
-										</div>
-										<div>
-											<span class="text-muted-foreground">Errors:</span>
-											<span class="ml-1 font-medium text-error">{syncStats.errorTasks}</span>
-										</div>
-									</div>
-									{#if syncStats.lastSyncDuration}
-										<div class="text-xs text-muted-foreground">
-											Last sync took {syncStats.lastSyncDuration}ms
-										</div>
-									{/if}
-								</div>
-							{/if}
-
-							<!-- Action Buttons -->
-							<div class="space-y-2">
-								<button
-									onclick={handleConfigureNotion}
-									use:lazyOnHover={'NotionIntegrationDialog'}
-									class={cn(
-										'flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700',
-										'active:text-blue-800 transition-colors',
-										// Ensure 44px minimum touch target
-										'min-h-[44px] px-3 py-2 rounded-lg',
-										'hover:bg-blue-50 active:bg-blue-100',
-										'touch-manipulation select-none w-full justify-start'
-									)}
-								>
+						<!-- Additional Actions (Mobile Optimized) -->
+						<div class="flex flex-col gap-2 px-4">
+							<button
+								onclick={handleConfigureNotion}
+								use:lazyOnHover={'NotionIntegrationDialog'}
+								class={cn(
+									'flex items-center justify-between w-full text-sm text-primary hover:text-primary-button-hover',
+									'active:text-primary-button-active transition-colors',
+									'min-h-[44px] px-3 py-2 rounded-lg border border-subtle-base',
+									'hover:bg-surface-muted active:bg-surface-raised',
+									'touch-manipulation select-none'
+								)}
+							>
+								<div class="flex items-center gap-2">
 									<Database class="w-4 h-4 flex-shrink-0" />
 									<span>Change Database</span>
-									<KeyboardArrowRight class="w-4 h-4 flex-shrink-0 ml-auto" />
-								</button>
-								
-								<button
-									onclick={handleDisconnectNotion}
-									class={cn(
-										'flex items-center gap-2 text-sm text-red-600 hover:text-red-700',
-										'active:text-red-800 transition-colors',
-										// Ensure 44px minimum touch target
-										'min-h-[44px] px-3 py-2 rounded-lg',
-										'hover:bg-red-50 active:bg-red-100',
-										'touch-manipulation select-none w-full justify-start'
-									)}
-								>
-									<span>Disconnect Notion</span>
-								</button>
-							</div>
+								</div>
+								<KeyboardArrowRight class="w-4 h-4 flex-shrink-0" />
+							</button>
+							
+							<button
+								onclick={handleDisconnectNotion}
+								class={cn(
+									'flex items-center justify-center w-full text-sm text-error hover:text-error-button-hover',
+									'active:text-error transition-colors',
+									'min-h-[44px] px-3 py-2 rounded-lg border border-error-border',
+									'hover:bg-error-alert-bg/50 active:bg-error-alert-bg',
+									'touch-manipulation select-none'
+								)}
+							>
+								<span>Disconnect Notion</span>
+							</button>
 						</div>
+
+						<!-- Sync Statistics (Compact Mobile View) -->
+						{#if syncStats}
+							<div class="mx-4 bg-surface-muted rounded-lg p-3">
+								<h4 class="text-sm font-medium text-foreground-base mb-2">Sync Statistics</h4>
+								<div class="grid grid-cols-3 gap-2 text-xs">
+									<div class="text-center">
+										<div class="font-medium text-foreground-base">{syncStats.totalTasks}</div>
+										<div class="text-muted-foreground">Total</div>
+									</div>
+									<div class="text-center">
+										<div class="font-medium text-success">{syncStats.syncedTasks}</div>
+										<div class="text-muted-foreground">Synced</div>
+									</div>
+									<div class="text-center">
+										<div class="font-medium text-error">{syncStats.errorTasks}</div>
+										<div class="text-muted-foreground">Errors</div>
+									</div>
+								</div>
+								{#if syncStats.lastSyncDuration}
+									<div class="text-xs text-muted-foreground mt-2 text-center">
+										Last sync: {syncStats.lastSyncDuration}ms
+									</div>
+								{/if}
+							</div>
+						{/if}
 					{/if}
 				</div>
 
 				<!-- Future integrations placeholder -->
-				<div class="opacity-50 pointer-events-none">
-					<div class="flex items-center justify-between p-4 bg-surface-muted border border-subtle-base rounded-lg">
+				<div class="space-y-2 opacity-50 pointer-events-none">
+					<div class="flex items-center justify-between p-3 bg-surface-muted border border-subtle-base rounded-lg">
 						<div class="flex items-center gap-3 min-w-0">
-							<div class="w-6 h-6 bg-subtle-base rounded flex-shrink-0"></div>
+							<div class="w-5 h-5 bg-subtle-base rounded flex-shrink-0"></div>
 							<div class="min-w-0">
-								<h4 class="font-medium text-muted-foreground truncate">Google Calendar</h4>
-								<p class="text-sm text-muted-foreground">Coming soon</p>
+								<h4 class="font-medium text-muted-foreground text-sm">Google Calendar</h4>
+								<p class="text-xs text-muted-foreground">Coming soon</p>
 							</div>
 						</div>
-						<div class="w-11 h-6 bg-subtle-base rounded-full flex-shrink-0"></div>
+						<div class="w-8 h-4 bg-subtle-base rounded-full flex-shrink-0"></div>
 					</div>
-				</div>
 
-				<div class="opacity-50 pointer-events-none">
-					<div class="flex items-center justify-between p-4 bg-surface-muted border border-subtle-base rounded-lg">
+					<div class="flex items-center justify-between p-3 bg-surface-muted border border-subtle-base rounded-lg">
 						<div class="flex items-center gap-3 min-w-0">
-							<div class="w-6 h-6 bg-subtle-base rounded flex-shrink-0"></div>
+							<div class="w-5 h-5 bg-subtle-base rounded flex-shrink-0"></div>
 							<div class="min-w-0">
-								<h4 class="font-medium text-muted-foreground truncate">Slack</h4>
-								<p class="text-sm text-muted-foreground">Coming soon</p>
+								<h4 class="font-medium text-muted-foreground text-sm">Slack</h4>
+								<p class="text-xs text-muted-foreground">Coming soon</p>
 							</div>
 						</div>
-						<div class="w-11 h-6 bg-subtle-base rounded-full flex-shrink-0"></div>
+						<div class="w-8 h-4 bg-subtle-base rounded-full flex-shrink-0"></div>
 					</div>
 				</div>
 			</div>
@@ -638,45 +502,42 @@ async function handleConnectNotionDatabase(
 
 		<!-- Workspace Section -->
 		<section>
-			<h3 class="text-base font-medium text-foreground-base mb-4">Workspace</h3>
-			<div class="space-y-3">
-				<div class="text-sm text-foreground-secondary">
-					<span class="font-medium">Workspace ID:</span>
-					<code class="ml-2 px-2 py-1 bg-surface-muted rounded text-xs font-mono break-all">
+			<h3 class="text-base font-medium text-foreground-base mb-3">Workspace</h3>
+			<div class="space-y-2">
+				<div class="p-3 bg-surface-muted rounded-lg">
+					<div class="text-xs text-foreground-secondary mb-1">Workspace ID</div>
+					<code class="text-xs font-mono text-foreground-base break-all">
 						{workspaceId}
 					</code>
 				</div>
 				
 				<!-- Future workspace settings -->
-				<div class="opacity-50">
-					<p class="text-sm text-muted-foreground">More workspace settings coming soon</p>
-				</div>
+				<p class="text-xs text-muted-foreground px-1">More workspace settings coming soon</p>
 			</div>
 		</section>
 
 		<!-- Account Section -->
 		<section>
-			<h3 class="text-base font-medium text-foreground-base mb-4">Account</h3>
-			<div class="space-y-3">
+			<h3 class="text-base font-medium text-foreground-base mb-3">Account</h3>
+			<div class="space-y-2">
 				<Button 
 					variant="outline" 
-					class="w-full justify-start min-h-[44px] touch-manipulation" 
+					class="w-full justify-center min-h-[44px] touch-manipulation text-sm" 
 					disabled
 				>
 					Export Data
 				</Button>
 				<Button 
 					variant="outline" 
-					class="w-full justify-start min-h-[44px] touch-manipulation text-error border-error-border hover:bg-error-alert-bg" 
+					class="w-full justify-center min-h-[44px] touch-manipulation text-error border-error-border hover:bg-error-alert-bg text-sm" 
 					disabled
 				>
 					Delete Account
 				</Button>
-				<p class="text-xs text-muted-foreground">Account management features coming soon</p>
+				<p class="text-xs text-muted-foreground px-1">Account management features coming soon</p>
 			</div>
 		</section>
-	</div>
-</div>
+</Drawer>
 
 <!-- Notion Integration Dialog -->
 <NotionIntegrationDialog
