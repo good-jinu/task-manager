@@ -21,13 +21,11 @@ import {
 	handleComponentEvent,
 	handleConnectNotion,
 	handleContextToggle,
-	handleDisconnectIntegration,
 	handleGlobalKeyDown,
 	handleGuestSignUp,
 	handleMenuAction,
 	handleNotionLogin,
 	handleTasksUpdate,
-	handleToggleIntegration,
 } from "$lib/services/event-handlers";
 import { appState, contextTasks } from "$lib/stores/app-state";
 import { isGuestMode } from "$lib/stores/guest";
@@ -244,12 +242,9 @@ function handleURLParametersAfterInit() {
 	<SettingsDrawer
 		isOpen={showSettingsDrawer}
 		workspaceId={currentWorkspace.id}
-		isAuthenticated={isAuthenticated}
 		isGuestMode={$isGuestMode && !isAuthenticated}
 		onClose={handleCloseSettingsDrawer}
-		onToggleIntegration={handleToggleIntegration}
 		onConnectNotion={handleConnectNotion}
-		onDisconnectIntegration={handleDisconnectIntegration}
 		onSignUp={handleGuestSignUp}
 	/>
 {/if}

@@ -187,10 +187,12 @@ export function createWorkspaceStatusStore(
 
 			// Also update individual integration stores
 			for (const item of data) {
-				integrationStatusStore.update((state) => ({
-					...state,
-					[item.integration.id]: item,
-				}));
+				if (item.integration) {
+					integrationStatusStore.update((state) => ({
+						...state,
+						[item.integration?.databaseId || "unknown"]: item,
+					}));
+				}
 			}
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : "Unknown error";

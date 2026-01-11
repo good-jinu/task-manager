@@ -1,8 +1,7 @@
 import {
-	IntegrationService,
-	type SyncMetadata,
-	SyncMetadataService,
+	TaskIntegrationService,
 	ValidationError,
+	WorkspaceIntegrationService,
 } from "@notion-task-manager/db";
 import { json } from "@sveltejs/kit";
 import { requireAuth } from "$lib/auth";
@@ -10,7 +9,7 @@ import type { RequestHandler } from "./$types";
 
 /**
  * GET /api/integrations/[id]
- * Gets a specific integration by ID
+ * Gets a specific workspace integration by ID
  */
 export const GET: RequestHandler = async (event) => {
 	try {
@@ -22,16 +21,20 @@ export const GET: RequestHandler = async (event) => {
 			return json({ error: "Integration ID is required" }, { status: 400 });
 		}
 
-		const integrationService = new IntegrationService();
-		const integration = await integrationService.getIntegration(integrationId);
+		const workspaceIntegrationService = new WorkspaceIntegrationService();
+		const integration =
+			await workspaceIntegrationService.getById(integrationId);
 
 		if (!integration) {
-			return json({ error: "Integration not found" }, { status: 404 });
+			return json(
+				{ error: "Workspace integration not found" },
+				{ status: 404 },
+			);
 		}
 
 		return json({ integration });
 	} catch (error) {
-		console.error("Failed to get integration:", error);
+		console.error("Failed to get workspace integration:", error);
 
 		if (error instanceof Error && error.message.includes("redirect")) {
 			// Re-throw redirect errors from requireAuth
@@ -40,67 +43,7 @@ export const GET: RequestHandler = async (event) => {
 
 		return json(
 			{
-				error: "Failed to get integration",
-			},
-			{ status: 500 },
-		);
-	}
-};
-
-/**
- * PUT /api/integrations/[id]
- * Updates an existing integration
- */
-export const PUT: RequestHandler = async (event) => {
-	try {
-		// Require authentication
-		const session = await requireAuth(event);
-
-		const integrationId = event.params.id;
-		if (!integrationId) {
-			return json({ error: "Integration ID is required" }, { status: 400 });
-		}
-
-		const updates = await event.request.json();
-
-		const integrationService = new IntegrationService();
-
-		try {
-			const updatedIntegration = await integrationService.updateIntegration(
-				integrationId,
-				updates,
-			);
-
-			return json({
-				success: true,
-				integration: updatedIntegration,
-			});
-		} catch (error) {
-			if (error instanceof Error && error.message.includes("not found")) {
-				return json({ error: "Integration not found" }, { status: 404 });
-			}
-			throw error;
-		}
-	} catch (error) {
-		console.error("Failed to update integration:", error);
-
-		if (error instanceof Error && error.message.includes("redirect")) {
-			// Re-throw redirect errors from requireAuth
-			throw error;
-		}
-
-		if (error instanceof ValidationError) {
-			return json(
-				{
-					error: error.message,
-				},
-				{ status: 400 },
-			);
-		}
-
-		return json(
-			{
-				error: "Failed to update integration",
+				error: "Failed to get workspace integration",
 			},
 			{ status: 500 },
 		);
@@ -109,8 +52,7 @@ export const PUT: RequestHandler = async (event) => {
 
 /**
  * PATCH /api/integrations/[id]
- * Partially updates an existing integration (e.g., toggling syncEnabled).
- * Added to support the toggleIntegration client function.
+ * Updates an existing workspace integration
  */
 export const PATCH: RequestHandler = async (event) => {
 	try {
@@ -123,18 +65,19 @@ export const PATCH: RequestHandler = async (event) => {
 
 		const body = await event.request.json();
 
-		// Ensure the integration exists
-		const integrationService = new IntegrationService();
-		const existing = await integrationService.getIntegration(integrationId);
+		// Ensure the workspace integration exists
+		const workspaceIntegrationService = new WorkspaceIntegrationService();
+		const existing = await workspaceIntegrationService.getById(integrationId);
 
 		if (!existing) {
-			return json({ error: "Integration not found" }, { status: 404 });
+			return json(
+				{ error: "Workspace integration not found" },
+				{ status: 404 },
+			);
 		}
 
 		// Perform the update
-		// We pass the body directly, assuming the service handles partial updates
-		// or we merge specific fields here if the service requires full objects.
-		const updatedIntegration = await integrationService.updateIntegration(
+		const updatedIntegration = await workspaceIntegrationService.update(
 			integrationId,
 			body,
 		);
@@ -144,7 +87,7 @@ export const PATCH: RequestHandler = async (event) => {
 			integration: updatedIntegration,
 		});
 	} catch (error) {
-		console.error("Failed to patch integration:", error);
+		console.error("Failed to patch workspace integration:", error);
 
 		if (error instanceof Error && error.message.includes("redirect")) {
 			throw error;
@@ -161,7 +104,7 @@ export const PATCH: RequestHandler = async (event) => {
 
 		return json(
 			{
-				error: "Failed to update integration",
+				error: "Failed to update workspace integration",
 			},
 			{ status: 500 },
 		);
@@ -170,7 +113,7 @@ export const PATCH: RequestHandler = async (event) => {
 
 /**
  * DELETE /api/integrations/[id]
- * Deletes an integration and all associated sync metadata with proper cleanup
+ * Deletes a workspace integration
  */
 export const DELETE: RequestHandler = async (event) => {
 	try {
@@ -182,47 +125,37 @@ export const DELETE: RequestHandler = async (event) => {
 			return json({ error: "Integration ID is required" }, { status: 400 });
 		}
 
-		const integrationService = new IntegrationService();
-		const syncMetadataService = new SyncMetadataService();
+		const workspaceIntegrationService = new WorkspaceIntegrationService();
 
 		try {
-			// First, verify the integration exists
+			// First, verify the workspace integration exists
 			const integration =
-				await integrationService.getIntegration(integrationId);
+				await workspaceIntegrationService.getById(integrationId);
 			if (!integration) {
-				return json({ error: "Integration not found" }, { status: 404 });
+				return json(
+					{ error: "Workspace integration not found" },
+					{ status: 404 },
+				);
 			}
 
-			// Clean up all sync metadata for this integration
-			const syncMetadata =
-				await syncMetadataService.listSyncMetadataByIntegration(integrationId);
-
-			// Delete all sync metadata records
-			const cleanupPromises = syncMetadata.map((sm: SyncMetadata) =>
-				syncMetadataService.deleteSyncMetadata(sm.taskId, sm.integrationId),
-			);
-
-			await Promise.allSettled(cleanupPromises);
-
-			// Delete the integration itself
-			await integrationService.deleteIntegration(integrationId);
+			// Delete the workspace integration
+			await workspaceIntegrationService.delete(integrationId);
 
 			return json({
 				success: true,
-				message: "Integration and all associated data deleted successfully",
-				cleanedUp: {
-					syncMetadataRecords: syncMetadata.length,
-					integrationId: integrationId,
-				},
+				message: "Workspace integration deleted successfully",
 			});
 		} catch (error) {
 			if (error instanceof Error && error.message.includes("not found")) {
-				return json({ error: "Integration not found" }, { status: 404 });
+				return json(
+					{ error: "Workspace integration not found" },
+					{ status: 404 },
+				);
 			}
 			throw error;
 		}
 	} catch (error) {
-		console.error("Failed to delete integration:", error);
+		console.error("Failed to delete workspace integration:", error);
 
 		if (error instanceof Error && error.message.includes("redirect")) {
 			// Re-throw redirect errors from requireAuth
@@ -231,7 +164,7 @@ export const DELETE: RequestHandler = async (event) => {
 
 		return json(
 			{
-				error: "Failed to delete integration",
+				error: "Failed to delete workspace integration",
 			},
 			{ status: 500 },
 		);

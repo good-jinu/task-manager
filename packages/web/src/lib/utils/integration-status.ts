@@ -1,4 +1,3 @@
-import type { ExternalIntegration } from "@notion-task-manager/db";
 import {
 	type IntegrationStatus,
 	integrationCache,
@@ -8,8 +7,14 @@ import {
 // Re-export types for convenience
 export type { IntegrationStatus, SyncStatistics };
 
+interface IntegrationConfig {
+	enabled: boolean;
+	databaseId?: string;
+	lastSyncAt?: string;
+}
+
 export interface IntegrationStatusData {
-	integration: ExternalIntegration;
+	integration: IntegrationConfig | null;
 	status: IntegrationStatus;
 	stats: SyncStatistics;
 }
@@ -101,7 +106,7 @@ export class IntegrationStatusManager {
 
 			// Process the integrations array
 			interface IntegrationStatusItem {
-				integration: ExternalIntegration;
+				integration: IntegrationConfig | null;
 				status: {
 					status: "disconnected" | "disabled" | "synced" | "pending" | "error";
 					lastSyncAt?: string;
@@ -136,17 +141,22 @@ export class IntegrationStatusManager {
 
 			// Update individual integration caches
 			for (const statusData of statusDataArray) {
-				integrationCache.setStatus(
-					statusData.integration.id,
-					statusData.status,
-				);
-				integrationCache.setStats(statusData.integration.id, statusData.stats);
+				if (statusData.integration) {
+					integrationCache.setStatus(
+						statusData.integration.databaseId || "unknown",
+						statusData.status,
+					);
+					integrationCache.setStats(
+						statusData.integration.databaseId || "unknown",
+						statusData.stats,
+					);
 
-				// Notify subscribers
-				this.notifySubscribers(
-					`${workspaceId}:${statusData.integration.id}`,
-					statusData,
-				);
+					// Notify subscribers
+					this.notifySubscribers(
+						`${workspaceId}:${statusData.integration.databaseId || "unknown"}`,
+						statusData,
+					);
+				}
 			}
 
 			return statusDataArray;

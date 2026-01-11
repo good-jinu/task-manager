@@ -5,7 +5,8 @@ import type { Session } from "@auth/sveltekit";
  */
 export async function handleSession(params: {
 	session: Session;
-	token: any; // Using any since JWT type is not easily accessible
+	// biome-ignore lint/suspicious/noExplicitAny: any is neccessary
+	token: any;
 }): Promise<Session> {
 	const { session, token } = params;
 

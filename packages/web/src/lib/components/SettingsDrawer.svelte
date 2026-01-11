@@ -1,4 +1,6 @@
 <script lang="ts">
+import type { CreateQueryResult } from "@tanstack/svelte-query";
+import { goto } from "$app/navigation";
 import {
 	useConnectDatabase,
 	useDatabases,
@@ -6,17 +8,11 @@ import {
 	useIntegrations,
 	useToggleIntegration,
 } from "$lib/queries";
-import { refreshIntegrationStatus } from "$lib/stores/integration-status";
-import type {
-	IntegrationStatus as CacheIntegrationStatus,
-	SyncStatistics as CacheSyncStatistics,
-} from "$lib/utils/integration-status";
 import {
 	lazyLoader,
 	lazyOnHover,
 	preloadIntegrationResources,
 } from "$lib/utils/lazy-loading";
-import IntegrationStatusBadge from "./IntegrationStatusBadge.svelte";
 import IntegrationToggle from "./IntegrationToggle.svelte";
 import {
 	CheckCircle,
@@ -35,106 +31,16 @@ interface NotionDatabase {
 	url?: string;
 }
 
-// Component-specific interfaces (different from cache types)
-interface IntegrationStatus {
-	status:
-		| "disconnected"
-		| "disabled"
-		| "synced"
-		| "pending"
-		| "conflict"
-		| "error";
-	lastSyncAt?: Date;
-	lastError?: string;
-	syncCount?: number;
-	conflictCount?: number;
-}
-
-interface SyncStatistics {
-	totalTasks: number;
-	syncedTasks: number;
-	pendingTasks: number;
-	errorTasks: number;
-	lastSyncDuration?: number;
-}
-
-// Adapter functions to convert between cache types and component types
-function adaptIntegrationStatus(
-	cacheStatus: CacheIntegrationStatus,
-): IntegrationStatus {
-	// Map cache status values to component status values
-	let status: IntegrationStatus["status"];
-	switch (cacheStatus.status) {
-		case "connected":
-			status = "synced";
-			break;
-		case "syncing":
-			status = "pending";
-			break;
-		default:
-			status = cacheStatus.status; // "disconnected", "error"
-	}
-
-	return {
-		status,
-		lastSyncAt: cacheStatus.lastSync
-			? new Date(cacheStatus.lastSync)
-			: undefined,
-		lastError: cacheStatus.error,
-	};
-}
-
-function adaptIntegrationStatusForToggle(cacheStatus: CacheIntegrationStatus): {
-	status: "disconnected" | "disabled" | "synced" | "pending" | "error";
-	lastSyncAt?: Date;
-	lastError?: string;
-	syncCount?: number;
-	conflictCount?: number;
-} {
-	// Map cache status values to toggle component status values (no "conflict")
-	let status: "disconnected" | "disabled" | "synced" | "pending" | "error";
-	switch (cacheStatus.status) {
-		case "connected":
-			status = "synced";
-			break;
-		case "syncing":
-			status = "pending";
-			break;
-		default:
-			status = cacheStatus.status; // "disconnected", "error"
-	}
-
-	return {
-		status,
-		lastSyncAt: cacheStatus.lastSync
-			? new Date(cacheStatus.lastSync)
-			: undefined,
-		lastError: cacheStatus.error,
-	};
-}
-
-function adaptSyncStatistics(cacheStats: CacheSyncStatistics): SyncStatistics {
-	return {
-		totalTasks: cacheStats.totalTasks,
-		syncedTasks: cacheStats.syncedTasks,
-		pendingTasks: 0, // Not available in cache stats
-		errorTasks: cacheStats.failedTasks,
-		lastSyncDuration: cacheStats.syncDuration,
-	};
-}
-
 interface Props {
 	isOpen: boolean;
 	workspaceId: string;
-	isAuthenticated?: boolean;
 	isGuestMode?: boolean;
 	onClose: () => void;
-	onToggleIntegration: (provider: string, enabled: boolean) => Promise<void>;
 	onConnectNotion: (
 		databaseId: string,
+		databaseName: string,
 		importExisting: boolean,
 	) => Promise<void>;
-	onDisconnectIntegration: (integrationId: string) => Promise<void>;
 	onSignUp?: () => void;
 	class?: string;
 }
@@ -142,25 +48,30 @@ interface Props {
 let {
 	isOpen,
 	workspaceId,
-	isAuthenticated = true,
 	isGuestMode = false,
 	onClose,
-	onToggleIntegration,
 	onConnectNotion,
-	onDisconnectIntegration,
 	onSignUp,
 	class: className = "",
 }: Props = $props();
 
 let showNotionDialog = $state(false);
 let showGuestUpgradePrompt = $state(false);
+let showDeleteWorkspaceDialog = $state(false);
+let isDeleting = $state(false);
 
 // Use TanStack Query hooks - make them reactive to workspaceId changes
-let databasesQuery = $state<any>(null);
-let integrationsQuery = $state<any>(null);
-let toggleIntegrationMutation = $state<any>(null);
-let connectDatabaseMutation = $state<any>(null);
-let disconnectIntegrationMutation = $state<any>(null);
+let databasesQuery = $state<ReturnType<typeof useDatabases> | null>(null);
+let integrationsQuery = $state<ReturnType<typeof useIntegrations> | null>(null);
+let toggleIntegrationMutation = $state<ReturnType<
+	typeof useToggleIntegration
+> | null>(null);
+let connectDatabaseMutation = $state<ReturnType<
+	typeof useConnectDatabase
+> | null>(null);
+let disconnectIntegrationMutation = $state<ReturnType<
+	typeof useDisconnectIntegration
+> | null>(null);
 
 $effect(() => {
 	if (workspaceId) {
@@ -179,31 +90,25 @@ const availableDatabases = $derived(
 const loadingDatabases = $derived(databasesQuery?.isLoading || false);
 const databaseLoadError = $derived(databasesQuery?.error?.message || null);
 
-const integrations = $derived((integrationsQuery?.data as any[]) || []);
+const integrations = $derived(integrationsQuery?.data || []);
 const statusLoading = $derived(integrationsQuery?.isLoading || false);
 
 // Find Notion integration from query data
 const notionIntegration = $derived(
-	integrations.find((item: any) => item.integration.provider === "notion") ||
-		null,
+	integrations.find((item) => item.integration.provider === "notion") || null,
 );
 
-// Get current integration status and stats with type adaptation
-const currentIntegrationStatus = $derived(
-	notionIntegration?.status
-		? adaptIntegrationStatus(notionIntegration.status)
-		: null,
-);
-const currentIntegrationStatusForToggle = $derived(
-	notionIntegration?.status
-		? adaptIntegrationStatusForToggle(notionIntegration.status)
-		: null,
-);
-const syncStats = $derived(
-	notionIntegration?.stats
-		? adaptSyncStatistics(notionIntegration.stats)
-		: null,
-);
+// Transform Integration to IntegrationConfig for the toggle component
+const integrationConfig = $derived.by(() => {
+	if (!notionIntegration?.integration) return undefined;
+
+	const integration = notionIntegration.integration;
+	return {
+		enabled: integration.syncEnabled,
+		databaseId: integration.config?.databaseId,
+		lastSyncAt: integration.lastSyncAt,
+	};
+});
 
 // Enhanced drawer management with preloading
 $effect(() => {
@@ -236,30 +141,11 @@ async function handleNotionToggle(enabled: boolean) {
 			workspaceId,
 			provider: "notion",
 			enabled,
-		} as any);
+		});
 	} catch (error) {
 		console.error("Failed to toggle integration:", error);
 		// Error handling is managed by the mutation
 	}
-}
-
-async function handleConfigureNotion() {
-	// Check if user is in guest mode
-	if (isGuestMode) {
-		showGuestUpgradePrompt = true;
-		return;
-	}
-
-	// Preload dialog component
-	lazyLoader.preloadForTrigger("integrationToggle");
-
-	// Show dialog - databases will be loaded by the query
-	showNotionDialog = true;
-}
-
-function handleRetryDatabaseLoad() {
-	// Refetch databases
-	databasesQuery?.refetch();
 }
 
 async function handleDisconnectNotion() {
@@ -289,25 +175,19 @@ function handleGuestSignUp() {
 
 async function handleConnectNotionDatabase(
 	databaseId: string,
-	importExisting?: boolean,
+	databaseName: string,
+	importExisting: boolean,
 ) {
 	try {
-		// If this is just a database change (not from dialog), use default import setting
-		const shouldImportExisting = importExisting ?? false;
-
-		const database = availableDatabases.find(
-			(db: NotionDatabase) => db.id === databaseId,
-		);
-
 		await connectDatabaseMutation?.mutateAsync({
 			workspaceId,
 			databaseId,
-			databaseName: database?.name || database?.title || "Unknown Database",
-			importExisting: shouldImportExisting,
-		} as any);
+			databaseName,
+			importExisting,
+		});
 
 		// Call the parent handler to update the integrations list
-		await onConnectNotion(databaseId, shouldImportExisting);
+		await onConnectNotion(databaseId, databaseName, importExisting);
 
 		// Close dialog if it was open
 		if (showNotionDialog) {
@@ -317,6 +197,67 @@ async function handleConnectNotionDatabase(
 		console.error("Failed to connect database:", error);
 		// The error will be handled by the mutation
 		throw error;
+	}
+}
+
+// Wrapper function for database change events that don't have databaseName
+async function handleDatabaseChange(
+	databaseId: string,
+	importExisting?: boolean,
+) {
+	const shouldImportExisting = importExisting ?? false;
+	const database = availableDatabases.find(
+		(db: NotionDatabase) => db.id === databaseId,
+	);
+	const databaseName = database?.name || database?.title || "Unknown Database";
+
+	await handleConnectNotionDatabase(
+		databaseId,
+		databaseName,
+		shouldImportExisting,
+	);
+}
+
+function handleDeleteWorkspace() {
+	showDeleteWorkspaceDialog = true;
+}
+
+function handleCloseDeleteWorkspaceDialog() {
+	showDeleteWorkspaceDialog = false;
+}
+
+async function handleConfirmDeleteWorkspace() {
+	if (isDeleting) return;
+
+	isDeleting = true;
+
+	try {
+		const response = await fetch(
+			`/api/workspaces/${workspaceId}?taskPolicy=delete`,
+			{
+				method: "DELETE",
+			},
+		);
+
+		if (!response.ok) {
+			const errorData = await response.json();
+			throw new Error(errorData.error || "Failed to delete workspace");
+		}
+
+		// Close dialogs and redirect to home
+		showDeleteWorkspaceDialog = false;
+		onClose();
+
+		// Redirect to home page
+		goto("/");
+	} catch (error) {
+		console.error("Failed to delete workspace:", error);
+		// You could add a toast notification here
+		alert(
+			error instanceof Error ? error.message : "Failed to delete workspace",
+		);
+	} finally {
+		isDeleting = false;
 	}
 }
 </script>
@@ -381,13 +322,12 @@ async function handleConnectNotionDatabase(
 				<!-- Notion Integration -->
 				<div class="space-y-3">
 					<IntegrationToggle
-						integration={notionIntegration?.integration}
+						integration={integrationConfig}
 						workspaceId={workspaceId}
 						disabled={isGuestMode}
 						loading={loadingDatabases}
 						onToggle={handleNotionToggle}
-						onConfigure={notionIntegration ? handleConfigureNotion : undefined}
-						onDatabaseChange={handleConnectNotionDatabase}
+						onDatabaseChange={handleDatabaseChange}
 						availableDatabases={availableDatabases.map((db: NotionDatabase) => ({
 							id: db.id,
 							title: db.name || db.title,
@@ -407,70 +347,7 @@ async function handleConnectNotionDatabase(
 							}
 							return null;
 						})()}
-						integrationStatus={currentIntegrationStatusForToggle || undefined}
 					/>
-
-					{#if notionIntegration}
-						<!-- Additional Actions (Mobile Optimized) -->
-						<div class="flex flex-col gap-2 px-4">
-							<button
-								onclick={handleConfigureNotion}
-								use:lazyOnHover={'NotionIntegrationDialog'}
-								class={cn(
-									'flex items-center justify-between w-full text-sm text-primary hover:text-primary-button-hover',
-									'active:text-primary-button-active transition-colors',
-									'min-h-[44px] px-3 py-2 rounded-lg border border-subtle-base',
-									'hover:bg-surface-muted active:bg-surface-raised',
-									'touch-manipulation select-none'
-								)}
-							>
-								<div class="flex items-center gap-2">
-									<Database class="w-4 h-4 flex-shrink-0" />
-									<span>Change Database</span>
-								</div>
-								<KeyboardArrowRight class="w-4 h-4 flex-shrink-0" />
-							</button>
-							
-							<button
-								onclick={handleDisconnectNotion}
-								class={cn(
-									'flex items-center justify-center w-full text-sm text-error hover:text-error-button-hover',
-									'active:text-error transition-colors',
-									'min-h-[44px] px-3 py-2 rounded-lg border border-error-border',
-									'hover:bg-error-alert-bg/50 active:bg-error-alert-bg',
-									'touch-manipulation select-none'
-								)}
-							>
-								<span>Disconnect Notion</span>
-							</button>
-						</div>
-
-						<!-- Sync Statistics (Compact Mobile View) -->
-						{#if syncStats}
-							<div class="mx-4 bg-surface-muted rounded-lg p-3">
-								<h4 class="text-sm font-medium text-foreground-base mb-2">Sync Statistics</h4>
-								<div class="grid grid-cols-3 gap-2 text-xs">
-									<div class="text-center">
-										<div class="font-medium text-foreground-base">{syncStats.totalTasks}</div>
-										<div class="text-muted-foreground">Total</div>
-									</div>
-									<div class="text-center">
-										<div class="font-medium text-success">{syncStats.syncedTasks}</div>
-										<div class="text-muted-foreground">Synced</div>
-									</div>
-									<div class="text-center">
-										<div class="font-medium text-error">{syncStats.errorTasks}</div>
-										<div class="text-muted-foreground">Errors</div>
-									</div>
-								</div>
-								{#if syncStats.lastSyncDuration}
-									<div class="text-xs text-muted-foreground mt-2 text-center">
-										Last sync: {syncStats.lastSyncDuration}ms
-									</div>
-								{/if}
-							</div>
-						{/if}
-					{/if}
 				</div>
 
 				<!-- Future integrations placeholder -->
@@ -518,23 +395,16 @@ async function handleConnectNotionDatabase(
 
 		<!-- Account Section -->
 		<section>
-			<h3 class="text-base font-medium text-foreground-base mb-3">Account</h3>
+			<h3 class="text-base font-medium text-foreground-base mb-3">Workspace Management</h3>
 			<div class="space-y-2">
 				<Button 
-					variant="outline" 
-					class="w-full justify-center min-h-[44px] touch-manipulation text-sm" 
-					disabled
-				>
-					Export Data
-				</Button>
-				<Button 
+					onclick={handleDeleteWorkspace}
 					variant="outline" 
 					class="w-full justify-center min-h-[44px] touch-manipulation text-error border-error-border hover:bg-error-alert-bg text-sm" 
-					disabled
 				>
-					Delete Account
+					Delete Workspace
 				</Button>
-				<p class="text-xs text-muted-foreground px-1">Account management features coming soon</p>
+				<p class="text-xs text-muted-foreground px-1">This will permanently delete all tasks and data in this workspace</p>
 			</div>
 		</section>
 </Drawer>
@@ -548,7 +418,6 @@ async function handleConnectNotionDatabase(
 	error={databaseLoadError}
 	onClose={handleCloseNotionDialog}
 	onConnect={handleConnectNotionDatabase}
-	onRetry={handleRetryDatabaseLoad}
 />
 
 <!-- Guest Upgrade Prompt Dialog -->
@@ -611,6 +480,77 @@ async function handleConnectNotionDatabase(
 					class="flex-1 border-subtle-base text-foreground-secondary hover:bg-surface-muted min-h-[44px]"
 				>
 					Maybe Later
+				</Button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Delete Workspace Confirmation Dialog -->
+{#if showDeleteWorkspaceDialog}
+	<div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+		<div class="bg-surface-base rounded-lg shadow-xl max-w-md w-full p-6 space-y-4">
+			<div class="flex items-start gap-3">
+				<div class="flex-shrink-0 mt-0.5">
+					<div class="w-6 h-6 bg-error rounded-full flex items-center justify-center">
+						<span class="text-white text-sm font-bold">!</span>
+					</div>
+				</div>
+				<div class="flex-1">
+					<h3 class="text-lg font-semibold text-foreground-base mb-2">
+						Delete Workspace
+					</h3>
+					<p class="text-sm text-foreground-secondary mb-4">
+						Are you sure you want to delete this workspace? This action cannot be undone.
+					</p>
+					
+					<!-- Warning list -->
+					<div class="space-y-2 mb-4">
+						<div class="flex items-center gap-2 text-sm">
+							<span class="w-4 h-4 text-error flex-shrink-0">×</span>
+							<span class="text-foreground-secondary">All tasks will be permanently deleted</span>
+						</div>
+						<div class="flex items-center gap-2 text-sm">
+							<span class="w-4 h-4 text-error flex-shrink-0">×</span>
+							<span class="text-foreground-secondary">All integrations will be disconnected</span>
+						</div>
+						<div class="flex items-center gap-2 text-sm">
+							<span class="w-4 h-4 text-error flex-shrink-0">×</span>
+							<span class="text-foreground-secondary">This action cannot be undone</span>
+						</div>
+					</div>
+					
+					<!-- Workspace ID confirmation -->
+					<div class="p-3 bg-surface-muted border border-subtle-base rounded-lg mb-4">
+						<p class="text-xs text-foreground-secondary mb-1">Workspace ID:</p>
+						<code class="text-xs font-mono text-foreground-base break-all">
+							{workspaceId}
+						</code>
+					</div>
+				</div>
+			</div>
+			
+			<!-- Action buttons -->
+			<div class="flex flex-col sm:flex-row gap-3 pt-2">
+				<Button
+					onclick={handleConfirmDeleteWorkspace}
+					variant="outline"
+					disabled={isDeleting}
+					class="flex-1 bg-error hover:bg-error-button-hover text-white border-error min-h-[44px]"
+				>
+					{#if isDeleting}
+						Deleting...
+					{:else}
+						Delete Workspace
+					{/if}
+				</Button>
+				<Button
+					onclick={handleCloseDeleteWorkspaceDialog}
+					variant="outline"
+					disabled={isDeleting}
+					class="flex-1 border-subtle-base text-foreground-secondary hover:bg-surface-muted min-h-[44px]"
+				>
+					Cancel
 				</Button>
 			</div>
 		</div>

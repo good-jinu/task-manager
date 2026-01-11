@@ -1,6 +1,3 @@
-// Import task types from core for use in interfaces
-import type { Task } from "@notion-task-manager/core";
-
 // Re-export task types from core for backward compatibility
 export type {
 	CreateTaskInput,
@@ -67,39 +64,6 @@ export interface Workspace {
 }
 
 /**
- * External Integration model for DynamoDB storage
- */
-export interface ExternalIntegration {
-	id: string; // UUID, primary key
-	workspaceId: string; // Foreign key to workspace
-	provider: string; // 'notion' or future providers
-	externalId: string; // External resource ID (e.g., Notion database ID)
-	config: Record<string, unknown>; // Provider-specific configuration
-	syncEnabled: boolean; // Whether sync is active
-	lastSyncAt?: string; // Last successful sync timestamp
-	createdAt: string; // ISO timestamp
-}
-
-/**
- * Sync status enumeration
- */
-export type SyncStatus = "pending" | "synced" | "conflict" | "error";
-
-/**
- * Sync Metadata model for DynamoDB storage
- */
-export interface SyncMetadata {
-	taskId: string; // Foreign key to task
-	integrationId: string; // Foreign key to integration
-	externalId: string; // External task/page ID
-	syncStatus: SyncStatus; // Current sync state
-	lastSyncAt?: string; // Last sync attempt timestamp
-	lastExternalUpdate?: string; // Last known external modification time
-	retryCount: number; // Number of retry attempts
-	lastError?: string; // Last error message if failed
-}
-
-/**
  * Guest User model for DynamoDB storage
  */
 export interface GuestUser {
@@ -107,6 +71,40 @@ export interface GuestUser {
 	createdAt: string; // Creation timestamp
 	expiresAt: string; // TTL expiration (7 days)
 	migrated: boolean; // Whether tasks were migrated to permanent account
+}
+
+/**
+ * Task Integration model for DynamoDB storage
+ * Maps internal tasks to external service task IDs
+ */
+export interface TaskIntegration {
+	taskId: string; // Primary key (Internal task ID)
+	provider: string; // External service provider (notion, etc.)
+	externalId: string; // External task/page ID
+	createdAt: string; // Integration creation timestamp (ISO string)
+	updatedAt: string; // Last update timestamp (ISO string)
+}
+
+/**
+ * Workspace Integration model for DynamoDB storage
+ * Manages workspace-level integrations with external services
+ */
+export interface WorkspaceIntegration {
+	id: string; // Primary key (UUID)
+	workspaceId: string; // Workspace this integration belongs to
+	provider: string; // External service provider (notion, etc.)
+	externalId: string; // External resource ID (database ID, etc.)
+	syncEnabled: boolean; // Whether sync is currently enabled
+	config: {
+		databaseId?: string; // For Notion: database ID
+		databaseName?: string; // For Notion: database name
+		importExisting?: boolean; // Whether to import existing items
+		[key: string]: unknown; // Additional provider-specific config
+	};
+	lastSyncAt?: string; // Last successful sync timestamp (ISO string)
+	lastError?: string; // Last sync error message
+	createdAt: string; // Integration creation timestamp (ISO string)
+	updatedAt: string; // Last update timestamp (ISO string)
 }
 
 /**
@@ -126,22 +124,50 @@ export interface UpdateWorkspaceInput {
 }
 
 /**
- * Input types for creating new integrations
+ * Input types for creating new task integrations
  */
-export interface CreateIntegrationInput {
-	provider: "notion" | string;
+export interface CreateTaskIntegrationInput {
+	provider: string;
 	externalId: string;
-	config: Record<string, unknown>;
+}
+
+/**
+ * Input types for updating existing task integrations
+ */
+export interface UpdateTaskIntegrationInput {
+	provider?: string;
+	externalId?: string;
+}
+
+/**
+ * Input types for creating new workspace integrations
+ */
+export interface CreateWorkspaceIntegrationInput {
+	workspaceId: string;
+	provider: string;
+	externalId: string;
+	config: {
+		databaseId?: string;
+		databaseName?: string;
+		importExisting?: boolean;
+		[key: string]: unknown;
+	};
 	syncEnabled?: boolean;
 }
 
 /**
- * Input types for updating existing integrations
+ * Input types for updating existing workspace integrations
  */
-export interface UpdateIntegrationInput {
-	config?: Record<string, unknown>;
+export interface UpdateWorkspaceIntegrationInput {
 	syncEnabled?: boolean;
+	config?: {
+		databaseId?: string;
+		databaseName?: string;
+		importExisting?: boolean;
+		[key: string]: unknown;
+	};
 	lastSyncAt?: string;
+	lastError?: string;
 }
 
 /**
@@ -174,326 +200,4 @@ export interface MigrationProgress {
 export interface MigrationError {
 	notionPageId: string;
 	error: string;
-}
-
-/**
- * Input types for creating new sync metadata
- */
-export interface CreateSyncMetadataInput {
-	taskId: string;
-	integrationId: string;
-	externalId: string;
-	syncStatus?: SyncStatus;
-	lastExternalUpdate?: string;
-}
-
-/**
- * Input types for updating existing sync metadata
- */
-export interface UpdateSyncMetadataInput {
-	externalId?: string;
-	syncStatus?: SyncStatus;
-	lastSyncAt?: string;
-	lastExternalUpdate?: string;
-	retryCount?: number;
-	lastError?: string;
-}
-
-/**
- * Sync result for individual operations
- */
-export interface SyncResult {
-	success: boolean;
-	externalId?: string;
-	error?: string;
-}
-
-/**
- * Batch sync result
- */
-export interface BatchSyncResult {
-	successful: SyncResult[];
-	failed: SyncResult[];
-}
-
-/**
- * External task data representation
- */
-export interface ExternalTaskData {
-	externalId: string;
-	title: string;
-	content?: string;
-	status?: string;
-	priority?: string;
-	dueDate?: string;
-	lastModified: Date;
-	archived?: boolean;
-	raw: unknown;
-}
-
-/**
- * Conflict resolution strategies
- */
-export type ConflictStrategy = "internal-wins" | "external-wins" | "manual";
-
-/**
- * Conflict information
- */
-export interface ConflictInfo {
-	taskId: string;
-	integrationId: string;
-	internalVersion: Task;
-	externalVersion: ExternalTaskData;
-	fieldDifferences: FieldDifference[];
-}
-
-/**
- * Interface for external service sync adapters
- * Provides a plugin architecture for integrating with external services
- */
-export interface SyncAdapter {
-	/** The provider identifier (e.g., 'notion') */
-	readonly provider: string;
-
-	/**
-	 * Push a single task to the external service
-	 * @param task - The internal task to push
-	 * @param integration - The integration configuration
-	 * @returns Promise resolving to sync result
-	 */
-	pushTask(task: Task, integration: ExternalIntegration): Promise<SyncResult>;
-
-	/**
-	 * Pull a single task from the external service
-	 * @param externalId - The external task/page ID
-	 * @param integration - The integration configuration
-	 * @returns Promise resolving to external task data or null if not found
-	 */
-	pullTask(
-		externalId: string,
-		integration: ExternalIntegration,
-	): Promise<ExternalTaskData | null>;
-
-	/**
-	 * Push multiple tasks to the external service
-	 * @param tasks - Array of internal tasks to push
-	 * @param integration - The integration configuration
-	 * @returns Promise resolving to batch sync result
-	 */
-	pushBatch(
-		tasks: Task[],
-		integration: ExternalIntegration,
-	): Promise<BatchSyncResult>;
-
-	/**
-	 * Pull multiple tasks from the external service
-	 * @param integration - The integration configuration
-	 * @param since - Optional date to filter tasks modified since this date
-	 * @returns Promise resolving to array of external task data
-	 */
-	pullBatch(
-		integration: ExternalIntegration,
-		since?: Date,
-	): Promise<ExternalTaskData[]>;
-
-	/**
-	 * Map internal task to external task format
-	 * @param task - The internal task
-	 * @returns External task data representation
-	 */
-	mapToExternal(task: Task): ExternalTaskData;
-
-	/**
-	 * Map external task to internal task format
-	 * @param external - The external task data
-	 * @returns Partial internal task data
-	 */
-	mapFromExternal(external: ExternalTaskData): Partial<Task>;
-
-	/**
-	 * Resolve conflicts between internal and external versions
-	 * @param internal - The internal task version
-	 * @param external - The external task version
-	 * @param strategy - The conflict resolution strategy
-	 * @returns Resolved task
-	 */
-	resolveConflict(
-		internal: Task,
-		external: ExternalTaskData,
-		strategy: ConflictStrategy,
-	): Task;
-}
-
-/**
- * Field difference in conflicts
- */
-export interface FieldDifference {
-	field: string;
-	internalValue: unknown;
-	externalValue: unknown;
-}
-
-/**
- * Conflict resolution input
- */
-export interface ConflictResolution {
-	strategy: ConflictStrategy;
-	selectedVersion?: "internal" | "external";
-	mergedFields?: Partial<Task>;
-}
-
-/**
- * Sync process result
- */
-export interface SyncProcessResult {
-	processed: number;
-	succeeded: number;
-	failed: number;
-	conflicts: number;
-}
-
-/**
- * Sync queue operation
- */
-export interface SyncQueueOperation {
-	taskId: string;
-	integrationId: string;
-	operation: "push" | "pull";
-	priority: number;
-	createdAt: string;
-	retryCount: number;
-}
-/**
- * Sync scheduler configuration
- */
-export interface SyncSchedulerConfig {
-	defaultSyncInterval: number; // Default sync interval in milliseconds
-	maxRetryAttempts: number; // Maximum retry attempts for failed syncs
-	retryBackoffMultiplier: number; // Multiplier for exponential backoff
-	conflictDetectionEnabled: boolean; // Whether to detect and handle conflicts
-	batchSyncThreshold: number; // Threshold for batch sync operations
-}
-
-/**
- * Sync statistics for monitoring and performance tracking
- */
-export interface SyncStatistics {
-	integrationId: string;
-	totalSyncAttempts: number;
-	successfulSyncs: number;
-	failedSyncs: number;
-	conflictCount: number;
-	averageSyncDuration: number; // Average duration in milliseconds
-	lastSyncAt: Date | null;
-	lastSyncAttemptAt: Date | null;
-	lastSyncDuration: number | null; // Duration in milliseconds
-	lastSyncError: string | null;
-	lastSyncErrorAt: Date | null;
-	manualSyncCount: number;
-	lastManualSyncAt: Date | null;
-}
-
-/**
- * Sync timing control options
- */
-export interface SyncTimingOptions {
-	autoSync: boolean; // Whether automatic sync is enabled
-	syncInterval: number; // Sync interval in seconds
-	manualSyncEnabled: boolean; // Whether manual sync is allowed
-	conflictResolution: ConflictStrategy; // Default conflict resolution strategy
-}
-
-/**
- * Enhanced sync queue operation with timing controls
- */
-export interface EnhancedSyncQueueOperation extends SyncQueueOperation {
-	scheduledAt?: string; // When the operation was scheduled (ISO string)
-	maxRetries?: number; // Maximum retry attempts for this operation
-	backoffMultiplier?: number; // Custom backoff multiplier
-	timeoutMs?: number; // Operation timeout in milliseconds
-}
-/**
- * Input types for creating sync statistics
- */
-export interface CreateSyncStatisticsInput {
-	totalSyncAttempts?: number;
-	successfulSyncs?: number;
-	failedSyncs?: number;
-	conflictCount?: number;
-	averageSyncDuration?: number;
-	lastSyncAt?: Date | null;
-	lastSyncAttemptAt?: Date | null;
-	lastSyncDuration?: number | null;
-	lastSyncError?: string | null;
-	lastSyncErrorAt?: Date | null;
-	manualSyncCount?: number;
-	lastManualSyncAt?: Date | null;
-}
-
-/**
- * Input types for updating sync statistics
- */
-export interface UpdateSyncStatisticsInput {
-	totalSyncAttempts?: number;
-	successfulSyncs?: number;
-	failedSyncs?: number;
-	conflictCount?: number;
-	averageSyncDuration?: number;
-	lastSyncAt?: Date | null;
-	lastSyncAttemptAt?: Date | null;
-	lastSyncDuration?: number | null;
-	lastSyncError?: string | null;
-	lastSyncErrorAt?: Date | null;
-	manualSyncCount?: number;
-	lastManualSyncAt?: Date | null;
-}
-
-/**
- * Sync history entry for detailed monitoring
- */
-export interface SyncHistoryEntry {
-	id: string; // Composite key: integrationId-timestamp
-	integrationId: string;
-	timestamp: Date;
-	operation: "push" | "pull" | "manual" | "scheduled";
-	success: boolean;
-	duration?: number; // Duration in milliseconds
-	tasksProcessed?: number;
-	tasksSucceeded?: number;
-	tasksFailed?: number;
-	conflictsDetected?: number;
-	error?: string;
-	metadata?: Record<string, unknown>; // Additional context
-}
-
-/**
- * Sync performance monitoring data
- */
-export interface SyncPerformanceMetrics {
-	integrationId: string;
-	period: {
-		startDate: Date;
-		endDate: Date;
-		days: number;
-	};
-	successRate: number; // Percentage
-	errorRate: number; // Percentage
-	conflictRate: number; // Percentage
-	averageResponseTime: number; // Milliseconds
-	totalSyncs: number;
-	peakSyncTime?: Date; // Time of highest sync activity
-	slowestSync?: {
-		timestamp: Date;
-		duration: number;
-	};
-	fastestSync?: {
-		timestamp: Date;
-		duration: number;
-	};
-	dailyStats: Array<{
-		date: string;
-		syncs: number;
-		errors: number;
-		averageDuration: number;
-	}>;
 }

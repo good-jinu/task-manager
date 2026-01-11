@@ -71,7 +71,7 @@ function handleSignUp() {
 }
 
 // Calculate urgency level based on days remaining and task count
-const urgencyLevel = $derived(() => {
+const urgencyLevel = $derived.by(() => {
 	if (daysRemaining <= 1) return "critical";
 	if (daysRemaining <= 3) return "high";
 	if (taskCount >= 10) return "medium";
@@ -79,8 +79,8 @@ const urgencyLevel = $derived(() => {
 });
 
 // Get appropriate styling based on urgency
-const urgencyStyles = $derived(() => {
-	switch (urgencyLevel()) {
+const urgencyStyles = $derived.by(() => {
+	switch (urgencyLevel) {
 		case "critical":
 			return {
 				bg: "bg-error-alert-bg",
@@ -108,22 +108,22 @@ const urgencyStyles = $derived(() => {
 
 {#if !isDismissed}
 	<div class={cn(
-		urgencyStyles().bg, 'border', urgencyStyles().border, 'rounded-lg p-4',
+		urgencyStyles.bg, 'border', urgencyStyles.border, 'rounded-lg p-4',
 		'shadow-sm',
 		className
 	)}>
 		<div class="flex items-start gap-3">
 			<div class="flex-shrink-0 mt-0.5">
-				<Info class={cn("w-5 h-5", urgencyStyles().icon)} />
+				<Info class={cn("w-5 h-5", urgencyStyles.icon)} />
 			</div>
 			
 			<div class="flex-1 min-w-0">
 				<div class="flex items-start justify-between gap-2">
 					<div class="flex-1">
 						<h3 class="text-sm font-medium text-foreground-emphasis mb-1">
-							{#if urgencyLevel() === 'critical'}
+							{#if urgencyLevel === 'critical'}
 								⚠️ Tasks expire tomorrow!
-							{:else if urgencyLevel() === 'high'}
+							{:else if urgencyLevel === 'high'}
 								Tasks expire in {daysRemaining} days
 							{:else}
 								You're using a guest account
@@ -134,9 +134,9 @@ const urgencyStyles = $derived(() => {
 							<!-- Task count and expiration warning -->
 							<p>
 								{#if taskCount > 0}
-									You have <span class={cn("font-medium", urgencyStyles().accent)}>{taskCount}</span> 
+									You have <span class={cn("font-medium", urgencyStyles.accent)}>{taskCount}</span> 
 									task{taskCount === 1 ? '' : 's'} that will be deleted in 
-									<span class={cn("font-medium", urgencyStyles().accent)}>{daysRemaining}</span> 
+									<span class={cn("font-medium", urgencyStyles.accent)}>{daysRemaining}</span> 
 									day{daysRemaining === 1 ? '' : 's'}.
 								{:else}
 									Your tasks will be automatically deleted after 7 days.
@@ -202,13 +202,13 @@ const urgencyStyles = $derived(() => {
 							class={cn(
 								"bg-primary hover:bg-primary-button-hover text-primary-foreground",
 								"min-h-[44px] font-medium",
-								urgencyLevel() === 'critical' && "bg-error hover:bg-error/90 text-white",
-								urgencyLevel() === 'high' && "bg-warning hover:bg-warning/90 text-white"
+								urgencyLevel === 'critical' && "bg-error hover:bg-error/90 text-white",
+								urgencyLevel === 'high' && "bg-warning hover:bg-warning/90 text-white"
 							)}
 						>
-							{#if urgencyLevel() === 'critical'}
+							{#if urgencyLevel === 'critical'}
 								Save My Tasks Now
-							{:else if urgencyLevel() === 'high'}
+							{:else if urgencyLevel === 'high'}
 								Create Account & Save Tasks
 							{:else}
 								Create Free Account
@@ -222,7 +222,7 @@ const urgencyStyles = $derived(() => {
 						size="sm"
 						class="border-subtle-base text-foreground-secondary hover:bg-surface-muted min-h-[44px]"
 					>
-						{urgencyLevel() === 'critical' ? 'Remind Me Later' : 'Maybe Later'}
+						{urgencyLevel === 'critical' ? 'Remind Me Later' : 'Maybe Later'}
 					</Button>
 				</div>
 			</div>

@@ -57,11 +57,9 @@ export function getTableNames() {
 			agentExecutions: (Resource as any).AgentExecutionsTable?.name,
 			tasks: (Resource as any).TasksTable?.name,
 			workspaces: (Resource as any).WorkspacesTable?.name,
-			integrations: (Resource as any).IntegrationsTable?.name,
-			syncMetadata: (Resource as any).SyncMetadataTable?.name,
+			taskIntegrations: (Resource as any).TaskIntegrationsTable?.name,
+			workspaceIntegrations: (Resource as any).WorkspaceIntegrationsTable?.name,
 			guestUsers: (Resource as any).GuestUsersTable?.name,
-			syncStatistics: (Resource as any).SyncStatisticsTable?.name,
-			syncHistory: (Resource as any).SyncHistoryTable?.name,
 			// biome-ignore-end lint/suspicious/noExplicitAny: Resource for any
 		};
 	} catch (_error) {
@@ -75,11 +73,9 @@ type TableNames = {
 	agentExecutions: string;
 	tasks: string;
 	workspaces: string;
-	integrations: string;
-	syncMetadata: string;
+	taskIntegrations: string;
+	workspaceIntegrations: string;
 	guestUsers: string;
-	syncStatistics: string;
-	syncHistory: string;
 };
 
 /**

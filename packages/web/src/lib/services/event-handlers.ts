@@ -219,6 +219,7 @@ export async function handleToggleIntegration(
  */
 export async function handleConnectNotion(
 	databaseId: string,
+	databaseName: string,
 	importExisting: boolean,
 ): Promise<void> {
 	const currentState = get(appState);
@@ -226,6 +227,7 @@ export async function handleConnectNotion(
 		await manager.selectDatabase(
 			databaseId,
 			currentState.currentWorkspace.id,
+			databaseName,
 			importExisting,
 		);
 	}

@@ -4,9 +4,11 @@ import type { Account, User } from "@auth/sveltekit";
  * Handle JWT token creation and updates
  */
 export async function handleJWT(params: {
-	token: any; // Using any since JWT type is not easily accessible
+	// biome-ignore lint/suspicious/noExplicitAny: Using any since JWT type is not easily accessible
+	token: any;
 	user?: User;
 	account?: Account | null;
+	// biome-ignore lint/suspicious/noExplicitAny: Using any since JWT type is not easily accessible
 }): Promise<any> {
 	const { token, user, account } = params;
 

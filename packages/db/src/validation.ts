@@ -1,12 +1,10 @@
 import type {
-	CreateIntegrationInput,
-	CreateSyncMetadataInput,
 	CreateTaskInput,
+	CreateTaskIntegrationInput,
 	CreateUserInput,
 	CreateWorkspaceInput,
-	UpdateIntegrationInput,
-	UpdateSyncMetadataInput,
 	UpdateTaskInput,
+	UpdateTaskIntegrationInput,
 	UpdateUserInput,
 	UpdateWorkspaceInput,
 } from "./types";
@@ -330,22 +328,10 @@ export function validateUpdateWorkspaceInput(
 }
 
 /**
- * Validates integration ID format
+ * Validates task integration creation input
  */
-export function validateIntegrationId(integrationId: string): void {
-	if (!integrationId || !isNonEmptyString(integrationId)) {
-		throw new ValidationError(
-			"Integration ID is required and cannot be empty",
-			"integrationId",
-		);
-	}
-}
-
-/**
- * Validates integration creation input
- */
-export function validateCreateIntegrationInput(
-	input: CreateIntegrationInput,
+export function validateCreateTaskIntegrationInput(
+	input: CreateTaskIntegrationInput,
 ): void {
 	if (!input.provider || !isNonEmptyString(input.provider)) {
 		throw new ValidationError(
@@ -360,28 +346,13 @@ export function validateCreateIntegrationInput(
 			"externalId",
 		);
 	}
-
-	if (!input.config || typeof input.config !== "object") {
-		throw new ValidationError(
-			"Config is required and must be an object",
-			"config",
-		);
-	}
-
-	// syncEnabled is optional and defaults to true
-	if (
-		input.syncEnabled !== undefined &&
-		typeof input.syncEnabled !== "boolean"
-	) {
-		throw new ValidationError("Sync enabled must be a boolean", "syncEnabled");
-	}
 }
 
 /**
- * Validates integration update input
+ * Validates task integration update input
  */
-export function validateUpdateIntegrationInput(
-	input: UpdateIntegrationInput,
+export function validateUpdateTaskIntegrationInput(
+	input: UpdateTaskIntegrationInput,
 ): void {
 	// Check that at least one field is provided for update
 	const hasValidUpdate = Object.values(input).some(
@@ -392,162 +363,11 @@ export function validateUpdateIntegrationInput(
 	}
 
 	// Validate individual fields if provided
-	if (input.config !== undefined) {
-		if (!input.config || typeof input.config !== "object") {
-			throw new ValidationError("Config must be an object", "config");
-		}
+	if (input.provider !== undefined && !isNonEmptyString(input.provider)) {
+		throw new ValidationError("Provider cannot be empty", "provider");
 	}
 
-	if (
-		input.syncEnabled !== undefined &&
-		typeof input.syncEnabled !== "boolean"
-	) {
-		throw new ValidationError("Sync enabled must be a boolean", "syncEnabled");
-	}
-}
-
-/**
- * Validates sync metadata creation input
- */
-export function validateCreateSyncMetadataInput(
-	input: CreateSyncMetadataInput,
-): void {
-	if (!input.taskId || !isNonEmptyString(input.taskId)) {
-		throw new ValidationError(
-			"Task ID is required and cannot be empty",
-			"taskId",
-		);
-	}
-
-	if (!input.integrationId || !isNonEmptyString(input.integrationId)) {
-		throw new ValidationError(
-			"Integration ID is required and cannot be empty",
-			"integrationId",
-		);
-	}
-
-	if (!input.externalId || !isNonEmptyString(input.externalId)) {
-		throw new ValidationError(
-			"External ID is required and cannot be empty",
-			"externalId",
-		);
-	}
-
-	// Validate optional fields if provided
-	if (input.syncStatus !== undefined) {
-		const validStatuses = ["pending", "synced", "conflict", "error"];
-		if (!validStatuses.includes(input.syncStatus)) {
-			throw new ValidationError(
-				`Sync status must be one of: ${validStatuses.join(", ")}`,
-				"syncStatus",
-			);
-		}
-	}
-
-	if (
-		input.lastExternalUpdate !== undefined &&
-		input.lastExternalUpdate !== null
-	) {
-		if (!isNonEmptyString(input.lastExternalUpdate)) {
-			throw new ValidationError(
-				"Last external update cannot be empty if provided",
-				"lastExternalUpdate",
-			);
-		}
-		// Validate ISO date format
-		const date = new Date(input.lastExternalUpdate);
-		if (Number.isNaN(date.getTime())) {
-			throw new ValidationError(
-				"Last external update must be a valid ISO date string",
-				"lastExternalUpdate",
-			);
-		}
-	}
-}
-
-/**
- * Validates sync metadata update input
- */
-export function validateUpdateSyncMetadataInput(
-	input: UpdateSyncMetadataInput,
-): void {
-	// Check that at least one field is provided for update
-	const hasValidUpdate = Object.values(input).some(
-		(value) => value !== undefined,
-	);
-	if (!hasValidUpdate) {
-		throw new ValidationError("At least one field must be provided for update");
-	}
-
-	// Validate individual fields if provided
 	if (input.externalId !== undefined && !isNonEmptyString(input.externalId)) {
 		throw new ValidationError("External ID cannot be empty", "externalId");
-	}
-
-	if (input.syncStatus !== undefined) {
-		const validStatuses = ["pending", "synced", "conflict", "error"];
-		if (!validStatuses.includes(input.syncStatus)) {
-			throw new ValidationError(
-				`Sync status must be one of: ${validStatuses.join(", ")}`,
-				"syncStatus",
-			);
-		}
-	}
-
-	if (input.lastSyncAt !== undefined && input.lastSyncAt !== null) {
-		if (!isNonEmptyString(input.lastSyncAt)) {
-			throw new ValidationError(
-				"Last sync at cannot be empty if provided",
-				"lastSyncAt",
-			);
-		}
-		// Validate ISO date format
-		const date = new Date(input.lastSyncAt);
-		if (Number.isNaN(date.getTime())) {
-			throw new ValidationError(
-				"Last sync at must be a valid ISO date string",
-				"lastSyncAt",
-			);
-		}
-	}
-
-	if (
-		input.lastExternalUpdate !== undefined &&
-		input.lastExternalUpdate !== null
-	) {
-		if (!isNonEmptyString(input.lastExternalUpdate)) {
-			throw new ValidationError(
-				"Last external update cannot be empty if provided",
-				"lastExternalUpdate",
-			);
-		}
-		// Validate ISO date format
-		const date = new Date(input.lastExternalUpdate);
-		if (Number.isNaN(date.getTime())) {
-			throw new ValidationError(
-				"Last external update must be a valid ISO date string",
-				"lastExternalUpdate",
-			);
-		}
-	}
-
-	if (input.retryCount !== undefined) {
-		if (typeof input.retryCount !== "number" || input.retryCount < 0) {
-			throw new ValidationError(
-				"Retry count must be a non-negative number",
-				"retryCount",
-			);
-		}
-	}
-
-	if (
-		input.lastError !== undefined &&
-		input.lastError !== null &&
-		!isNonEmptyString(input.lastError)
-	) {
-		throw new ValidationError(
-			"Last error cannot be empty if provided",
-			"lastError",
-		);
 	}
 }

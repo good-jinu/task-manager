@@ -1,8 +1,6 @@
 import {
-	type ExternalIntegration,
-	IntegrationService,
-	type SyncMetadata,
-	SyncMetadataService,
+	type WorkspaceIntegration,
+	WorkspaceIntegrationService,
 } from "@notion-task-manager/db";
 import { json } from "@sveltejs/kit";
 import type { RequestHandler } from "./$types";
@@ -23,6 +21,76 @@ interface SyncStatistics {
 	lastSyncDuration?: number;
 }
 
+interface WorkspaceIntegrationData {
+	integration: {
+		id: string;
+		provider: string;
+		syncEnabled: boolean;
+		config?: {
+			databaseId?: string;
+			databaseName?: string;
+			importExisting?: boolean;
+		};
+		lastSyncAt?: string;
+	};
+	status: IntegrationStatusResponse;
+	stats: SyncStatistics;
+}
+
+function determineIntegrationStatus(
+	integration: WorkspaceIntegration,
+): IntegrationStatusResponse {
+	if (!integration.syncEnabled) {
+		return {
+			status: "disabled",
+			lastSyncAt: integration.lastSyncAt,
+			lastError: integration.lastError,
+			syncCount: 0,
+			conflictCount: 0,
+		};
+	}
+
+	if (integration.lastError) {
+		return {
+			status: "error",
+			lastSyncAt: integration.lastSyncAt,
+			lastError: integration.lastError,
+			syncCount: 0,
+			conflictCount: 0,
+		};
+	}
+
+	if (integration.lastSyncAt) {
+		const lastSync = new Date(integration.lastSyncAt);
+		const now = new Date();
+		const timeDiff = now.getTime() - lastSync.getTime();
+		const fiveMinutes = 5 * 60 * 1000;
+
+		return {
+			status: timeDiff < fiveMinutes ? "synced" : "pending",
+			lastSyncAt: integration.lastSyncAt,
+			syncCount: 0, // TODO: Implement actual sync counting
+			conflictCount: 0, // TODO: Implement conflict tracking
+		};
+	}
+
+	return {
+		status: "pending",
+		syncCount: 0,
+		conflictCount: 0,
+	};
+}
+
+function createDefaultStats(): SyncStatistics {
+	return {
+		totalTasks: 0,
+		syncedTasks: 0,
+		pendingTasks: 0,
+		errorTasks: 0,
+		lastSyncDuration: undefined,
+	};
+}
+
 export const GET: RequestHandler = async ({ url }) => {
 	try {
 		const workspaceId = url.searchParams.get("workspaceId");
@@ -32,104 +100,57 @@ export const GET: RequestHandler = async ({ url }) => {
 			return json({ error: "Workspace ID is required" }, { status: 400 });
 		}
 
-		// Initialize services
-		const integrationService = new IntegrationService();
-		const syncMetadataService = new SyncMetadataService();
-
-		// Get all integrations for the workspace
-		const integrations = await integrationService.listIntegrations(workspaceId);
-
-		const statusMap = new Map<string, IntegrationStatusResponse>();
-		const statsMap = new Map<string, SyncStatistics>();
-
-		for (const integration of integrations) {
-			// Get sync metadata for this integration
-			const syncMetadata =
-				await syncMetadataService.listSyncMetadataByIntegration(integration.id);
-
-			// Calculate sync statistics
-			const totalTasks = syncMetadata.length;
-			const syncedTasks = syncMetadata.filter(
-				(sm: SyncMetadata) => sm.syncStatus === "synced",
-			).length;
-			const pendingTasks = syncMetadata.filter(
-				(sm: SyncMetadata) => sm.syncStatus === "pending",
-			).length;
-			const errorTasks = syncMetadata.filter(
-				(sm: SyncMetadata) => sm.syncStatus === "error",
-			).length;
-			const conflictTasks = syncMetadata.filter(
-				(sm: SyncMetadata) => sm.syncStatus === "conflict",
-			).length;
-
-			// Determine overall status
-			let status: IntegrationStatusResponse["status"] = "disconnected";
-			let lastError: string | undefined;
-
-			if (!integration.syncEnabled) {
-				status = "disabled";
-			} else if (errorTasks > 0) {
-				status = "error";
-				// Get the most recent error
-				const errorMetadata = syncMetadata
-					.filter(
-						(sm: SyncMetadata) => sm.syncStatus === "error" && sm.lastError,
-					)
-					.sort((a: SyncMetadata, b: SyncMetadata) =>
-						(b.lastSyncAt || "").localeCompare(a.lastSyncAt || ""),
-					)[0];
-				lastError = errorMetadata?.lastError;
-			} else if (pendingTasks > 0 || conflictTasks > 0) {
-				status = "pending";
-			} else if (syncedTasks > 0) {
-				status = "synced";
-			} else {
-				status = "pending"; // No tasks synced yet
-			}
-
-			// Calculate last sync duration (mock for now)
-			const lastSyncDuration = Math.floor(Math.random() * 5000) + 500;
-
-			statusMap.set(integration.id, {
-				status,
-				lastSyncAt: integration.lastSyncAt,
-				lastError,
-				syncCount: syncedTasks,
-				conflictCount: conflictTasks,
-			});
-
-			statsMap.set(integration.id, {
-				totalTasks,
-				syncedTasks,
-				pendingTasks,
-				errorTasks,
-				lastSyncDuration,
-			});
-		}
+		const workspaceIntegrationService = new WorkspaceIntegrationService();
 
 		// If specific integration requested, return just that one
 		if (integrationId) {
-			const integration = integrations.find(
-				(i: ExternalIntegration) => i.id === integrationId,
-			);
+			const integration =
+				await workspaceIntegrationService.getById(integrationId);
+
 			if (!integration) {
-				return json({ error: "Integration not found" }, { status: 404 });
+				return json({
+					integration: null,
+					status: { status: "disconnected" as const },
+					stats: createDefaultStats(),
+				});
 			}
 
+			const status = determineIntegrationStatus(integration);
+			const stats = createDefaultStats(); // TODO: Calculate actual stats
+
 			return json({
-				integration: integration,
-				status: statusMap.get(integrationId),
-				stats: statsMap.get(integrationId),
+				integration: {
+					id: integration.id,
+					provider: integration.provider,
+					syncEnabled: integration.syncEnabled,
+					config: integration.config,
+					lastSyncAt: integration.lastSyncAt,
+				},
+				status,
+				stats,
 			});
 		}
 
-		// Return all integrations with their status
+		// Return all integrations for the workspace
+		const integrations =
+			await workspaceIntegrationService.listByWorkspace(workspaceId);
+
+		const integrationData: WorkspaceIntegrationData[] = integrations.map(
+			(integration) => ({
+				integration: {
+					id: integration.id,
+					provider: integration.provider,
+					syncEnabled: integration.syncEnabled,
+					config: integration.config,
+					lastSyncAt: integration.lastSyncAt,
+				},
+				status: determineIntegrationStatus(integration),
+				stats: createDefaultStats(), // TODO: Calculate actual stats per integration
+			}),
+		);
+
 		return json({
-			integrations: integrations.map((integration: ExternalIntegration) => ({
-				integration,
-				status: statusMap.get(integration.id),
-				stats: statsMap.get(integration.id),
-			})),
+			integrations: integrationData,
 		});
 	} catch (error) {
 		console.error("Failed to get integration status:", error);
@@ -145,53 +166,29 @@ export const POST: RequestHandler = async ({ request }) => {
 			return json({ error: "Integration ID is required" }, { status: 400 });
 		}
 
-		// Initialize services
-		const integrationService = new IntegrationService();
-		const syncMetadataService = new SyncMetadataService();
-
-		const integration = await integrationService.getIntegration(integrationId);
-		if (!integration) {
-			return json({ error: "Integration not found" }, { status: 404 });
-		}
+		const workspaceIntegrationService = new WorkspaceIntegrationService();
 
 		switch (action) {
 			case "refresh": {
-				// Trigger a manual sync refresh
-				// In a real implementation, this would trigger the sync process
-				await integrationService.updateIntegration(integrationId, {
-					lastSyncAt: new Date().toISOString(),
-				});
+				// Get the integration
+				const integration =
+					await workspaceIntegrationService.getById(integrationId);
 
-				// Return updated status
-				const syncMetadata =
-					await syncMetadataService.listSyncMetadataByIntegration(
+				if (!integration) {
+					return json({ error: "Integration not found" }, { status: 404 });
+				}
+
+				// TODO: Implement actual sync logic here
+				// For now, just update the sync timestamp
+				const updatedIntegration =
+					await workspaceIntegrationService.updateSyncStatus(
 						integrationId,
+						true, // success
 					);
-				const syncedTasks = syncMetadata.filter(
-					(sm: SyncMetadata) => sm.syncStatus === "synced",
-				).length;
-				const errorTasks = syncMetadata.filter(
-					(sm: SyncMetadata) => sm.syncStatus === "error",
-				).length;
-				const pendingTasks = syncMetadata.filter(
-					(sm: SyncMetadata) => sm.syncStatus === "pending",
-				).length;
-				const conflictTasks = syncMetadata.filter(
-					(sm: SyncMetadata) => sm.syncStatus === "conflict",
-				).length;
-
-				let status: IntegrationStatusResponse["status"] = "synced";
-				if (errorTasks > 0) status = "error";
-				else if (pendingTasks > 0 || conflictTasks > 0) status = "pending";
 
 				return json({
 					success: true,
-					status: {
-						status,
-						lastSyncAt: new Date().toISOString(),
-						syncCount: syncedTasks,
-						conflictCount: conflictTasks,
-					},
+					status: determineIntegrationStatus(updatedIntegration),
 				});
 			}
 

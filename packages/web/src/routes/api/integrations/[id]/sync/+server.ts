@@ -1,21 +1,15 @@
 import {
-	IntegrationService,
-	type SyncMetadata,
-	SyncMetadataService,
-	SyncScheduler,
-	SyncService,
-	SyncStatisticsService,
+	TaskIntegrationService,
 	TaskService,
 	ValidationError,
 } from "@notion-task-manager/db";
 import { json } from "@sveltejs/kit";
 import { requireAuth } from "$lib/auth";
-import { resilientSyncOperation } from "$lib/utils/network-resilience";
 import type { RequestHandler } from "./$types";
 
 /**
  * PUT /api/integrations/[id]/sync
- * Triggers a manual sync for the specified integration with enhanced timing controls
+ * Triggers a manual sync for the specified integration (simplified version)
  */
 export const PUT: RequestHandler = async (event) => {
 	try {
@@ -27,92 +21,16 @@ export const PUT: RequestHandler = async (event) => {
 			return json({ error: "Integration ID is required" }, { status: 400 });
 		}
 
-		const {
-			force = false,
-			immediate = true,
-			syncType = "full", // "full" | "incremental"
-		} = await event.request.json().catch(() => ({}));
-
-		const integrationService = new IntegrationService();
-		const syncService = new SyncService(
-			new SyncMetadataService(),
-			new TaskService(),
-			integrationService,
-		);
-		const syncScheduler = new SyncScheduler(
-			syncService,
-			integrationService,
-			new TaskService(),
-			new SyncStatisticsService(),
-		);
-
-		try {
-			// Get the integration
-			const integration =
-				await integrationService.getIntegration(integrationId);
-			if (!integration) {
-				return json({ error: "Integration not found" }, { status: 404 });
-			}
-
-			// Check if sync is enabled
-			if (!integration.syncEnabled && !force) {
-				return json(
-					{ error: "Sync is disabled for this integration" },
-					{ status: 400 },
-				);
-			}
-
-			// Trigger manual sync using the scheduler with network resilience
-			const startTime = Date.now();
-			await resilientSyncOperation(
-				async () => {
-					await syncScheduler.triggerManualSync(integrationId);
-				},
-				integrationId,
-				"manual",
-			);
-			const syncDuration = Date.now() - startTime;
-
-			// Get updated sync statistics
-			const syncStats = await syncScheduler.getSyncStatistics(integrationId);
-			const queueStatus = syncService.getSyncQueueStatus();
-
-			// Update integration with last sync timestamp
-			const now = new Date().toISOString();
-			await integrationService.updateIntegration(integrationId, {
-				lastSyncAt: now,
-			});
-
-			return json({
-				success: true,
-				syncResult: {
-					status: "completed",
-					syncDuration,
-					triggeredAt: now,
-					syncType,
-					queueStatus: {
-						queueLength: queueStatus.queueLength,
-						isProcessing: queueStatus.isProcessing,
-					},
-					statistics: syncStats
-						? {
-								totalSyncAttempts: syncStats.totalSyncAttempts,
-								successfulSyncs: syncStats.successfulSyncs,
-								failedSyncs: syncStats.failedSyncs,
-								conflictCount: syncStats.conflictCount,
-								averageSyncDuration: syncStats.averageSyncDuration,
-								lastSyncAt: syncStats.lastSyncAt,
-								manualSyncCount: syncStats.manualSyncCount,
-							}
-						: null,
-				},
-			});
-		} catch (error) {
-			if (error instanceof Error && error.message.includes("not found")) {
-				return json({ error: "Integration not found" }, { status: 404 });
-			}
-			throw error;
-		}
+		// For now, just return a success response
+		// In the future, this would trigger actual sync logic
+		return json({
+			success: true,
+			message: "Sync functionality will be implemented in the future",
+			syncResult: {
+				status: "not_implemented",
+				triggeredAt: new Date().toISOString(),
+			},
+		});
 	} catch (error) {
 		console.error("Failed to trigger sync:", error);
 
@@ -141,7 +59,7 @@ export const PUT: RequestHandler = async (event) => {
 
 /**
  * GET /api/integrations/[id]/sync
- * Gets the current sync status and statistics for the specified integration
+ * Gets basic integration status (simplified version)
  */
 export const GET: RequestHandler = async (event) => {
 	try {
@@ -153,127 +71,30 @@ export const GET: RequestHandler = async (event) => {
 			return json({ error: "Integration ID is required" }, { status: 400 });
 		}
 
-		const integrationService = new IntegrationService();
-		const syncMetadataService = new SyncMetadataService();
-		const syncService = new SyncService(
-			syncMetadataService,
-			new TaskService(),
-			integrationService,
-		);
-		const syncScheduler = new SyncScheduler(
-			syncService,
-			integrationService,
-			new TaskService(),
-			new SyncStatisticsService(),
-		);
+		const taskIntegrationService = new TaskIntegrationService();
+		const taskService = new TaskService();
 
-		try {
-			// Get the integration
-			const integration =
-				await integrationService.getIntegration(integrationId);
-			if (!integration) {
-				return json({ error: "Integration not found" }, { status: 404 });
-			}
+		// Get basic integration info by checking if any tasks have integrations
+		// This is a simplified approach - in the future you might want to store
+		// integration configuration separately
 
-			// Get sync timing options
-			const timingOptions =
-				await syncService.getSyncTimingOptions(integrationId);
-
-			// Get sync statistics from scheduler
-			const syncStats = await syncScheduler.getSyncStatistics(integrationId);
-
-			// Get queue status
-			const queueStatus = syncService.getSyncQueueStatus();
-
-			// Get sync metadata for this integration
-			const syncMetadata =
-				await syncMetadataService.listSyncMetadataByIntegration(integrationId);
-
-			// Calculate sync statistics
-			const totalTasks = syncMetadata.length;
-			const syncedTasks = syncMetadata.filter(
-				(sm: SyncMetadata) => sm.syncStatus === "synced",
-			).length;
-			const pendingTasks = syncMetadata.filter(
-				(sm: SyncMetadata) => sm.syncStatus === "pending",
-			).length;
-			const errorTasks = syncMetadata.filter(
-				(sm: SyncMetadata) => sm.syncStatus === "error",
-			).length;
-			const conflictTasks = syncMetadata.filter(
-				(sm: SyncMetadata) => sm.syncStatus === "conflict",
-			).length;
-
-			// Determine overall status
-			let status: "disconnected" | "disabled" | "synced" | "pending" | "error" =
-				"disconnected";
-			let lastError: string | undefined;
-
-			if (!integration.syncEnabled) {
-				status = "disabled";
-			} else if (errorTasks > 0) {
-				status = "error";
-				// Get the most recent error
-				const errorMetadata = syncMetadata
-					.filter(
-						(sm: SyncMetadata) => sm.syncStatus === "error" && sm.lastError,
-					)
-					.sort((a: SyncMetadata, b: SyncMetadata) =>
-						(b.lastSyncAt || "").localeCompare(a.lastSyncAt || ""),
-					)[0];
-				lastError = errorMetadata?.lastError;
-			} else if (pendingTasks > 0 || conflictTasks > 0) {
-				status = "pending";
-			} else if (syncedTasks > 0) {
-				status = "synced";
-			} else {
-				status = "pending"; // No tasks synced yet
-			}
-
-			return json({
-				integration,
-				syncStatus: {
-					status,
-					lastSyncAt: integration.lastSyncAt,
-					lastError,
-					syncCount: syncedTasks,
-					conflictCount: conflictTasks,
-				},
-				syncStats: {
-					totalTasks,
-					syncedTasks,
-					pendingTasks,
-					errorTasks,
-					lastSyncDuration: syncStats?.lastSyncDuration || null,
-				},
-				timingOptions,
-				queueStatus: {
-					queueLength: queueStatus.queueLength,
-					isProcessing: queueStatus.isProcessing,
-					nextScheduledSync: queueStatus.nextScheduledSync,
-				},
-				statistics: syncStats
-					? {
-							totalSyncAttempts: syncStats.totalSyncAttempts,
-							successfulSyncs: syncStats.successfulSyncs,
-							failedSyncs: syncStats.failedSyncs,
-							conflictCount: syncStats.conflictCount,
-							averageSyncDuration: syncStats.averageSyncDuration,
-							lastSyncAt: syncStats.lastSyncAt,
-							lastSyncAttemptAt: syncStats.lastSyncAttemptAt,
-							lastSyncError: syncStats.lastSyncError,
-							lastSyncErrorAt: syncStats.lastSyncErrorAt,
-							manualSyncCount: syncStats.manualSyncCount,
-							lastManualSyncAt: syncStats.lastManualSyncAt,
-						}
-					: null,
-			});
-		} catch (error) {
-			if (error instanceof Error && error.message.includes("not found")) {
-				return json({ error: "Integration not found" }, { status: 404 });
-			}
-			throw error;
-		}
+		return json({
+			syncStatus: {
+				status: "disconnected",
+				lastSyncAt: null,
+				lastError: null,
+				syncCount: 0,
+				conflictCount: 0,
+			},
+			syncStats: {
+				totalTasks: 0,
+				syncedTasks: 0,
+				pendingTasks: 0,
+				errorTasks: 0,
+				lastSyncDuration: null,
+			},
+			message: "Sync functionality will be implemented in the future",
+		});
 	} catch (error) {
 		console.error("Failed to get sync status:", error);
 

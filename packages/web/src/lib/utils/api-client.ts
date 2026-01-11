@@ -249,19 +249,6 @@ export class SyncApiClient extends ApiClient {
 			},
 		});
 	}
-
-	/**
-	 * Get sync statistics with resilience
-	 */
-	async getSyncStatistics(integrationId: string): Promise<SyncStatistics> {
-		return this.get(`/api/integrations/${integrationId}/sync/statistics`, {
-			retryType: "sync",
-			context: {
-				integrationId,
-				operation: "statistics",
-			},
-		});
-	}
 }
 
 /**

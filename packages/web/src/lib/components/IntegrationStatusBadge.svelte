@@ -1,9 +1,7 @@
 <script lang="ts">
-import type { ExternalIntegration, SyncStatus } from "@notion-task-manager/db";
 import {
 	hapticFeedback,
 	progressiveEnhancement,
-	touchGestures,
 } from "$lib/utils/mobile-performance";
 import {
 	CheckCircle,
@@ -15,6 +13,14 @@ import {
 	X,
 } from "./icons";
 import { cn } from "./utils";
+
+type SyncStatus = "pending" | "synced" | "conflict" | "error";
+
+interface IntegrationConfig {
+	enabled: boolean;
+	databaseId?: string;
+	lastSyncAt?: string;
+}
 
 interface IntegrationStatus {
 	status:
@@ -39,7 +45,7 @@ interface SyncStatistics {
 }
 
 interface Props {
-	integration?: ExternalIntegration;
+	integration?: IntegrationConfig;
 	syncStatus?: SyncStatus;
 	integrationStatus?: IntegrationStatus;
 	syncStats?: SyncStatistics;
@@ -71,14 +77,14 @@ const shouldUseAnimations =
 const shouldUseHaptics = progressiveEnhancement.shouldEnableFeature("haptics");
 
 // Determine the actual status with enhanced logic
-const status = $derived(() => {
+const status = $derived.by(() => {
 	// Use enhanced status if available
 	if (integrationStatus) {
 		return integrationStatus.status;
 	}
 
 	if (!integration) return "disconnected";
-	if (!integration.syncEnabled) return "disabled";
+	if (!integration.enabled) return "disabled";
 
 	// Use provided syncStatus or derive from integration
 	if (syncStatus) return syncStatus;
@@ -100,7 +106,7 @@ const status = $derived(() => {
 	}
 
 	return "pending";
-});
+}) as "disconnected" | "disabled" | "synced" | "pending" | "conflict" | "error";
 
 // Enhanced status configuration using semantic color system
 const statusConfig = {
@@ -166,7 +172,7 @@ const statusConfig = {
 	},
 };
 
-const currentStatus = $derived(statusConfig[status()]);
+const currentStatus = $derived(statusConfig[status]);
 
 // Responsive sizing with mobile-first approach
 const sizeClasses = {
@@ -201,7 +207,7 @@ const lastSyncText = $derived.by(() => {
 });
 
 // Sync statistics text
-const syncStatsText = $derived(() => {
+const syncStatsText = $derived.by(() => {
 	if (!syncStats) return null;
 
 	const parts = [];
@@ -223,7 +229,7 @@ function handleClick() {
 	if (onClick && currentStatus.clickable && !loading) {
 		// Provide haptic feedback based on status
 		if (shouldUseHaptics) {
-			switch (status()) {
+			switch (status) {
 				case "synced":
 					hapticFeedback.light();
 					break;
@@ -240,11 +246,6 @@ function handleClick() {
 
 		onClick();
 	}
-}
-
-// Touch gesture handling for mobile
-function handleTouchGesture(_event: TouchEvent) {
-	handleClick();
 }
 
 // Determine if badge should be clickable
@@ -285,7 +286,7 @@ const isClickable = $derived(currentStatus.clickable && onClick && !loading);
 				class={cn(
 					iconSizes[size],
 					// Add spin animation for loading states (respecting reduced motion)
-					(status() === 'pending' || loading) && IconComponent === Clock && shouldUseAnimations && 'animate-spin'
+					(status === 'pending' || loading) && IconComponent === Clock && shouldUseAnimations && 'animate-spin'
 				)}
 			/>
 		{/if}
@@ -319,7 +320,7 @@ const isClickable = $derived(currentStatus.clickable && onClick && !loading);
 				class={cn(
 					iconSizes[size],
 					// Add spin animation for loading states (respecting reduced motion)
-					(status() === 'pending' || loading) && IconComponent === Clock && shouldUseAnimations && 'animate-spin'
+					(status === 'pending' || loading) && IconComponent === Clock && shouldUseAnimations && 'animate-spin'
 				)}
 			/>
 		{/if}
@@ -348,7 +349,7 @@ const isClickable = $derived(currentStatus.clickable && onClick && !loading);
 			</p>
 		{/if}
 		
-		{#if integrationStatus?.lastError && status() === 'error'}
+		{#if integrationStatus?.lastError && status === 'error'}
 			<p class="text-xs font-medium" style="color: var(--error-foreground)">
 				{integrationStatus.lastError}
 			</p>

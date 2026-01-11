@@ -7,7 +7,7 @@ export interface ApiHandlerOptions {
 	allowGuest?: boolean;
 }
 
-export type ApiHandler<T = any> = (
+export type ApiHandler<T> = (
 	event: RequestEvent,
 	authResult: AuthResult,
 ) => Promise<T>;

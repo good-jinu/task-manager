@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { IntegrationService } from "./integration-service";
-import type { SyncMetadataService } from "./sync-metadata-service";
+import type { TaskIntegrationService } from "./task-integration-service";
 import type { TaskService } from "./task-service";
 import type {
 	MigrationError,
@@ -47,8 +46,7 @@ export class MigrationService {
 		public notionTaskManager: NotionTaskManagerInterface | null,
 		private taskService: TaskService,
 		private workspaceService: WorkspaceService,
-		private syncMetadataService: SyncMetadataService,
-		private integrationService: IntegrationService,
+		private taskIntegrationService: TaskIntegrationService,
 	) {}
 
 	/**
@@ -101,19 +99,6 @@ export class MigrationService {
 			const errors: MigrationError[] = [];
 			const importedTasks: Task[] = [];
 
-			// Create integration for this workspace
-			const integration = await this.integrationService.createIntegration(
-				workspaceId,
-				{
-					provider: "notion",
-					externalId: notionDatabaseId,
-					config: {
-						databaseTitle: notionPages.length > 0 ? "Imported Database" : "",
-					},
-					syncEnabled: true,
-				},
-			);
-
 			// Process each Notion page
 			for (const notionPage of notionPages) {
 				try {
@@ -130,23 +115,11 @@ export class MigrationService {
 						status: notionPage.archived ? "archived" : "todo",
 					});
 
-					// Create sync metadata linking internal task to Notion page
-					await this.syncMetadataService.createSyncMetadata({
-						taskId: task.id,
-						integrationId: integration.id,
+					// Create task integration linking internal task to Notion page
+					await this.taskIntegrationService.create(task.id, {
+						provider: "notion",
 						externalId: notionPage.id,
-						syncStatus: "synced",
-						lastExternalUpdate: notionPage.lastEditedTime.toISOString(),
 					});
-
-					// Update sync metadata with last sync time
-					await this.syncMetadataService.updateSyncMetadata(
-						task.id,
-						integration.id,
-						{
-							lastSyncAt: new Date().toISOString(),
-						},
-					);
 
 					importedTasks.push(task);
 					migrationProgress.successCount++;
@@ -256,19 +229,6 @@ export class MigrationService {
 
 			const errors: MigrationError[] = [];
 
-			// Create integration for this workspace
-			const integration = await this.integrationService.createIntegration(
-				workspaceId,
-				{
-					provider: "notion",
-					externalId: notionDatabaseId,
-					config: {
-						databaseTitle: notionPages.length > 0 ? "Imported Database" : "",
-					},
-					syncEnabled: true,
-				},
-			);
-
 			// Process each Notion page with progress updates
 			for (let i = 0; i < notionPages.length; i++) {
 				const notionPage = notionPages[i];
@@ -287,23 +247,11 @@ export class MigrationService {
 						status: notionPage.archived ? "archived" : "todo",
 					});
 
-					// Create sync metadata linking internal task to Notion page
-					await this.syncMetadataService.createSyncMetadata({
-						taskId: task.id,
-						integrationId: integration.id,
+					// Create task integration linking internal task to Notion page
+					await this.taskIntegrationService.create(task.id, {
+						provider: "notion",
 						externalId: notionPage.id,
-						syncStatus: "synced",
-						lastExternalUpdate: notionPage.lastEditedTime.toISOString(),
 					});
-
-					// Update sync metadata with last sync time
-					await this.syncMetadataService.updateSyncMetadata(
-						task.id,
-						integration.id,
-						{
-							lastSyncAt: new Date().toISOString(),
-						},
-					);
 
 					migrationProgress.successCount++;
 				} catch (error) {

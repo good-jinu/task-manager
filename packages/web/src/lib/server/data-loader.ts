@@ -1,10 +1,11 @@
+import type { Session } from "@auth/sveltekit";
 import { AgentExecutionService } from "@notion-task-manager/db";
 import { createNotionTaskManagerWithAuth } from "$lib/notion";
 import type { NotionDatabase } from "$lib/types/notion";
 import { getUserFromDatabase } from "$lib/user";
 
 export interface PageData {
-	session: any;
+	session: Session | null;
 	databases: NotionDatabase[];
 	executions: Awaited<ReturnType<AgentExecutionService["getUserExecutions"]>>;
 	isAuthenticated: boolean;
@@ -85,7 +86,7 @@ export function loadGuestUserData(): Partial<PageData> {
 /**
  * Create error fallback data
  */
-export function createErrorFallback(session: any): PageData {
+export function createErrorFallback(session: Session | null): PageData {
 	return {
 		session,
 		databases: [],

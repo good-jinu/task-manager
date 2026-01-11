@@ -3,13 +3,14 @@
  * Eliminates duplicate auth/guest validation logic across routes
  */
 
+import type { Session } from "@auth/sveltekit";
 import type { RequestEvent } from "@sveltejs/kit";
 import { json } from "@sveltejs/kit";
 
 export interface AuthResult {
 	userId: string;
 	isGuest: boolean;
-	session?: any;
+	session?: Session;
 }
 
 /**

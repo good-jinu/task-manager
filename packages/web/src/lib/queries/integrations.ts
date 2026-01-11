@@ -67,7 +67,7 @@ async function toggleIntegration(params: {
 }
 
 // Connect to a specific database
-async function connectDatabase(params: {
+export async function connectDatabase(params: {
 	workspaceId: string;
 	databaseId: string;
 	databaseName: string;

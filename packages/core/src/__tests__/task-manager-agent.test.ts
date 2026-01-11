@@ -47,8 +47,8 @@ describe("TaskManagerAgent", () => {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		vi.mocked(generateText).mockResolvedValue({
 			text: "Task processed successfully",
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		} as any); // Use any for test mocking since we only need the text property
+			// biome-ignore lint/suspicious/noExplicitAny: mocking
+		} as any);
 
 		const params = {
 			userId: "test-user",

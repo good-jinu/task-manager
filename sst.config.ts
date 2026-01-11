@@ -64,38 +64,6 @@ export default $config({
 			},
 		});
 
-		const integrationsTable = new sst.aws.Dynamo("IntegrationsTable", {
-			fields: {
-				id: "string", // Primary key (UUID)
-				workspaceId: "string", // Foreign key to workspace
-				provider: "string", // Integration provider (notion, etc.)
-			},
-			primaryIndex: { hashKey: "id" },
-			globalIndexes: {
-				"workspaceId-provider-index": {
-					hashKey: "workspaceId",
-					rangeKey: "provider",
-				},
-			},
-		});
-
-		const syncMetadataTable = new sst.aws.Dynamo("SyncMetadataTable", {
-			fields: {
-				taskId: "string", // Partition key (Foreign key to task)
-				integrationId: "string", // Sort key (Foreign key to integration)
-				syncStatus: "string", // For filtering by sync status
-				externalId: "string", // External task/page ID for reverse lookup
-			},
-			primaryIndex: { hashKey: "taskId", rangeKey: "integrationId" },
-			globalIndexes: {
-				"integrationId-status-index": {
-					hashKey: "integrationId",
-					rangeKey: "syncStatus",
-				},
-				"externalId-index": { hashKey: "externalId" },
-			},
-		});
-
 		const guestUsersTable = new sst.aws.Dynamo("GuestUsersTable", {
 			fields: {
 				id: "string", // Primary key (Generated guest ID)
@@ -104,27 +72,44 @@ export default $config({
 			ttl: "expiresAt", // Enable TTL on expiresAt field
 		});
 
-		const syncStatisticsTable = new sst.aws.Dynamo("SyncStatisticsTable", {
+		const taskIntegrationsTable = new sst.aws.Dynamo("TaskIntegrationsTable", {
 			fields: {
-				integrationId: "string", // Primary key (Foreign key to integration)
+				taskId: "string", // Primary key (Internal task ID)
+				provider: "string", // External service provider (notion, etc.)
+				externalId: "string", // External task/page ID
 			},
-			primaryIndex: { hashKey: "integrationId" },
-		});
-
-		const syncHistoryTable = new sst.aws.Dynamo("SyncHistoryTable", {
-			fields: {
-				id: "string", // Primary key (UUID)
-				integrationId: "string", // Foreign key to integration
-				createdAt: "string", // For sorting by creation time
-			},
-			primaryIndex: { hashKey: "id" },
+			primaryIndex: { hashKey: "taskId" },
 			globalIndexes: {
-				"integrationId-index": {
-					hashKey: "integrationId",
-					rangeKey: "createdAt",
+				"externalId-index": { hashKey: "externalId" },
+				"provider-externalId-index": {
+					hashKey: "provider",
+					rangeKey: "externalId",
 				},
 			},
 		});
+
+		const workspaceIntegrationsTable = new sst.aws.Dynamo(
+			"WorkspaceIntegrationsTable",
+			{
+				fields: {
+					id: "string", // Primary key (UUID)
+					workspaceId: "string", // Workspace this integration belongs to
+					provider: "string", // External service provider (notion, etc.)
+					createdAt: "string", // For sorting by creation time
+				},
+				primaryIndex: { hashKey: "id" },
+				globalIndexes: {
+					"workspaceId-index": {
+						hashKey: "workspaceId",
+						rangeKey: "createdAt",
+					},
+					"workspaceId-provider-index": {
+						hashKey: "workspaceId",
+						rangeKey: "provider",
+					},
+				},
+			},
+		);
 
 		// Domain configuration from environment variables
 		const webDomain = process.env.WEB_DOMAIN;
@@ -138,11 +123,9 @@ export default $config({
 				agentExecutionsTable,
 				tasksTable,
 				workspacesTable,
-				integrationsTable,
-				syncMetadataTable,
 				guestUsersTable,
-				syncStatisticsTable,
-				syncHistoryTable,
+				taskIntegrationsTable,
+				workspaceIntegrationsTable,
 			],
 			environment: {
 				// Authentication
@@ -175,11 +158,9 @@ export default $config({
 			agentExecutionsTable: agentExecutionsTable.name,
 			tasksTable: tasksTable.name,
 			workspacesTable: workspacesTable.name,
-			integrationsTable: integrationsTable.name,
-			syncMetadataTable: syncMetadataTable.name,
 			guestUsersTable: guestUsersTable.name,
-			syncStatisticsTable: syncStatisticsTable.name,
-			syncHistoryTable: syncHistoryTable.name,
+			taskIntegrationsTable: taskIntegrationsTable.name,
+			workspaceIntegrationsTable: workspaceIntegrationsTable.name,
 		};
 	},
 });

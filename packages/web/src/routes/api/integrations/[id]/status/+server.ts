@@ -1,8 +1,4 @@
-import {
-	IntegrationService,
-	SyncMetadataService,
-	TaskService,
-} from "@notion-task-manager/db";
+import { TaskIntegrationService, TaskService } from "@notion-task-manager/db";
 import { json } from "@sveltejs/kit";
 import { requireAuth } from "$lib/auth";
 import type { RequestHandler } from "./$types";
@@ -25,66 +21,41 @@ interface SyncStatistics {
 
 /**
  * GET /api/integrations/[id]/status
- * Gets real-time status and statistics for an integration
+ * Gets status for a task integration (simplified version)
  */
 export const GET: RequestHandler = async (event) => {
 	try {
 		// Require authentication
 		const session = await requireAuth(event);
 
-		const integrationId = event.params.id;
-		if (!integrationId) {
-			return json({ error: "Integration ID is required" }, { status: 400 });
+		const taskId = event.params.id;
+		if (!taskId) {
+			return json({ error: "Task ID is required" }, { status: 400 });
 		}
 
-		const integrationService = new IntegrationService();
-		const syncMetadataService = new SyncMetadataService();
-		const taskService = new TaskService();
+		const taskIntegrationService = new TaskIntegrationService();
 
-		// Get integration
-		const integration = await integrationService.getIntegration(integrationId);
-		if (!integration) {
-			return json({ error: "Integration not found" }, { status: 404 });
-		}
+		// Get task integration
+		const integration = await taskIntegrationService.getByTaskId(taskId);
 
 		// Determine status
 		let status: IntegrationStatus["status"] = "disconnected";
-		let lastError: string | undefined;
-		let syncCount = 0;
-		let conflictCount = 0;
 
-		if (!integration.syncEnabled) {
-			status = "disabled";
-		} else {
-			// Check sync metadata to determine actual status
-			// Note: This would require implementing methods to query sync metadata by integration
-			// For now, we'll use basic logic based on lastSyncAt
-
-			if (integration.lastSyncAt) {
-				const lastSync = new Date(integration.lastSyncAt);
-				const now = new Date();
-				const timeDiff = now.getTime() - lastSync.getTime();
-				const fiveMinutes = 5 * 60 * 1000;
-
-				// If last sync was within 5 minutes, consider it synced
-				// Otherwise, it might be pending or have errors
-				status = timeDiff < fiveMinutes ? "synced" : "pending";
-			} else {
-				status = "pending";
-			}
+		if (integration) {
+			// For now, just return basic status
+			// In the future, this would check actual sync status
+			status = "synced";
 		}
 
-		// Get sync statistics
-		// Note: These would require additional database queries
-		// For now, we'll return basic information
+		// Get basic statistics
 		const syncStats: SyncStatistics = {
-			totalTasks: 0,
-			syncedTasks: syncCount,
+			totalTasks: integration ? 1 : 0,
+			syncedTasks: integration ? 1 : 0,
 			pendingTasks: 0,
 			errorTasks: 0,
 		};
 
-		// Cache the result for a short time to avoid repeated calculations
+		// Cache the result for a short time
 		event.setHeaders({
 			"Cache-Control": "private, max-age=30", // 30 seconds
 		});
@@ -92,23 +63,25 @@ export const GET: RequestHandler = async (event) => {
 		return json({
 			status: {
 				status,
-				lastSyncAt: integration.lastSyncAt
-					? new Date(integration.lastSyncAt)
+				lastSyncAt: integration?.updatedAt
+					? new Date(integration.updatedAt)
 					: undefined,
-				lastError,
-				syncCount,
-				conflictCount,
+				lastError: undefined,
+				syncCount: integration ? 1 : 0,
+				conflictCount: 0,
 			} as IntegrationStatus,
 			statistics: syncStats,
-			integration: {
-				id: integration.id,
-				provider: integration.provider,
-				syncEnabled: integration.syncEnabled,
-				createdAt: integration.createdAt,
-			},
+			integration: integration
+				? {
+						taskId: integration.taskId,
+						provider: integration.provider,
+						externalId: integration.externalId,
+						createdAt: integration.createdAt,
+					}
+				: null,
 		});
 	} catch (error) {
-		console.error("Failed to get integration status:", error);
+		console.error("Failed to get task integration status:", error);
 
 		if (error instanceof Error && error.message.includes("redirect")) {
 			// Re-throw redirect errors from requireAuth
@@ -117,7 +90,7 @@ export const GET: RequestHandler = async (event) => {
 
 		return json(
 			{
-				error: "Failed to get integration status",
+				error: "Failed to get task integration status",
 			},
 			{ status: 500 },
 		);

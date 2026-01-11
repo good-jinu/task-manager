@@ -1,4 +1,4 @@
-import { IntegrationService, UserService } from "@notion-task-manager/db";
+import { UserService } from "@notion-task-manager/db";
 import { json, redirect } from "@sveltejs/kit";
 import { AUTH_NOTION_ID, AUTH_NOTION_SECRET } from "$env/static/private";
 import { requireAuth } from "$lib/auth";

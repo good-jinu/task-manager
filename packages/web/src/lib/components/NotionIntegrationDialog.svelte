@@ -1,5 +1,4 @@
 <script lang="ts">
-import type { ExternalIntegration } from "@notion-task-manager/db";
 import {
 	formatDatabaseMetadata,
 	getDatabaseIcon,
@@ -7,7 +6,6 @@ import {
 import {
 	hapticFeedback,
 	progressiveEnhancement,
-	touchGestures,
 } from "$lib/utils/mobile-performance";
 import {
 	AlertCircle,
@@ -45,7 +43,11 @@ interface Props {
 	loading?: boolean;
 	error?: string | null;
 	onClose: () => void;
-	onConnect: (databaseId: string, importExisting: boolean) => Promise<void>;
+	onConnect: (
+		databaseId: string,
+		databaseName: string,
+		importExisting: boolean,
+	) => Promise<void>;
 	onRetry?: () => void;
 	class?: string;
 }
@@ -86,7 +88,7 @@ $effect(() => {
 });
 
 async function handleConnect() {
-	if (!selectedDatabaseId || isConnecting) return;
+	if (!selectedDatabaseId || isConnecting || !selectedDatabase) return;
 
 	isConnecting = true;
 	step = "connecting";
@@ -98,7 +100,7 @@ async function handleConnect() {
 	}
 
 	try {
-		await onConnect(selectedDatabaseId, importExisting);
+		await onConnect(selectedDatabaseId, selectedDatabase.name, importExisting);
 		step = "success";
 
 		// Success haptic feedback
@@ -418,7 +420,7 @@ const selectedDatabase = $derived(
 							onclick={handleConnect}
 							variant="primary"
 							class="flex-1 min-h-[44px]"
-							disabled={!selectedDatabaseId || isConnecting || loading}
+							disabled={!selectedDatabaseId || isConnecting || loading || !selectedDatabase}
 						>
 							<span class="flex items-center justify-center gap-2">
 								Connect Database
@@ -495,7 +497,7 @@ const selectedDatabase = $derived(
 								onclick={handleConnect}
 								variant="primary"
 								size="sm"
-								disabled={!selectedDatabaseId}
+								disabled={!selectedDatabaseId || !selectedDatabase}
 							>
 								<RefreshRounded class="w-4 h-4 mr-2" />
 								Try Again

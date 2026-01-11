@@ -12,66 +12,43 @@ export type {
 export { AgentExecutionService } from "./agent-execution-service";
 // Export database config types from service
 export { GuestUserService } from "./guest-user-service";
-export { IntegrationService } from "./integration-service";
 export { MigrationService } from "./migration-service";
 export type { NotionTaskManagerInterface } from "./notion-adapter";
 export { NotionAdapter } from "./notion-adapter";
-export { SyncMetadataService } from "./sync-metadata-service";
-export { SyncScheduler } from "./sync-scheduler";
-export { SyncService } from "./sync-service";
-export { SyncStatisticsService } from "./sync-statistics-service";
+export { TaskIntegrationService } from "./task-integration-service";
 export { TaskService } from "./task-service";
 // Export user types and service
 // Export task types and service
 // Export workspace types and service
-// Export integration types and service
-// Export sync metadata types
+// Export workspace integration types and service
 // Export guest user types and service
 export type {
-	BatchSyncResult,
-	ConflictInfo,
-	ConflictResolution,
-	ConflictStrategy,
-	CreateIntegrationInput,
-	CreateSyncMetadataInput,
-	CreateSyncStatisticsInput,
 	CreateTaskInput,
+	CreateTaskIntegrationInput,
 	CreateUserInput,
 	CreateWorkspaceInput,
-	EnhancedSyncQueueOperation,
-	ExternalIntegration,
-	ExternalTaskData,
-	FieldDifference,
+	CreateWorkspaceIntegrationInput,
 	GuestUser,
 	ListTasksOptions,
 	MigrationError,
 	MigrationProgress,
 	MigrationResult,
 	PaginatedResult,
-	SyncAdapter,
-	SyncHistoryEntry,
-	SyncMetadata,
-	SyncPerformanceMetrics,
-	SyncProcessResult,
-	SyncQueueOperation,
-	SyncResult,
-	SyncSchedulerConfig,
-	SyncStatistics,
-	SyncStatus,
-	SyncTimingOptions,
 	Task,
+	TaskIntegration,
 	TaskPriority,
 	TaskStatus,
-	UpdateIntegrationInput,
-	UpdateSyncMetadataInput,
-	UpdateSyncStatisticsInput,
 	UpdateTaskInput,
+	UpdateTaskIntegrationInput,
 	UpdateUserInput,
 	UpdateWorkspaceInput,
+	UpdateWorkspaceIntegrationInput,
 	User,
 	Workspace,
+	WorkspaceIntegration,
 } from "./types";
 export { UserService } from "./user-service";
 // Export validation utilities
 export { ValidationError } from "./validation";
+export { WorkspaceIntegrationService } from "./workspace-integration-service";
 export { WorkspaceService } from "./workspace-service";

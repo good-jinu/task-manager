@@ -1,33 +1,30 @@
-import type { ExternalIntegration } from "@notion-task-manager/db";
 import { describe, expect, it } from "vitest";
 
+interface IntegrationConfig {
+	enabled: boolean;
+	databaseId?: string;
+	lastSyncAt?: string;
+}
+
 // Mock integration data
-const mockIntegration: ExternalIntegration = {
-	id: "test-integration-id",
-	workspaceId: "test-workspace-id",
-	provider: "notion",
-	externalId: "test-database-id",
-	config: {
-		databaseId: "test-database-id",
-		databaseName: "Test Database",
-	},
-	syncEnabled: true,
+const mockIntegration: IntegrationConfig = {
+	enabled: true,
+	databaseId: "test-database-id",
 	lastSyncAt: new Date().toISOString(),
-	createdAt: new Date().toISOString(),
 };
 
 describe("IntegrationStatusBadge Logic", () => {
 	it("should determine correct status for disconnected integration", () => {
 		// Test the status derivation logic
-		const integration: ExternalIntegration | undefined = undefined;
+		const integration: IntegrationConfig | undefined = undefined;
 		const expectedStatus = "disconnected";
 
 		// This would be the logic from the component
-		function determineStatus(int: ExternalIntegration | undefined): string {
+		function determineStatus(int: IntegrationConfig | undefined): string {
 			if (!int) {
 				return "disconnected";
 			}
-			if (!int.syncEnabled) {
+			if (!int.enabled) {
 				return "disabled";
 			}
 			return "synced";
@@ -38,16 +35,16 @@ describe("IntegrationStatusBadge Logic", () => {
 	});
 
 	it("should determine correct status for disabled integration", () => {
-		const integration: ExternalIntegration = {
+		const integration: IntegrationConfig = {
 			...mockIntegration,
-			syncEnabled: false,
+			enabled: false,
 		};
 
-		function determineStatus(int: ExternalIntegration | undefined): string {
+		function determineStatus(int: IntegrationConfig | undefined): string {
 			if (!int) {
 				return "disconnected";
 			}
-			if (!int.syncEnabled) {
+			if (!int.enabled) {
 				return "disabled";
 			}
 			return "synced";
@@ -60,11 +57,11 @@ describe("IntegrationStatusBadge Logic", () => {
 	it("should determine correct status for enabled integration", () => {
 		const integration = mockIntegration;
 
-		function determineStatus(int: ExternalIntegration | undefined): string {
+		function determineStatus(int: IntegrationConfig | undefined): string {
 			if (!int) {
 				return "disconnected";
 			}
-			if (!int.syncEnabled) {
+			if (!int.enabled) {
 				return "disabled";
 			}
 			return "synced";

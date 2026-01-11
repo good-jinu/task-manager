@@ -43,8 +43,6 @@ const databaseItems = $derived(
 
 const selectedValue = $derived(currentDatabase?.id || "");
 const selectedLabel = $derived(currentDatabase?.title || "Select Database");
-
-const hasNoDatabases = $derived(databases.length === 0 && !loading);
 const showSelector = $derived(databases.length > 0 || loading);
 
 function handleValueChange(value: string | undefined) {
