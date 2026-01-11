@@ -22,14 +22,6 @@ export default $config({
 			},
 		});
 
-		const databaseConfigsTable = new sst.aws.Dynamo("DatabaseConfigsTable", {
-			fields: {
-				userId: "string", // Partition key (User ID)
-				databaseId: "string", // Sort key (Notion Database ID)
-			},
-			primaryIndex: { hashKey: "userId", rangeKey: "databaseId" },
-		});
-
 		const agentExecutionsTable = new sst.aws.Dynamo("AgentExecutionsTable", {
 			fields: {
 				userId: "string", // Partition key (User ID)
@@ -143,7 +135,6 @@ export default $config({
 			...(webDomain ? { domain: { name: webDomain } } : {}),
 			link: [
 				usersTable,
-				databaseConfigsTable,
 				agentExecutionsTable,
 				tasksTable,
 				workspacesTable,
@@ -181,7 +172,6 @@ export default $config({
 		return {
 			web: web.url,
 			usersTable: usersTable.name,
-			databaseConfigsTable: databaseConfigsTable.name,
 			agentExecutionsTable: agentExecutionsTable.name,
 			tasksTable: tasksTable.name,
 			workspacesTable: workspacesTable.name,

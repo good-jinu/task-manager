@@ -54,7 +54,6 @@ export function getTableNames() {
 		return {
 			// biome-ignore-start lint/suspicious/noExplicitAny: Resource for any
 			users: (Resource as any).UsersTable?.name,
-			databaseConfigs: (Resource as any).DatabaseConfigsTable?.name,
 			agentExecutions: (Resource as any).AgentExecutionsTable?.name,
 			tasks: (Resource as any).TasksTable?.name,
 			workspaces: (Resource as any).WorkspacesTable?.name,
@@ -73,7 +72,6 @@ export function getTableNames() {
 
 type TableNames = {
 	users: string;
-	databaseConfigs: string;
 	agentExecutions: string;
 	tasks: string;
 	workspaces: string;

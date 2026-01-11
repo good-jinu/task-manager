@@ -10,20 +10,12 @@ export type {
 	ExecutionUpdateData,
 } from "./agent-execution-service";
 export { AgentExecutionService } from "./agent-execution-service";
-export { getDynamoDBClient, getTableName, getTableNames } from "./client";
-export { DatabaseClient, getDatabaseClient } from "./database";
 // Export database config types from service
-export type {
-	CreateDatabaseConfigInput,
-	DatabaseConfig,
-} from "./database-config-service";
-export { DatabaseConfigService } from "./database-config-service";
 export { GuestUserService } from "./guest-user-service";
 export { IntegrationService } from "./integration-service";
 export { MigrationService } from "./migration-service";
 export type { NotionTaskManagerInterface } from "./notion-adapter";
 export { NotionAdapter } from "./notion-adapter";
-export type { SyncAdapter } from "./sync-adapter";
 export { SyncMetadataService } from "./sync-metadata-service";
 export { SyncScheduler } from "./sync-scheduler";
 export { SyncService } from "./sync-service";
@@ -56,6 +48,7 @@ export type {
 	MigrationProgress,
 	MigrationResult,
 	PaginatedResult,
+	SyncAdapter,
 	SyncHistoryEntry,
 	SyncMetadata,
 	SyncPerformanceMetrics,

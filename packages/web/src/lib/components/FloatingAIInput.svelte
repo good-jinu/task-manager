@@ -1,6 +1,5 @@
 <script lang="ts">
 import type { Task } from "@notion-task-manager/db";
-import { pollChatResult, sendChatMessage } from "$lib/utils/chat-polling";
 import { Close, Send } from "./icons";
 
 interface Props {

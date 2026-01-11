@@ -1,9 +1,9 @@
-import type { SyncAdapter } from "./sync-adapter";
 import type {
 	BatchSyncResult,
 	ConflictStrategy,
 	ExternalIntegration,
 	ExternalTaskData,
+	SyncAdapter,
 	SyncResult,
 	Task,
 	TaskPriority,

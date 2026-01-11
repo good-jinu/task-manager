@@ -18,14 +18,6 @@ export type NotionPage = {
 	archived: boolean;
 } & Pick<PageObjectResponse, "properties">;
 
-export interface DatabaseConfig {
-	userId: string;
-	databaseId: string;
-	title: string;
-	description?: string;
-	selectedAt: Date;
-}
-
 /**
  * Properties for creating or updating a Notion page
  */

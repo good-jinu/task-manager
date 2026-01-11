@@ -15,7 +15,6 @@ export type { NotionAuthConfig, TokenRefreshCallback } from "./auth-client";
 export { NotionAuthClient } from "./auth-client";
 export { NotionTaskManager } from "./task-manager";
 export type {
-	DatabaseConfig,
 	NotionDatabase,
 	NotionPage,
 	PageProperties,

@@ -1,5 +1,4 @@
 import type { IntegrationService } from "./integration-service";
-import type { SyncAdapter } from "./sync-adapter";
 import type { SyncMetadataService } from "./sync-metadata-service";
 import type { TaskService } from "./task-service";
 import type {
@@ -8,6 +7,7 @@ import type {
 	EnhancedSyncQueueOperation,
 	ExternalIntegration,
 	FieldDifference,
+	SyncAdapter,
 	SyncMetadata,
 	SyncProcessResult,
 	SyncTimingOptions,
