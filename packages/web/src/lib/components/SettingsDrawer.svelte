@@ -4,6 +4,15 @@ import {
 	createWorkspaceStatusStore,
 	refreshIntegrationStatus,
 } from "$lib/stores/integration-status";
+import {
+	databaseCache,
+	preloadDatabasesForWorkspace,
+} from "$lib/utils/database-cache";
+import {
+	lazyLoader,
+	lazyOnHover,
+	preloadIntegrationResources,
+} from "$lib/utils/lazy-loading";
 import IntegrationStatusBadge from "./IntegrationStatusBadge.svelte";
 import IntegrationToggle from "./IntegrationToggle.svelte";
 import {
@@ -106,7 +115,7 @@ const notionIntegration = $derived(
 const currentIntegrationStatus = $derived(notionIntegration?.status || null);
 const syncStats = $derived(notionIntegration?.stats || null);
 
-// Prevent background scroll when drawer is open and handle keyboard navigation
+// Enhanced drawer management with preloading
 $effect(() => {
 	if (typeof document === "undefined") return;
 
@@ -117,6 +126,17 @@ $effect(() => {
 		if (statusStore) {
 			statusStore.startPolling();
 		}
+
+		// Preload integration resources
+		preloadIntegrationResources(workspaceId);
+
+		// Preload databases for faster dialog opening
+		if (isAuthenticated && !isGuestMode) {
+			preloadDatabasesForWorkspace(workspaceId);
+		}
+
+		// Preload components that might be needed
+		lazyLoader.preloadForTrigger("settingsOpen");
 
 		// Handle escape key to close drawer
 		const handleKeyDown = (e: KeyboardEvent) => {
@@ -196,20 +216,15 @@ async function handleNotionToggle(enabled: boolean) {
 
 async function loadNotionDatabases() {
 	loadingDatabases = true;
+	databaseLoadError = null;
+
 	try {
-		const response = await fetch(`/api/integrations/notion/databases`);
-
-		if (!response.ok) {
-			const errorData = await response.json();
-			throw new Error(errorData.error || "Failed to load databases");
-		}
-
-		const data = await response.json();
-		availableDatabases = data.databases || [];
+		// Use cached databases with enhanced loading
+		const databases = await databaseCache.getDatabases(workspaceId);
+		availableDatabases = databases;
 	} catch (error) {
 		console.error("Failed to load databases:", error);
 		availableDatabases = [];
-		// Set error state for the dialog to display
 		databaseLoadError =
 			error instanceof Error ? error.message : "Failed to load databases";
 	} finally {
@@ -217,16 +232,25 @@ async function loadNotionDatabases() {
 	}
 }
 
-function handleConfigureNotion() {
+async function handleConfigureNotion() {
 	// Check if user is in guest mode
 	if (isGuestMode) {
 		showGuestUpgradePrompt = true;
 		return;
 	}
 
-	databaseLoadError = null;
-	loadNotionDatabases();
-	showNotionDialog = true;
+	// Preload dialog component
+	lazyLoader.preloadForTrigger("integrationToggle");
+
+	// Check if databases are already cached
+	if (databaseCache.hasCachedDatabases(workspaceId)) {
+		availableDatabases = (await databaseCache.getDatabases(workspaceId)) || [];
+		showNotionDialog = true;
+	} else {
+		// Load databases and show dialog
+		loadNotionDatabases();
+		showNotionDialog = true;
+	}
 }
 
 function handleRetryDatabaseLoad() {
@@ -471,6 +495,7 @@ async function handleConnectNotionDatabase(
 							<div class="space-y-2">
 								<button
 									onclick={handleConfigureNotion}
+									use:lazyOnHover={'NotionIntegrationDialog'}
 									class={cn(
 										'flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700',
 										'active:text-blue-800 transition-colors',

@@ -1,6 +1,15 @@
 <script lang="ts">
 import type { ExternalIntegration } from "@notion-task-manager/db";
 import {
+	formatDatabaseMetadata,
+	getDatabaseIcon,
+} from "$lib/utils/database-cache";
+import {
+	hapticFeedback,
+	progressiveEnhancement,
+	touchGestures,
+} from "$lib/utils/mobile-performance";
+import {
 	AlertCircle,
 	ArrowRightAlt,
 	Check,
@@ -59,6 +68,12 @@ let isConnecting = $state(false);
 let step = $state<"select" | "connecting" | "success" | "error">("select");
 let connectionError = $state<string | null>(null);
 
+// Mobile performance optimizations
+const capabilities = progressiveEnhancement.getCapabilities();
+const shouldUseAnimations =
+	progressiveEnhancement.shouldEnableFeature("animations");
+const shouldUseHaptics = progressiveEnhancement.shouldEnableFeature("haptics");
+
 // Reset state when dialog opens/closes
 $effect(() => {
 	if (isOpen) {
@@ -77,14 +92,25 @@ async function handleConnect() {
 	step = "connecting";
 	connectionError = null;
 
+	// Haptic feedback for connection start
+	if (shouldUseHaptics) {
+		hapticFeedback.medium();
+	}
+
 	try {
 		await onConnect(selectedDatabaseId, importExisting);
 		step = "success";
 
-		// Auto-close after success
+		// Success haptic feedback
+		if (shouldUseHaptics) {
+			hapticFeedback.success();
+		}
+
+		// Auto-close after success (with reduced timing for low-end devices)
+		const closeDelay = capabilities.isLowEndDevice ? 1500 : 2000;
 		setTimeout(() => {
 			onClose();
-		}, 2000);
+		}, closeDelay);
 	} catch (error) {
 		console.error("Connection failed:", error);
 		step = "error";
@@ -92,6 +118,11 @@ async function handleConnect() {
 			error instanceof Error
 				? error.message
 				: "Failed to connect to Notion database";
+
+		// Error haptic feedback
+		if (shouldUseHaptics) {
+			hapticFeedback.error();
+		}
 	} finally {
 		isConnecting = false;
 	}
@@ -103,11 +134,26 @@ function handleRetry() {
 	}
 	step = "select";
 	connectionError = null;
+
+	// Light haptic feedback for retry
+	if (shouldUseHaptics) {
+		hapticFeedback.light();
+	}
 }
 
 function handleClose() {
 	if (!isConnecting) {
 		onClose();
+	}
+}
+
+// Enhanced touch handling for database selection
+function handleDatabaseSelect(databaseId: string) {
+	selectedDatabaseId = databaseId;
+
+	// Light haptic feedback for selection
+	if (shouldUseHaptics) {
+		hapticFeedback.light();
 	}
 }
 
@@ -129,30 +175,6 @@ $effect(() => {
 const selectedDatabase = $derived(
 	availableDatabases.find((db) => db.id === selectedDatabaseId),
 );
-
-// Format database metadata for display
-function formatDatabaseMetadata(database: NotionDatabase): string {
-	const parts = [];
-	if (database.created_time) {
-		const date = new Date(database.created_time);
-		parts.push(`Created ${date.toLocaleDateString()}`);
-	}
-	if (database.properties && Object.keys(database.properties).length > 0) {
-		parts.push(`${Object.keys(database.properties).length} properties`);
-	}
-	return parts.join(" • ");
-}
-
-// Get database icon display
-function getDatabaseIcon(database: NotionDatabase): {
-	type: "emoji" | "default";
-	content?: string;
-} {
-	if (database.icon?.type === "emoji" && database.icon.emoji) {
-		return { type: "emoji", content: database.icon.emoji };
-	}
-	return { type: "default" };
-}
 </script>
 
 {#if isOpen}
@@ -175,8 +197,14 @@ function getDatabaseIcon(database: NotionDatabase): {
 				'sm:max-w-md',
 				// Desktop sizing  
 				'lg:max-w-lg',
-				// Animation
-				'animate-in fade-in-0 zoom-in-95 duration-200',
+				// Animation (conditional based on capabilities)
+				shouldUseAnimations && 'animate-in fade-in-0 zoom-in-95',
+				// Performance optimization for low-end devices
+				capabilities.isLowEndDevice ? 'duration-100' : 'duration-200',
+				// Progressive enhancement classes
+				capabilities.hasTouch && 'has-touch',
+				capabilities.isLowEndDevice && 'low-end-device',
+				capabilities.prefersReducedMotion && 'prefers-reduced-motion',
 				className
 			)}
 			onclick={(e) => e.stopPropagation()}
@@ -274,14 +302,19 @@ function getDatabaseIcon(database: NotionDatabase): {
 								{#each availableDatabases as database}
 									<label
 										class={cn(
-											'flex items-start p-4 border rounded-xl cursor-pointer transition-all duration-200',
+											'flex items-start p-4 border rounded-xl cursor-pointer transition-all',
 											'hover:bg-surface-muted hover:border-subtle-hover',
 											// Touch-friendly sizing
 											'min-h-[60px]',
+											// Performance optimization for low-end devices
+											capabilities.isLowEndDevice ? 'duration-100' : 'duration-200',
+											// Progressive enhancement classes
+											capabilities.hasTouch && 'touch-manipulation select-none',
 											selectedDatabaseId === database.id
 												? 'border-primary bg-primary/5 ring-1 ring-primary/20'
 												: 'border-subtle-base'
 										)}
+										onclick={() => handleDatabaseSelect(database.id)}
 									>
 										<input
 											type="radio"
@@ -485,5 +518,17 @@ function getDatabaseIcon(database: NotionDatabase): {
 
 	.animate-in {
 		animation: animate-in 0.2s ease-out;
+	}
+
+	/* Respect reduced motion preference */
+	@media (prefers-reduced-motion: reduce) {
+		.animate-in {
+			animation: none;
+		}
+	}
+
+	/* Performance optimization for low-end devices */
+	.low-end-device .animate-in {
+		animation-duration: 0.1s;
 	}
 </style>

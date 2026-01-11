@@ -1,6 +1,11 @@
 <script lang="ts">
 import type { ExternalIntegration, SyncStatus } from "@notion-task-manager/db";
 import {
+	hapticFeedback,
+	progressiveEnhancement,
+	touchGestures,
+} from "$lib/utils/mobile-performance";
+import {
 	CheckCircle,
 	Clock,
 	Database,
@@ -59,7 +64,11 @@ let {
 	class: className = "",
 }: Props = $props();
 
-let touchStartTime = $state(0);
+// Mobile performance optimizations
+const capabilities = progressiveEnhancement.getCapabilities();
+const shouldUseAnimations =
+	progressiveEnhancement.shouldEnableFeature("animations");
+const shouldUseHaptics = progressiveEnhancement.shouldEnableFeature("haptics");
 
 // Determine the actual status with enhanced logic
 const status = $derived(() => {
@@ -133,7 +142,7 @@ const statusConfig = {
 		borderColor: "var(--warning-border)",
 		icon: Clock,
 		clickable: true,
-		pulse: true,
+		pulse: shouldUseAnimations, // Respect reduced motion preference
 	},
 	conflict: {
 		label: "Conflict",
@@ -209,45 +218,57 @@ const syncStatsText = $derived(() => {
 	return parts.length > 0 ? parts.join(", ") : null;
 });
 
-// Enhanced touch handling for mobile
-function handleTouchStart() {
-	touchStartTime = Date.now();
-}
-
-function handleTouchEnd() {
-	const touchDuration = Date.now() - touchStartTime;
-	// Only trigger if it's a quick tap (not a long press)
-	if (touchDuration < 500 && onClick && currentStatus.clickable) {
-		onClick();
-	}
-}
-
+// Enhanced click handling with haptic feedback
 function handleClick() {
-	if (onClick && currentStatus.clickable) {
+	if (onClick && currentStatus.clickable && !loading) {
+		// Provide haptic feedback based on status
+		if (shouldUseHaptics) {
+			switch (status()) {
+				case "synced":
+					hapticFeedback.light();
+					break;
+				case "error":
+					hapticFeedback.error();
+					break;
+				case "pending":
+					hapticFeedback.medium();
+					break;
+				default:
+					hapticFeedback.light();
+			}
+		}
+
 		onClick();
 	}
+}
+
+// Touch gesture handling for mobile
+function handleTouchGesture(_event: TouchEvent) {
+	handleClick();
 }
 
 // Determine if badge should be clickable
 const isClickable = $derived(currentStatus.clickable && onClick && !loading);
 </script>
 
-<!-- Enhanced Status Badge with click handling and loading animations -->
+<!-- Enhanced Status Badge with mobile optimizations -->
 {#if isClickable}
 	<button
 		onclick={handleClick}
-		ontouchstart={handleTouchStart}
-		ontouchend={handleTouchEnd}
 		disabled={loading}
 		class={cn(
-			'inline-flex items-center gap-1.5 rounded-full border font-medium transition-all duration-200',
+			'inline-flex items-center gap-1.5 rounded-full border font-medium transition-all',
 			'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1',
 			'hover:opacity-80 active:scale-95 cursor-pointer',
 			'disabled:opacity-50 disabled:cursor-not-allowed',
 			// Touch target optimization for mobile
 			size === 'lg' && 'min-w-[44px]',
-			// Pulse animation for pending status
-			currentStatus.pulse && 'animate-pulse',
+			// Touch optimizations
+			capabilities.hasTouch && 'touch-manipulation select-none',
+			// Conditional pulse animation based on reduced motion preference
+			currentStatus.pulse && shouldUseAnimations && 'animate-pulse',
+			// Performance optimization for low-end devices
+			capabilities.isLowEndDevice ? 'duration-100' : 'duration-200',
 			sizeClasses[size],
 			className
 		)}
@@ -263,8 +284,8 @@ const isClickable = $derived(currentStatus.clickable && onClick && !loading);
 			<IconComponent 
 				class={cn(
 					iconSizes[size],
-					// Add spin animation for loading states
-					(status() === 'pending' || loading) && IconComponent === Clock && 'animate-spin'
+					// Add spin animation for loading states (respecting reduced motion)
+					(status() === 'pending' || loading) && IconComponent === Clock && shouldUseAnimations && 'animate-spin'
 				)}
 			/>
 		{/if}
@@ -280,8 +301,8 @@ const isClickable = $derived(currentStatus.clickable && onClick && !loading);
 	<span
 		class={cn(
 			'inline-flex items-center gap-1.5 rounded-full border font-medium',
-			// Pulse animation for pending status even when not clickable
-			currentStatus.pulse && 'animate-pulse',
+			// Conditional pulse animation based on reduced motion preference
+			currentStatus.pulse && shouldUseAnimations && 'animate-pulse',
 			sizeClasses[size],
 			className
 		)}
@@ -297,8 +318,8 @@ const isClickable = $derived(currentStatus.clickable && onClick && !loading);
 			<IconComponent 
 				class={cn(
 					iconSizes[size],
-					// Add spin animation for loading states
-					(status() === 'pending' || loading) && IconComponent === Clock && 'animate-spin'
+					// Add spin animation for loading states (respecting reduced motion)
+					(status() === 'pending' || loading) && IconComponent === Clock && shouldUseAnimations && 'animate-spin'
 				)}
 			/>
 		{/if}

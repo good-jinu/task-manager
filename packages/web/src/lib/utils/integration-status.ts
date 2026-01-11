@@ -1,4 +1,5 @@
 import type { ExternalIntegration } from "@notion-task-manager/db";
+import { integrationCache } from "./cache-manager";
 
 export interface IntegrationStatus {
 	status: "disconnected" | "disabled" | "synced" | "pending" | "error";
@@ -22,48 +23,34 @@ export interface IntegrationStatusData {
 	stats: SyncStatistics;
 }
 
-interface CacheEntry<T> {
-	data: T;
-	timestamp: number;
-	ttl: number;
-}
-
 export class IntegrationStatusManager {
-	private cache = new Map<
-		string,
-		CacheEntry<IntegrationStatusData | IntegrationStatusData[]>
-	>();
 	private pollingIntervals = new Map<string, number>();
 	private subscribers = new Map<
 		string,
 		Set<(data: IntegrationStatusData) => void>
 	>();
 
-	// Cache TTL in milliseconds
-	private readonly DEFAULT_TTL = 30000; // 30 seconds
+	// Polling configuration
 	private readonly POLLING_INTERVAL = 5000; // 5 seconds
 
 	constructor() {
-		// Cleanup expired cache entries every minute
-		setInterval(() => this.cleanup(), 60000);
+		// Setup cache cleanup
+		setInterval(() => integrationCache.cleanup(), 60000);
 	}
 
 	/**
-	 * Get integration status with caching
+	 * Get integration status with enhanced caching
 	 */
 	async getStatus(
 		workspaceId: string,
 		integrationId: string,
 		forceRefresh = false,
 	): Promise<IntegrationStatusData | null> {
-		const cacheKey = `${workspaceId}:${integrationId}`;
-
 		// Check cache first (unless force refresh)
 		if (!forceRefresh) {
-			const cached = this.cache.get(cacheKey);
-			if (cached && Date.now() - cached.timestamp < cached.ttl) {
-				// Ensure we return a single item, not an array
-				return Array.isArray(cached.data) ? null : cached.data;
+			const cached = integrationCache.getStatus(integrationId);
+			if (cached) {
+				return cached;
 			}
 		}
 
@@ -90,15 +77,12 @@ export class IntegrationStatusManager {
 				stats: data.stats,
 			};
 
-			// Update cache
-			this.cache.set(cacheKey, {
-				data: statusData,
-				timestamp: Date.now(),
-				ttl: this.DEFAULT_TTL,
-			});
+			// Update cache with smart invalidation
+			integrationCache.setStatus(integrationId, statusData);
+			integrationCache.setStats(integrationId, data.stats);
 
 			// Notify subscribers
-			this.notifySubscribers(cacheKey, statusData);
+			this.notifySubscribers(`${workspaceId}:${integrationId}`, statusData);
 
 			return statusData;
 		} catch (error) {
@@ -108,19 +92,17 @@ export class IntegrationStatusManager {
 	}
 
 	/**
-	 * Get all integration statuses for a workspace
+	 * Get all integration statuses for a workspace with enhanced caching
 	 */
 	async getAllStatuses(
 		workspaceId: string,
 		forceRefresh = false,
 	): Promise<IntegrationStatusData[]> {
-		const cacheKey = `workspace:${workspaceId}`;
-
 		// Check cache first (unless force refresh)
 		if (!forceRefresh) {
-			const cached = this.cache.get(cacheKey);
-			if (cached && Date.now() - cached.timestamp < cached.ttl) {
-				return Array.isArray(cached.data) ? cached.data : [cached.data];
+			const cached = integrationCache.getWorkspaceStatus(workspaceId);
+			if (cached) {
+				return cached;
 			}
 		}
 
@@ -165,24 +147,19 @@ export class IntegrationStatusManager {
 				}),
 			);
 
-			// Update cache for workspace
-			this.cache.set(cacheKey, {
-				data: statusDataArray,
-				timestamp: Date.now(),
-				ttl: this.DEFAULT_TTL,
-			});
+			// Update cache with smart invalidation
+			integrationCache.setWorkspaceStatus(workspaceId, statusDataArray);
 
 			// Update individual integration caches
 			for (const statusData of statusDataArray) {
-				const integrationCacheKey = `${workspaceId}:${statusData.integration.id}`;
-				this.cache.set(integrationCacheKey, {
-					data: statusData,
-					timestamp: Date.now(),
-					ttl: this.DEFAULT_TTL,
-				});
+				integrationCache.setStatus(statusData.integration.id, statusData);
+				integrationCache.setStats(statusData.integration.id, statusData.stats);
 
 				// Notify subscribers
-				this.notifySubscribers(integrationCacheKey, statusData);
+				this.notifySubscribers(
+					`${workspaceId}:${statusData.integration.id}`,
+					statusData,
+				);
 			}
 
 			return statusDataArray;
@@ -193,7 +170,7 @@ export class IntegrationStatusManager {
 	}
 
 	/**
-	 * Trigger manual refresh for an integration
+	 * Trigger manual refresh for an integration with smart cache invalidation
 	 */
 	async refreshStatus(integrationId: string): Promise<boolean> {
 		try {
@@ -214,8 +191,9 @@ export class IntegrationStatusManager {
 
 			const data = await response.json();
 
-			// Invalidate cache to force refresh on next get
-			this.invalidateCache(integrationId);
+			// Smart cache invalidation
+			integrationCache.invalidateStatus(integrationId);
+			integrationCache.invalidateStats(integrationId);
 
 			return data.success;
 		} catch (error) {
@@ -291,41 +269,31 @@ export class IntegrationStatusManager {
 	}
 
 	/**
-	 * Invalidate cache for specific integration or workspace
+	 * Invalidate cache for specific integration or workspace using smart invalidation
 	 */
 	invalidateCache(integrationId?: string, workspaceId?: string): void {
 		if (integrationId && workspaceId) {
-			this.cache.delete(`${workspaceId}:${integrationId}`);
+			integrationCache.onIntegrationUpdate(integrationId, workspaceId);
 		} else if (workspaceId) {
-			// Invalidate all cache entries for this workspace
-			for (const key of this.cache.keys()) {
-				if (
-					key.startsWith(`${workspaceId}:`) ||
-					key === `workspace:${workspaceId}`
-				) {
-					this.cache.delete(key);
-				}
-			}
+			integrationCache.invalidateStatus(undefined, workspaceId);
 		} else if (integrationId) {
-			// Invalidate all cache entries for this integration
-			for (const key of this.cache.keys()) {
-				if (key.endsWith(`:${integrationId}`)) {
-					this.cache.delete(key);
-				}
-			}
+			integrationCache.invalidateStatus(integrationId);
+			integrationCache.invalidateStats(integrationId);
 		}
 	}
 
 	/**
-	 * Clean up expired cache entries
+	 * Handle sync completion with smart cache updates
 	 */
-	private cleanup(): void {
-		const now = Date.now();
-		for (const [key, entry] of this.cache.entries()) {
-			if (now - entry.timestamp > entry.ttl) {
-				this.cache.delete(key);
-			}
-		}
+	onSyncComplete(integrationId: string, workspaceId: string): void {
+		integrationCache.onSyncComplete(integrationId, workspaceId);
+	}
+
+	/**
+	 * Handle database changes with smart cache updates
+	 */
+	onDatabaseChange(workspaceId: string): void {
+		integrationCache.onDatabaseChange(workspaceId);
 	}
 
 	/**
@@ -354,9 +322,18 @@ export class IntegrationStatusManager {
 		}
 		this.pollingIntervals.clear();
 
-		// Clear cache and subscribers
-		this.cache.clear();
+		// Clear subscribers
 		this.subscribers.clear();
+
+		// Destroy integration cache
+		integrationCache.destroy();
+	}
+
+	/**
+	 * Get cache statistics for monitoring
+	 */
+	getCacheStats() {
+		return integrationCache.getCombinedStats();
 	}
 }
 
