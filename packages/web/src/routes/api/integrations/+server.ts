@@ -1,6 +1,5 @@
-import { IntegrationService, ValidationError } from "@notion-task-manager/db";
-import { json } from "@sveltejs/kit";
-import { requireAuth } from "$lib/auth";
+import { IntegrationService } from "@notion-task-manager/db";
+import { handleGet, handlePost } from "$lib/server";
 import type { RequestHandler } from "./$types";
 
 /**
@@ -8,92 +7,68 @@ import type { RequestHandler } from "./$types";
  * Creates a new external integration for a workspace
  */
 export const POST: RequestHandler = async (event) => {
-	try {
-		// Require authentication
-		const session = await requireAuth(event);
-
-		const {
-			workspaceId,
-			provider,
-			externalId,
-			config,
-			syncEnabled = true,
-		} = await event.request.json();
-
-		// Validate required fields
-		if (!workspaceId) {
-			return json({ error: "workspaceId is required" }, { status: 400 });
-		}
-
-		if (!provider) {
-			return json({ error: "provider is required" }, { status: 400 });
-		}
-
-		if (!externalId) {
-			return json({ error: "externalId is required" }, { status: 400 });
-		}
-
-		if (!config || typeof config !== "object") {
-			return json(
-				{ error: "config is required and must be an object" },
-				{ status: 400 },
-			);
-		}
-
-		// Create integration
-		const integrationService = new IntegrationService();
-
-		try {
-			const integration = await integrationService.createIntegration(
+	return handlePost(
+		event,
+		async (event, _authResult) => {
+			const {
 				workspaceId,
-				{
-					provider,
-					externalId,
-					config,
-					syncEnabled,
-				},
-			);
+				provider,
+				externalId,
+				config,
+				syncEnabled = true,
+			} = await event.request.json();
 
-			return json({
-				success: true,
-				integration,
-			});
-		} catch (error) {
-			if (error instanceof Error && error.message.includes("already exists")) {
-				return json(
-					{
-						error:
-							"Integration with this provider already exists for this workspace",
-					},
-					{ status: 409 },
-				);
+			// Validate required fields
+			if (!workspaceId) {
+				throw new Error("workspaceId is required");
 			}
-			throw error;
-		}
-	} catch (error) {
-		console.error("Failed to create integration:", error);
 
-		if (error instanceof Error && error.message.includes("redirect")) {
-			// Re-throw redirect errors from requireAuth
-			throw error;
-		}
+			if (!provider) {
+				throw new Error("provider is required");
+			}
 
-		if (error instanceof ValidationError) {
-			return json(
-				{
-					error: error.message,
-				},
-				{ status: 400 },
-			);
-		}
+			if (!externalId) {
+				throw new Error("externalId is required");
+			}
 
-		return json(
-			{
-				error: "Failed to create integration",
-			},
-			{ status: 500 },
-		);
-	}
+			if (!config || typeof config !== "object") {
+				throw new Error("config is required and must be an object");
+			}
+
+			// Create integration
+			const integrationService = new IntegrationService();
+
+			try {
+				const integration = await integrationService.createIntegration(
+					workspaceId,
+					{
+						provider,
+						externalId,
+						config,
+						syncEnabled,
+					},
+				);
+
+				return {
+					success: true,
+					integration,
+				};
+			} catch (error) {
+				if (
+					error instanceof Error &&
+					error.message.includes("already exists")
+				) {
+					const conflictError = new Error(
+						"Integration with this provider already exists for this workspace",
+					);
+					(conflictError as any).status = 409;
+					throw conflictError;
+				}
+				throw error;
+			}
+		},
+		{ requireAuth: true },
+	);
 };
 
 /**
@@ -101,39 +76,24 @@ export const POST: RequestHandler = async (event) => {
  * Lists all integrations for a workspace
  */
 export const GET: RequestHandler = async (event) => {
-	try {
-		// Require authentication
-		const session = await requireAuth(event);
+	return handleGet(
+		event,
+		async (event, _authResult) => {
+			const workspaceId = event.url.searchParams.get("workspaceId");
 
-		const workspaceId = event.url.searchParams.get("workspaceId");
+			if (!workspaceId) {
+				throw new Error("workspaceId parameter is required");
+			}
 
-		if (!workspaceId) {
-			return json(
-				{ error: "workspaceId parameter is required" },
-				{ status: 400 },
-			);
-		}
+			// List integrations
+			const integrationService = new IntegrationService();
+			const integrations =
+				await integrationService.listIntegrations(workspaceId);
 
-		// List integrations
-		const integrationService = new IntegrationService();
-		const integrations = await integrationService.listIntegrations(workspaceId);
-
-		return json({
-			integrations,
-		});
-	} catch (error) {
-		console.error("Failed to list integrations:", error);
-
-		if (error instanceof Error && error.message.includes("redirect")) {
-			// Re-throw redirect errors from requireAuth
-			throw error;
-		}
-
-		return json(
-			{
-				error: "Failed to list integrations",
-			},
-			{ status: 500 },
-		);
-	}
+			return {
+				integrations,
+			};
+		},
+		{ requireAuth: true },
+	);
 };

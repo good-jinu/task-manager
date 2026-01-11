@@ -1,6 +1,4 @@
 <script lang="ts">
-import { signIn } from "@auth/sveltekit/client";
-import type { Task, Workspace } from "@notion-task-manager/db";
 import { onDestroy, onMount } from "svelte";
 import { browser } from "$app/environment";
 import { ErrorAlert, LoadingSpinner } from "$lib/components";
@@ -12,15 +10,33 @@ import SettingsDrawer from "$lib/components/SettingsDrawer.svelte";
 import TaskBoard from "$lib/components/TaskBoard.svelte";
 import TopMenu from "$lib/components/TopMenu.svelte";
 import WorkspaceCreateDialog from "$lib/components/WorkspaceCreateDialog.svelte";
-import { guestUserService } from "$lib/services/guest-user-service";
-import { taskService } from "$lib/services/task-service";
-import { isGuestMode, updateGuestTaskCount } from "$lib/stores/guest";
+import {
+	handleCreateWorkspace,
+	handleWorkspaceChange,
+	initializeApp,
+} from "$lib/services/app-initialization";
+import {
+	handleClearContext,
+	handleCloseSettingsDrawer,
+	handleComponentEvent,
+	handleConnectNotion,
+	handleContextToggle,
+	handleDisconnectIntegration,
+	handleGlobalKeyDown,
+	handleGuestSignUp,
+	handleMenuAction,
+	handleNotionLogin,
+	handleTasksUpdate,
+	handleToggleIntegration,
+} from "$lib/services/event-handlers";
+import { appState, contextTasks } from "$lib/stores/app-state";
+import { isGuestMode } from "$lib/stores/guest";
 import type { PageData } from "$lib/types/page-data";
+import { urlParamHandler } from "$lib/utils/url-params";
 import "$lib/types/auth"; // Import auth type extensions
 import {
 	type ComponentEvent,
 	type ComponentState,
-	performanceMonitor,
 	useComponentWiring,
 } from "$lib/utils/component-wiring";
 import { errorStateManager } from "$lib/utils/error-handling";
@@ -32,8 +48,7 @@ let session = $derived(data.session);
 let isAuthenticated = $derived(!!session);
 
 // Component wiring setup
-const { manager, subscribe, subscribeToEvents, emit, cleanup } =
-	useComponentWiring();
+const { manager, subscribe, subscribeToEvents } = useComponentWiring();
 
 // Component state from wiring manager
 let componentState = $state<ComponentState>({
@@ -51,21 +66,23 @@ let componentState = $state<ComponentState>({
 	performanceMetrics: new Map(),
 });
 
-// Local component state
-let tasks: Task[] = $state([]);
-let currentWorkspace: Workspace | null = $state(null);
-let workspaces: Workspace[] = $state([]);
-let loading = $state(false);
-let error = $state("");
-let selectedContextTasks = $state(new Set<string>());
-let guestTaskCount = $state(0);
-let guestDaysRemaining = $state(7);
-let showWorkspaceCreateDialog = $state(false);
-
-// Derived state from component wiring
+// Derived state from stores and component wiring
 let showSettingsDrawer = $derived(componentState.settingsDrawerOpen);
 let showAccountDialog = $derived(componentState.accountDialogOpen);
 let integrations = $derived(componentState.integrations);
+
+// App state from store
+let {
+	tasks,
+	currentWorkspace,
+	workspaces,
+	loading,
+	error,
+	selectedContextTasks,
+	guestTaskCount,
+	guestDaysRemaining,
+	showWorkspaceCreateDialog,
+} = $derived($appState);
 
 // Cleanup functions
 let cleanupFunctions: Array<() => void> = [];
@@ -74,13 +91,6 @@ onMount(() => {
 	// Subscribe to component wiring state changes
 	const unsubscribeState = subscribe((state) => {
 		componentState = state;
-		// Sync local state with component state
-		if (state.currentWorkspace) {
-			currentWorkspace = state.currentWorkspace;
-		}
-		if (state.tasks.length > 0) {
-			tasks = state.tasks;
-		}
 	});
 	cleanupFunctions.push(unsubscribeState);
 
@@ -94,99 +104,21 @@ onMount(() => {
 	const unsubscribeErrors = errorStateManager.subscribe((errors) => {
 		if (errors.length > 0) {
 			const latestError = errors[0];
-			error = latestError.message;
+			appState.setError(latestError.message);
 		} else {
-			error = "";
+			appState.setError("");
 		}
 	});
 	cleanupFunctions.push(unsubscribeErrors);
 
-	// Async initialization with performance monitoring
-	const initializeApp = async () => {
-		await performanceMonitor.measure("app_initialization", async () => {
-			if (isAuthenticated) {
-				await loadWorkspaces();
-				// Integration loading will happen after workspace is set in loadWorkspaces/createDefaultWorkspace
+	// Initialize the application
+	initializeApp(session);
 
-				// Check for pending guest data migration
-				if (browser && localStorage.getItem("pending_migration") === "true") {
-					await handlePendingMigration();
-				}
-
-				// Check for OAuth success parameters
-				if (browser) {
-					const urlParams = new URLSearchParams(window.location.search);
-					const oauthSuccess = urlParams.get("oauth_success");
-					const workspaceId = urlParams.get("workspace_id");
-					const openSettings = urlParams.get("settings");
-					const openSignup = urlParams.get("signup");
-
-					if (
-						oauthSuccess === "notion" &&
-						workspaceId &&
-						currentWorkspace?.id === workspaceId
-					) {
-						// OAuth was successful, open settings drawer to show database selection
-						await manager.openSettingsDrawer(workspaceId);
-
-						// Clean up URL parameters
-						const url = new URL(window.location.href);
-						url.searchParams.delete("oauth_success");
-						url.searchParams.delete("workspace_id");
-						window.history.replaceState({}, "", url.toString());
-					}
-
-					// Handle settings parameter from navigation
-					if (openSettings === "true") {
-						await manager.openSettingsDrawer(currentWorkspace?.id || "");
-						// Clean up URL parameter
-						const url = new URL(window.location.href);
-						url.searchParams.delete("settings");
-						window.history.replaceState({}, "", url.toString());
-					}
-
-					// Handle signup parameter from navigation
-					if (openSignup === "true") {
-						manager.showAccountDialog();
-						// Clean up URL parameter
-						const url = new URL(window.location.href);
-						url.searchParams.delete("signup");
-						window.history.replaceState({}, "", url.toString());
-					}
-				}
-			} else {
-				await initializeGuestSession();
-
-				// Check for signup parameter for guest users
-				if (browser) {
-					const urlParams = new URLSearchParams(window.location.search);
-					const openSignup = urlParams.get("signup");
-
-					if (openSignup === "true") {
-						manager.showAccountDialog();
-						// Clean up URL parameter
-						const url = new URL(window.location.href);
-						url.searchParams.delete("signup");
-						window.history.replaceState({}, "", url.toString());
-					}
-				}
-			}
-		});
-	};
-
-	// Start async initialization
-	initializeApp();
+	// Handle URL parameters after initialization
+	handleURLParametersAfterInit();
 
 	// Add global keyboard navigation support
 	if (browser) {
-		const handleGlobalKeyDown = (event: KeyboardEvent) => {
-			// Handle escape key to close settings drawer
-			if (event.key === "Escape" && showSettingsDrawer) {
-				manager.closeSettingsDrawer();
-				event.preventDefault();
-			}
-		};
-
 		document.addEventListener("keydown", handleGlobalKeyDown);
 		cleanupFunctions.push(() => {
 			document.removeEventListener("keydown", handleGlobalKeyDown);
@@ -202,373 +134,28 @@ onDestroy(() => {
 	cleanupFunctions = [];
 });
 
-async function initializeGuestSession() {
-	loading = true;
-	try {
-		const result = await guestUserService.recoverGuestSession();
+/**
+ * Handle URL parameters that need current workspace context
+ */
+function handleURLParametersAfterInit() {
+	if (!browser) return;
 
-		if (result.success && result.workspace) {
-			currentWorkspace = result.workspace;
-			tasks = result.tasks;
-			guestUserService.updateGuestStore(result.workspace, result.tasks);
+	const params = urlParamHandler.parseParams();
 
-			// Update component wiring state
-			manager.updateState({
-				currentWorkspace: result.workspace,
-				tasks: result.tasks,
-			});
-		} else {
-			error = result.message || "Failed to initialize workspace";
+	// Handle OAuth success
+	urlParamHandler.handleOAuthSuccess(params, currentWorkspace?.id, async () => {
+		if (currentWorkspace) {
+			await manager.openSettingsDrawer(currentWorkspace.id);
 		}
-	} catch (err) {
-		console.error("Failed to setup guest session:", err);
-		error = "Failed to initialize workspace";
-	} finally {
-		loading = false;
-	}
-}
+	});
 
-function handleComponentEvent(event: ComponentEvent) {
-	switch (event.type) {
-		case "oauth_completed":
-			if (event.success && event.workspaceId === currentWorkspace?.id) {
-				// OAuth successful, database selection dialog should open
-				// This is handled by the component wiring manager
-			}
-			break;
-
-		case "integration_created":
-			// Refresh tasks after integration is created
-			if (currentWorkspace) {
-				loadTasks();
-			}
-			break;
-
-		case "guest_upgrade_prompted":
-			// Show account dialog for guest upgrade
-			manager.showAccountDialog();
-			break;
-
-		case "error_occurred":
-			// Error handling is managed by error state manager
-			console.error("Component error:", event.error, event.context);
-			break;
-
-		case "performance_measured":
-			// Log performance metrics
-			if (event.duration > 1000) {
-				// Log slow operations
-				console.warn(
-					`Slow operation detected: ${event.metric} took ${event.duration}ms`,
-				);
-			}
-			break;
-	}
-}
-
-async function loadIntegrations() {
-	if (!currentWorkspace) return;
-	await manager.loadIntegrations(currentWorkspace.id);
-}
-
-async function loadWorkspaces() {
-	try {
-		const response = await fetch("/api/workspaces");
-		const data = await response.json();
-
-		if (response.ok) {
-			workspaces = data.workspaces || [];
-			if (workspaces.length > 0) {
-				// Set current workspace to the first one if none is selected
-				if (!currentWorkspace) {
-					currentWorkspace = workspaces[0];
-				}
-				manager.updateState({ currentWorkspace: currentWorkspace });
-				await loadTasks();
-				await loadIntegrations();
-			} else {
-				// No workspaces exist, create a default one
-				await createDefaultWorkspace();
-			}
-		} else {
-			error = data.error || "Failed to load workspaces";
+	// Handle settings parameter
+	urlParamHandler.handleSettingsParam(params, async () => {
+		if (currentWorkspace) {
+			await manager.openSettingsDrawer(currentWorkspace.id);
 		}
-	} catch (err) {
-		error = "Failed to load workspaces";
-		console.error("Error loading workspaces:", err);
-	}
+	});
 }
-
-async function createDefaultWorkspace() {
-	try {
-		const response = await fetch("/api/workspaces", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				name: "My Tasks",
-			}),
-		});
-
-		const data = await response.json();
-
-		if (response.ok) {
-			currentWorkspace = data.data;
-			workspaces = [data.data];
-			manager.updateState({ currentWorkspace: data.data });
-			await loadTasks();
-			await loadIntegrations();
-		} else {
-			error = data.error || "Failed to create default workspace";
-		}
-	} catch (err) {
-		error = "Failed to create default workspace";
-		console.error("Error creating default workspace:", err);
-	}
-}
-
-async function handlePendingMigration() {
-	try {
-		// Check if this is a new user who might have guest data to migrate
-		if (!session?.user?.isNewUser) {
-			localStorage.removeItem("pending_migration");
-			return;
-		}
-
-		// Get guest ID from localStorage
-		const guestId = localStorage.getItem("guest-id");
-		if (!guestId) {
-			localStorage.removeItem("pending_migration");
-			return;
-		}
-
-		console.log("Attempting to transfer guest workspace for new user...");
-
-		// Call the migration API to transfer workspace ownership
-		const response = await fetch("/api/migrate-guest", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({ guestId }),
-		});
-
-		const result = await response.json();
-
-		if (response.ok && result.success) {
-			console.log("Guest workspace transfer completed successfully");
-			// Clear guest data from localStorage since it's now owned by the user
-			localStorage.removeItem("guest-id");
-			localStorage.removeItem("guest-backup");
-			localStorage.removeItem("pending_migration");
-
-			// Reload workspaces to show the transferred workspace
-			await loadWorkspaces();
-		} else {
-			console.warn("Guest workspace transfer failed:", result.message);
-			// Clear pending migration flag even if transfer failed
-			localStorage.removeItem("pending_migration");
-		}
-	} catch (error) {
-		console.error("Error handling guest workspace transfer:", error);
-		localStorage.removeItem("pending_migration");
-	}
-}
-
-async function loadTasks() {
-	if (!currentWorkspace) return;
-
-	loading = true;
-	error = "";
-
-	try {
-		tasks = await taskService.fetchTasks(currentWorkspace.id);
-		manager.updateState({ tasks: tasks });
-		updateTaskCount();
-	} catch (err) {
-		error = "Failed to load tasks";
-		console.error("Error loading tasks:", err);
-	} finally {
-		loading = false;
-	}
-}
-
-function updateTaskCount() {
-	if ($isGuestMode && !isAuthenticated) {
-		guestTaskCount = tasks.length;
-		updateGuestTaskCount(tasks.length);
-	}
-}
-
-function handleTasksUpdate(updatedTasks: Task[]) {
-	tasks = updatedTasks;
-	manager.updateState({ tasks: updatedTasks });
-	updateTaskCount();
-	saveGuestData();
-}
-
-function saveGuestData() {
-	if ($isGuestMode && !isAuthenticated && currentWorkspace) {
-		guestUserService.saveGuestData({
-			guestId: "guest",
-			workspaceId: currentWorkspace.id,
-			tasks: tasks,
-			lastSync: new Date().toISOString(),
-			deviceFingerprint: "", // Will be generated by the service
-		});
-	}
-}
-
-function handleContextToggle(taskId: string) {
-	const newSelected = new Set(selectedContextTasks);
-	if (newSelected.has(taskId)) {
-		newSelected.delete(taskId);
-	} else {
-		newSelected.add(taskId);
-	}
-	selectedContextTasks = newSelected;
-}
-
-function handleClearContext() {
-	selectedContextTasks = new Set();
-}
-
-function handleMenuAction(action: string) {
-	switch (action) {
-		case "signup":
-			manager.showAccountDialog();
-			break;
-		case "notion":
-			handleOpenSettingsDrawer();
-			break;
-		case "settings":
-			handleOpenSettingsDrawer();
-			break;
-		case "home":
-			// Navigate to home or refresh current view
-			if (browser) {
-				window.location.href = "/";
-			}
-			break;
-		default:
-			console.log("Menu action:", action);
-	}
-}
-
-async function handleWorkspaceChange(workspaceId: string) {
-	const selectedWorkspace = workspaces.find((w) => w.id === workspaceId);
-	if (selectedWorkspace && selectedWorkspace.id !== currentWorkspace?.id) {
-		currentWorkspace = selectedWorkspace;
-		manager.updateState({ currentWorkspace: selectedWorkspace });
-		await loadTasks();
-		await loadIntegrations();
-	}
-}
-
-async function handleCreateWorkspace() {
-	showWorkspaceCreateDialog = true;
-}
-
-async function handleCreateWorkspaceSubmit(name: string, description?: string) {
-	try {
-		const response = await fetch("/api/workspaces", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				name,
-				description,
-			}),
-		});
-
-		const data = await response.json();
-
-		if (response.ok) {
-			const newWorkspace = data.data;
-			workspaces = [...workspaces, newWorkspace];
-			currentWorkspace = newWorkspace;
-			manager.updateState({ currentWorkspace: newWorkspace });
-			await loadTasks();
-			await loadIntegrations();
-		} else {
-			throw new Error(data.error || "Failed to create workspace");
-		}
-	} catch (err) {
-		console.error("Error creating workspace:", err);
-		throw err; // Re-throw to let the dialog handle the error display
-	}
-}
-
-function handleGuestSignUp() {
-	manager.showAccountDialog();
-}
-
-// Handle Notion login with guest data migration
-async function handleNotionLogin(migrateData: boolean): Promise<void> {
-	if (!browser) {
-		throw new Error("Login can only be initiated from the browser");
-	}
-
-	try {
-		// Store migration preference for after authentication
-		if (migrateData && (tasks.length > 0 || localStorage.getItem("guest-id"))) {
-			localStorage.setItem("pending_migration", "true");
-		} else {
-			localStorage.removeItem("pending_migration");
-		}
-
-		// Initiate Notion OAuth flow
-		await signIn("notion", {
-			callbackUrl: window.location.origin,
-			redirect: true,
-		});
-	} catch (error) {
-		console.error("Notion login failed:", error);
-		throw error;
-	}
-}
-
-async function handleOpenSettingsDrawer() {
-	if (currentWorkspace) {
-		await manager.openSettingsDrawer(currentWorkspace.id);
-	}
-}
-
-function handleCloseSettingsDrawer() {
-	manager.closeSettingsDrawer();
-}
-
-async function handleToggleIntegration(provider: string, enabled: boolean) {
-	if (currentWorkspace) {
-		await manager.toggleIntegration(provider, enabled, currentWorkspace.id);
-	}
-}
-
-async function handleConnectNotion(
-	databaseId: string,
-	importExisting: boolean,
-) {
-	if (currentWorkspace) {
-		await manager.selectDatabase(
-			databaseId,
-			currentWorkspace.id,
-			importExisting,
-		);
-	}
-}
-
-async function handleDisconnectIntegration(integrationId: string) {
-	if (currentWorkspace) {
-		await manager.disconnectIntegration(integrationId, currentWorkspace.id);
-	}
-}
-
-// Get selected tasks for AI context
-const contextTasks = $derived(
-	tasks.filter((task) => selectedContextTasks.has(task.id)),
-);
 </script>
 
 <svelte:head>
@@ -581,7 +168,7 @@ const contextTasks = $derived(
 	<TopMenu 
 		onMenuAction={handleMenuAction}
 		onWorkspaceChange={handleWorkspaceChange}
-		onCreateWorkspace={handleCreateWorkspace}
+		onCreateWorkspace={() => appState.setShowWorkspaceCreateDialog(true)}
 		{isAuthenticated}
 		isGuestMode={$isGuestMode}
 		{workspaces}
@@ -625,7 +212,7 @@ const contextTasks = $derived(
 			<!-- Floating AI Input -->
 			<FloatingAIInput
 				workspaceId={currentWorkspace.id}
-				selectedTasks={contextTasks}
+				selectedTasks={$contextTasks}
 				onClearContext={handleClearContext}
 				onTasksUpdate={handleTasksUpdate}
 			/>
@@ -671,5 +258,5 @@ const contextTasks = $derived(
 <!-- Workspace Creation Dialog -->
 <WorkspaceCreateDialog
 	bind:open={showWorkspaceCreateDialog}
-	onCreateWorkspace={handleCreateWorkspaceSubmit}
+	onCreateWorkspace={handleCreateWorkspace}
 />
