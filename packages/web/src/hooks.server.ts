@@ -1,8 +1,7 @@
 import { SvelteKitAuth } from "@auth/sveltekit";
 import Notion from "@auth/sveltekit/providers/notion";
 import { UserService } from "@notion-task-manager/db";
-import { type Handle, redirect } from "@sveltejs/kit";
-import { sequence } from "@sveltejs/kit/hooks";
+import { type Handle } from "@sveltejs/kit";
 import {
 	AUTH_NOTION_ID,
 	AUTH_NOTION_REDIRECT_URI,
@@ -10,17 +9,7 @@ import {
 	AUTH_SECRET,
 } from "$env/static/private";
 
-// Redirect handler for legacy routes
-const redirectHandle: Handle = async ({ event, resolve }) => {
-	// Redirect /search to /agent
-	if (
-		event.url.pathname === "/search" ||
-		event.url.pathname.startsWith("/search/")
-	) {
-		redirect(301, "/agent");
-	}
-	return resolve(event);
-};
+// No redirect handlers needed - all routes are direct
 
 const {
 	handle: authHandle,
@@ -128,6 +117,6 @@ const {
 	},
 });
 
-// Combine redirect handler with auth handler
-export const handle = sequence(redirectHandle, authHandle);
+// Use only auth handler
+export const handle = authHandle;
 export { signIn, signOut };

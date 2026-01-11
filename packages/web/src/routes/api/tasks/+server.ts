@@ -7,7 +7,7 @@ import {
 } from "@notion-task-manager/db";
 import type { RequestEvent } from "@sveltejs/kit";
 import { json } from "@sveltejs/kit";
-import { requireAuth } from "$lib/auth";
+import { requireAuthOrGuest } from "$lib/auth/middleware";
 
 /**
  * GET /api/tasks
@@ -30,45 +30,8 @@ export const GET = async (event: RequestEvent) => {
 			return json({ error: "workspaceId is required" }, { status: 400 });
 		}
 
-		// Try to get authenticated user, but allow guest users
-		let _userId: string;
-		let isGuest = false;
-
-		try {
-			const session = await requireAuth(event);
-			_userId = session.user.id;
-		} catch {
-			// Check for guest user ID in headers or cookies
-			const guestId =
-				event.request.headers.get("x-guest-id") ||
-				event.cookies.get("guest-id");
-
-			if (!guestId) {
-				return json(
-					{ error: "Authentication required or guest ID missing" },
-					{ status: 401 },
-				);
-			}
-			_userId = guestId;
-			isGuest = true;
-		}
-
-		// For guest users, validate that the guest user still exists
-		if (isGuest) {
-			try {
-				const { GuestUserService } = await import("@notion-task-manager/db");
-				const guestUserService = new GuestUserService();
-				const guestUser = await guestUserService.getGuestUser(_userId);
-
-				if (!guestUser) {
-					// Guest user expired or doesn't exist
-					return json({ error: "Guest user expired" }, { status: 401 });
-				}
-			} catch (guestError) {
-				console.error("Failed to validate guest user:", guestError);
-				return json({ error: "Guest user validation failed" }, { status: 401 });
-			}
-		}
+		// Use centralized auth middleware
+		const { userId } = await requireAuthOrGuest(event);
 
 		const taskService = new TaskService();
 
@@ -96,6 +59,11 @@ export const GET = async (event: RequestEvent) => {
 			return json({ error: error.message }, { status: 400 });
 		}
 
+		// Check if error is already a Response (from middleware)
+		if (error instanceof Response) {
+			return error;
+		}
+
 		return json({ error: "Failed to retrieve tasks" }, { status: 500 });
 	}
 };
@@ -108,45 +76,8 @@ export const POST = async (event: RequestEvent) => {
 	try {
 		const taskData = await event.request.json();
 
-		// Try to get authenticated user, but allow guest users
-		let _userId: string;
-		let isGuest = false;
-
-		try {
-			const session = await requireAuth(event);
-			_userId = session.user.id;
-		} catch {
-			// Check for guest user ID in headers or cookies
-			const guestId =
-				event.request.headers.get("x-guest-id") ||
-				event.cookies.get("guest-id");
-
-			if (!guestId) {
-				return json(
-					{ error: "Authentication required or guest ID missing" },
-					{ status: 401 },
-				);
-			}
-			_userId = guestId;
-			isGuest = true;
-		}
-
-		// For guest users, validate that the guest user still exists
-		if (isGuest) {
-			try {
-				const { GuestUserService } = await import("@notion-task-manager/db");
-				const guestUserService = new GuestUserService();
-				const guestUser = await guestUserService.getGuestUser(_userId);
-
-				if (!guestUser) {
-					// Guest user expired or doesn't exist
-					return json({ error: "Guest user expired" }, { status: 401 });
-				}
-			} catch (guestError) {
-				console.error("Failed to validate guest user:", guestError);
-				return json({ error: "Guest user validation failed" }, { status: 401 });
-			}
-		}
+		// Use centralized auth middleware
+		const { userId } = await requireAuthOrGuest(event);
 
 		const taskService = new TaskService();
 		const task = await taskService.createTask(taskData);
@@ -163,6 +94,11 @@ export const POST = async (event: RequestEvent) => {
 
 		if (error instanceof ValidationError) {
 			return json({ error: error.message }, { status: 400 });
+		}
+
+		// Check if error is already a Response (from middleware)
+		if (error instanceof Response) {
+			return error;
 		}
 
 		return json({ error: "Failed to create task" }, { status: 500 });

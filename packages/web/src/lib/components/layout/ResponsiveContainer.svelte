@@ -4,7 +4,6 @@ import type { Snippet } from "svelte";
 import { onMount } from "svelte";
 import { getGuestTaskCount, guestUser, isGuestMode } from "$lib/stores/guest";
 import GuestBanner from "../GuestBanner.svelte";
-import BottomNavigation from "./BottomNavigation.svelte";
 
 let {
 	children,
@@ -67,14 +66,10 @@ $effect(() => {
 
 	<!-- Main Content Container -->
 	<main class="flex-1 {className}">
-		<!-- Mobile: Add bottom padding for nav -->
-		<div class="pt-4 pb-20 md:pb-8 px-4 md:px-6 lg:px-8">
+		<div class="pt-4 pb-8 px-4 md:px-6 lg:px-8">
 			<div class="max-w-7xl mx-auto">
 				{@render children()}
 			</div>
 		</div>
 	</main>
-
-	<!-- Mobile Bottom Navigation -->
-	<BottomNavigation {session} />
 </div>

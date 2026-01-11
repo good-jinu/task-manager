@@ -1,7 +1,7 @@
 <script lang="ts">
 import type { Task, TaskStatus } from "@notion-task-manager/db";
 import { goto } from "$app/navigation";
-import { deleteTask, fetchTasks, updateTask } from "$lib/utils/task-api";
+import { taskService } from "$lib/services/task-service";
 import { Check, Edit, Plus, Trash2 } from "./icons";
 import { Badge } from "./ui";
 import { cn } from "./utils";
@@ -40,8 +40,7 @@ async function handleStatusToggle() {
 
 	isUpdating = true;
 	try {
-		const newStatus: TaskStatus = task.status === "done" ? "todo" : "done";
-		await updateTask(task.id, { status: newStatus });
+		await taskService.toggleTaskStatus(task.id, task.status);
 		await refreshTasks();
 	} catch (error) {
 		console.error("Failed to update task:", error);
@@ -55,7 +54,7 @@ async function handleDelete() {
 
 	isUpdating = true;
 	try {
-		await deleteTask(task.id);
+		await taskService.deleteTask(task.id);
 		await refreshTasks();
 	} catch (error) {
 		console.error("Failed to delete task:", error);
@@ -69,7 +68,7 @@ async function handleEditSave() {
 
 	isUpdating = true;
 	try {
-		await updateTask(task.id, { title: editTitle.trim() });
+		await taskService.updateTask(task.id, { title: editTitle.trim() });
 		await refreshTasks();
 		isEditing = false;
 	} catch (error) {
@@ -81,7 +80,7 @@ async function handleEditSave() {
 
 async function refreshTasks() {
 	if (onTasksUpdate && workspaceId) {
-		const updatedTasks = await fetchTasks(workspaceId);
+		const updatedTasks = await taskService.fetchTasks(workspaceId);
 		onTasksUpdate(updatedTasks);
 	}
 }

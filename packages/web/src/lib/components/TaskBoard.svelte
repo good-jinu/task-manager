@@ -1,6 +1,6 @@
 <script lang="ts">
 import type { Task } from "@notion-task-manager/db";
-import { createTask, fetchTasks } from "$lib/utils/task-api";
+import { taskService } from "$lib/services/task-service";
 import { Plus } from "./icons";
 import TaskItem from "./TaskItem.svelte";
 
@@ -27,7 +27,10 @@ async function handleAddTask() {
 	if (!newTaskTitle.trim()) return;
 
 	try {
-		await createTask(workspaceId, newTaskTitle);
+		await taskService.createTask({
+			workspaceId,
+			title: newTaskTitle,
+		});
 		await refreshTasks();
 		resetTaskCreation();
 	} catch (error) {
@@ -37,7 +40,7 @@ async function handleAddTask() {
 
 async function refreshTasks() {
 	if (onTasksUpdate) {
-		const updatedTasks = await fetchTasks(workspaceId);
+		const updatedTasks = await taskService.fetchTasks(workspaceId);
 		onTasksUpdate(updatedTasks);
 	}
 }
