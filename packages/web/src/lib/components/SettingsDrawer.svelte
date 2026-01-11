@@ -1,5 +1,4 @@
 <script lang="ts">
-import type { ExternalIntegration, SyncStatus } from "@notion-task-manager/db";
 import {
 	createWorkspaceStatusStore,
 	refreshIntegrationStatus,
@@ -127,7 +126,6 @@ function adaptSyncStatistics(cacheStats: CacheSyncStatistics): SyncStatistics {
 interface Props {
 	isOpen: boolean;
 	workspaceId: string;
-	integrations?: ExternalIntegration[];
 	isAuthenticated?: boolean;
 	isGuestMode?: boolean;
 	onClose: () => void;
@@ -144,7 +142,6 @@ interface Props {
 let {
 	isOpen,
 	workspaceId,
-	integrations = [],
 	isAuthenticated = true,
 	isGuestMode = false,
 	onClose,
@@ -178,7 +175,6 @@ const statusIntegrations = $derived(
 	statusStore ? statusStore.integrations : null,
 );
 const statusLoading = $derived(statusStore ? statusStore.loading : null);
-const statusError = $derived(statusStore ? statusStore.error : null);
 
 // Find Notion integration from status data
 const notionIntegration = $derived(
@@ -401,8 +397,6 @@ async function handleConnectNotionDatabase(
 			const errorData = await response.json();
 			throw new Error(errorData.error || "Failed to create integration");
 		}
-
-		const data = await response.json();
 
 		// Call the parent handler to update the integrations list
 		await onConnectNotion(databaseId, importExisting);

@@ -11,10 +11,8 @@ import {
 	Database,
 	Error as ErrorIcon,
 	Spinner,
-	Warning,
 	X,
 } from "./icons";
-import { Badge } from "./ui";
 import { cn } from "./utils";
 
 interface IntegrationStatus {
@@ -93,8 +91,9 @@ async function handleToggle() {
 		const newState = !integration?.syncEnabled;
 
 		if (newState && !integration) {
-			// Enabling integration for the first time - initiate OAuth
-			await handleOAuthFlow();
+			// Enabling integration for the first time - check if user has Notion tokens
+			// If they do, show database selection; if not, initiate OAuth
+			await handleIntegrationSetup();
 		} else {
 			// Just toggling existing integration
 			await onToggle(newState);
@@ -110,6 +109,32 @@ async function handleToggle() {
 		}
 	} finally {
 		isToggling = false;
+	}
+}
+
+async function handleIntegrationSetup() {
+	try {
+		// First, check if user has Notion access tokens by trying to fetch databases
+		const response = await fetch("/api/integrations/notion/databases");
+
+		if (response.ok) {
+			// User has tokens, show database selection dialog
+			if (onConfigure) {
+				onConfigure();
+			} else {
+				throw new Error("Database selection not available");
+			}
+		} else if (response.status === 401 || response.status === 403) {
+			// User doesn't have tokens or they're invalid, initiate OAuth
+			await handleOAuthFlow();
+		} else {
+			// Other error
+			const errorData = await response.json();
+			throw new Error(errorData.error || "Failed to check Notion access");
+		}
+	} catch (error) {
+		console.error("Integration setup error:", error);
+		throw error;
 	}
 }
 
@@ -444,9 +469,9 @@ const syncStatsText = $derived.by(() => {
 		{:else}
 			<!-- Connect button with enhanced mobile interaction -->
 			<button
-				onclick={() => onToggle(true)}
+				onclick={() => handleIntegrationSetup()}
 				ontouchstart={handleTouchStart}
-				ontouchend={() => handleTouchEnd(() => onToggle(true))}
+				ontouchend={() => handleTouchEnd(() => handleIntegrationSetup())}
 				disabled={loading || disabled}
 				class={cn(
 					'px-4 py-2 text-sm font-medium text-white bg-blue-600',
@@ -457,12 +482,12 @@ const syncStatsText = $derived.by(() => {
 					// Visual feedback for touch interactions
 					'active:scale-95 hover:shadow-md'
 				)}
-				aria-label="Connect to Notion workspace"
+				aria-label="Setup Notion integration"
 			>
 				{#if loading}
 					<Spinner class="w-4 h-4" />
 				{/if}
-				<span>Connect Notion</span>
+				<span>Setup Notion</span>
 			</button>
 		{/if}
 	</div>

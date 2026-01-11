@@ -36,23 +36,14 @@ function handleMenuItemClick(action: string) {
 function handleMenuOpenChange(open: boolean) {
 	isMenuOpen = open;
 }
-
-// Handle keyboard navigation
-function handleKeyDown(event: KeyboardEvent) {
-	if (event.key === "Escape" && isMenuOpen) {
-		isMenuOpen = false;
-	}
-}
 </script>
 
 <!-- Sticky Top Menu -->
 <div class="sticky top-0 z-50 bg-surface-base border-b border-subtle-base">
 	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 		<div class="flex items-center justify-between h-14">
-			<div class="flex items-center gap-4">
-				<h1 class="text-lg font-semibold text-foreground-base">TaskFlow</h1>
-				
-				<!-- Workspace Selector - Only show for authenticated users with multiple workspaces or ability to create -->
+			<div class="flex items-center gap-3">
+				<!-- Workspace Selector - Only show for authenticated users -->
 				{#if isAuthenticated && !isGuestMode}
 					<WorkspaceSelector
 						{workspaces}
@@ -60,6 +51,21 @@ function handleKeyDown(event: KeyboardEvent) {
 						{onWorkspaceChange}
 						{onCreateWorkspace}
 					/>
+					
+					<!-- Workspace Settings Button -->
+					{#if currentWorkspace}
+						<button
+							onclick={() => handleMenuItemClick('settings')}
+							class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-subtle-base bg-surface-base hover:bg-surface-muted text-foreground-secondary hover:text-foreground-base transition-colors"
+							aria-label="Workspace settings"
+							title="Workspace settings"
+						>
+							<Settings class="h-4 w-4" />
+						</button>
+					{/if}
+				{:else}
+					<!-- Guest mode - show app title -->
+					<h1 class="text-lg font-semibold text-foreground-base">TaskFlow</h1>
 				{/if}
 			</div>
 			
@@ -91,28 +97,6 @@ function handleKeyDown(event: KeyboardEvent) {
 
 						<DropdownMenu.Separator class="my-1 h-px bg-subtle-base" />
 
-						{#if isGuestMode && !isAuthenticated}
-							<!-- Guest Mode Options -->
-							<div class="px-3 py-2 border-b border-subtle-base mb-1">
-								<div class="flex items-center gap-2 mb-1">
-					 				<User class="h-4 w-4 text-accent" />
-									<span class="text-sm font-medium text-accent">Guest Mode</span>
-								</div>
-								<p class="text-xs text-muted-foreground">Your tasks are saved locally</p>
-								<p class="text-xs text-info mt-1">Create an account to unlock integrations</p>
-							</div>
-							
-							<DropdownMenu.Item
-								class="flex h-10 items-center rounded-lg px-3 py-2 text-sm font-medium hover:bg-surface-muted focus:bg-surface-muted focus:outline-none cursor-pointer min-h-[44px] touch-manipulation"
-								onSelect={() => handleMenuItemClick('signup')}
-							>
-								<div class="flex items-center gap-2">
-									<User class="h-4 w-4 text-primary" />
-									<span class="font-medium text-primary">Sign Up (Unlock Features)</span>
-								</div>
-							</DropdownMenu.Item>
-						{/if}
-						
 						{#if isAuthenticated}
 							<!-- Authenticated User Options -->
 							<div class="px-3 py-2 border-b border-subtle-base mb-1">
@@ -122,30 +106,20 @@ function handleKeyDown(event: KeyboardEvent) {
 								</div>
 								<p class="text-xs text-muted-foreground">Sync across devices available</p>
 							</div>
-							
+						{/if}
+
+						<!-- Account/Auth Actions -->
+						{#if !isAuthenticated}
 							<DropdownMenu.Item
 								class="flex h-10 items-center rounded-lg px-3 py-2 text-sm font-medium hover:bg-surface-muted focus:bg-surface-muted focus:outline-none cursor-pointer min-h-[44px] touch-manipulation"
-								onSelect={() => handleMenuItemClick('notion')}
+								onSelect={() => handleMenuItemClick('signup')}
 							>
 								<div class="flex items-center gap-2">
-									<NotionLogo class="h-4 w-4" />
-									<span>Notion Integration</span>
+									<User class="h-4 w-4 text-primary" />
+									<span class="font-medium text-primary">Sign Up</span>
 								</div>
 							</DropdownMenu.Item>
 						{/if}
-
-						<DropdownMenu.Separator class="my-1 h-px bg-subtle-base" />
-
-						<!-- Settings - Enhanced with clear icon and improved styling -->
-						<DropdownMenu.Item
-							class="flex h-10 items-center rounded-lg px-3 py-2 text-sm font-medium hover:bg-surface-muted focus:bg-surface-muted focus:outline-none cursor-pointer min-h-[44px] touch-manipulation"
-							onSelect={() => handleMenuItemClick('settings')}
-						>
-							<div class="flex items-center gap-2">
-								<Settings class="h-4 w-4 text-foreground-secondary" />
-								<span class="font-medium">Settings</span>
-							</div>
-						</DropdownMenu.Item>
 					</DropdownMenu.Content>
 				</DropdownMenu.Portal>
 			</DropdownMenu.Root>

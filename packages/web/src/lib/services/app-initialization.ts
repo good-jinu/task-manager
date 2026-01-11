@@ -1,5 +1,6 @@
 import type { Session } from "@auth/sveltekit";
 import type { Workspace } from "@notion-task-manager/db";
+import { get } from "svelte/store";
 import { browser } from "$app/environment";
 import { type AppState, appState } from "$lib/stores/app-state";
 import {
@@ -153,12 +154,8 @@ export async function initializeApp(session: Session | null): Promise<void> {
 export async function handleWorkspaceChange(
 	workspaceId: string,
 ): Promise<void> {
-	const currentState = await new Promise<AppState>((resolve) => {
-		const unsubscribe = appState.subscribe((state) => {
-			unsubscribe();
-			resolve(state);
-		});
-	});
+	// Get current state using Svelte's get() function
+	const currentState = get(appState);
 
 	const selectedWorkspace = currentState.workspaces.find(
 		(w: Workspace) => w.id === workspaceId,
@@ -184,12 +181,8 @@ export async function handleCreateWorkspace(
 	try {
 		const newWorkspace = await createWorkspace(name, description);
 
-		const currentState = await new Promise<AppState>((resolve) => {
-			const unsubscribe = appState.subscribe((state) => {
-				unsubscribe();
-				resolve(state);
-			});
-		});
+		// Get current state using Svelte's get() function
+		const currentState = get(appState);
 
 		const updatedWorkspaces = [...currentState.workspaces, newWorkspace];
 		appState.setWorkspaces(updatedWorkspaces);

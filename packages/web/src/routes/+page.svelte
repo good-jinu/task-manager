@@ -69,7 +69,6 @@ let componentState = $state<ComponentState>({
 // Derived state from stores and component wiring
 let showSettingsDrawer = $derived(componentState.settingsDrawerOpen);
 let showAccountDialog = $derived(componentState.accountDialogOpen);
-let integrations = $derived(componentState.integrations);
 
 // App state from store
 let {
@@ -244,7 +243,6 @@ function handleURLParametersAfterInit() {
 	<SettingsDrawer
 		isOpen={showSettingsDrawer}
 		workspaceId={currentWorkspace.id}
-		{integrations}
 		isAuthenticated={isAuthenticated}
 		isGuestMode={$isGuestMode && !isAuthenticated}
 		onClose={handleCloseSettingsDrawer}
