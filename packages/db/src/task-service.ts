@@ -14,7 +14,7 @@ import type {
 	Task,
 	TaskStatus,
 	UpdateTaskInput,
-} from "@notion-task-manager/core";
+} from "@task-manager/core";
 import { getDynamoDBClient, getTableName } from "./client";
 import {
 	validateCreateTaskInput,

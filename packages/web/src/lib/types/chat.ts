@@ -1,4 +1,4 @@
-import type { Task } from "@notion-task-manager/db";
+import type { Task } from "@task-manager/db";
 
 export interface ChatMessage {
 	id: string;

@@ -3,7 +3,7 @@
  * Provides centralized data flow, error propagation, and logging
  */
 
-import type { Task, Workspace } from "@notion-task-manager/db";
+import type { Task, Workspace } from "@task-manager/db";
 import { queryClient } from "$lib/queries/client";
 import { connectDatabase } from "$lib/queries/integrations";
 import { queryKeys } from "$lib/queries/types";

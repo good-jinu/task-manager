@@ -1,4 +1,4 @@
-import type { Task } from "@notion-task-manager/db";
+import type { Task } from "@task-manager/db";
 import { browser } from "$app/environment";
 
 const GUEST_STORAGE_KEY = "taskflow_guest_data";

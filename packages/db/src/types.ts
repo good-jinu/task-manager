@@ -8,7 +8,7 @@ export type {
 	TaskService,
 	TaskStatus,
 	UpdateTaskInput,
-} from "@notion-task-manager/core";
+} from "@task-manager/core";
 
 /**
  * User model for DynamoDB storage

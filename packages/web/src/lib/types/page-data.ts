@@ -1,5 +1,5 @@
 import type { Session } from "@auth/sveltekit";
-import type { AgentExecutionRecord } from "@notion-task-manager/db";
+import type { AgentExecutionRecord } from "@task-manager/db";
 import type { NotionDatabase } from "./notion";
 
 export interface PageData {

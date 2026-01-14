@@ -1,6 +1,6 @@
 import type { Session } from "@auth/sveltekit";
-import { GuestUserService } from "@notion-task-manager/db";
 import type { RequestEvent } from "@sveltejs/kit";
+import { GuestUserService } from "@task-manager/db";
 
 export interface AuthResult {
 	userId: string;

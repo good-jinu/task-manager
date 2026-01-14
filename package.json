@@ -1,13 +1,13 @@
 {
-	"name": "notion-task-manager",
+	"name": "task-manager",
 	"version": "0.1.0",
 	"license": "MIT",
 	"scripts": {
-		"build": "pnpm --filter @notion-task-manager/web build",
+		"build": "pnpm --filter @task-manager/web build",
 		"check": "biome check && pnpm -r check",
 		"check:fix": "biome check --write",
 		"check:fix:unsafe": "biome check --write --unsafe",
-		"dev": "pnpm --filter @notion-task-manager/web dev",
+		"dev": "pnpm --filter @task-manager/web dev",
 		"dev-dev": "sst dev --stage development",
 		"dev-remove": "sst remove --stage development",
 		"prod-deploy": "sst deploy --stage production",

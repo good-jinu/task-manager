@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { Workspace } from "@notion-task-manager/db";
+import type { Workspace } from "@task-manager/db";
 import { Select } from "bits-ui";
 import { Check, KeyboardArrowDown, Plus } from "./icons";
 

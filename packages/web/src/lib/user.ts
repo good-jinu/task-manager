@@ -1,5 +1,5 @@
-import type { User } from "@notion-task-manager/db";
-import { UserService } from "@notion-task-manager/db";
+import type { User } from "@task-manager/db";
+import { UserService } from "@task-manager/db";
 
 /**
  * Gets user data from DynamoDB by user ID

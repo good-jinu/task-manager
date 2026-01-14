@@ -64,7 +64,7 @@ importers:
       '@aws-sdk/lib-dynamodb':
         specifier: ^3.705.0
         version: 3.958.0(@aws-sdk/client-dynamodb@3.958.0)
-      '@notion-task-manager/core':
+      '@task-manager/core':
         specifier: workspace:*
         version: link:../core
       sst:
@@ -86,7 +86,7 @@ importers:
 
   packages/notion:
     dependencies:
-      '@notion-task-manager/db':
+      '@task-manager/db':
         specifier: workspace:*
         version: link:../db
       '@notionhq/client':
@@ -102,13 +102,13 @@ importers:
       '@auth/sveltekit':
         specifier: ^1.11.1
         version: 1.11.1(@sveltejs/kit@2.49.2(@opentelemetry/api@1.9.0)(@sveltejs/vite-plugin-svelte@6.2.1(svelte@5.46.1)(vite@7.3.0(@types/node@20.19.27)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)))(svelte@5.46.1)(vite@7.3.0(@types/node@20.19.27)(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)))(svelte@5.46.1)
-      '@notion-task-manager/core':
+      '@task-manager/core':
         specifier: workspace:*
         version: link:../core
-      '@notion-task-manager/db':
+      '@task-manager/db':
         specifier: workspace:*
         version: link:../db
-      '@notion-task-manager/notion':
+      '@task-manager/notion':
         specifier: workspace:*
         version: link:../notion
       '@tanstack/svelte-query':

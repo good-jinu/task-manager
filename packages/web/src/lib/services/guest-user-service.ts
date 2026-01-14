@@ -3,7 +3,7 @@
  * Consolidates guest registration, recovery, and persistence logic
  */
 
-import type { Task, Workspace } from "@notion-task-manager/db";
+import type { Task, Workspace } from "@task-manager/db";
 import { browser } from "$app/environment";
 import {
 	guestUser,

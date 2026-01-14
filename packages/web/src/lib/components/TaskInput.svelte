@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { CreateTaskInput, TaskPriority } from "@notion-task-manager/db";
+import type { CreateTaskInput, TaskPriority } from "@task-manager/db";
 import { Sparkles, Spinner } from "./icons";
 import { Button } from "./ui";
 import { cn } from "./utils";

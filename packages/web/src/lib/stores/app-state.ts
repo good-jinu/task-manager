@@ -1,4 +1,4 @@
-import type { Task, Workspace } from "@notion-task-manager/db";
+import type { Task, Workspace } from "@task-manager/db";
 import { derived, type Readable, writable } from "svelte/store";
 
 export interface AppState {

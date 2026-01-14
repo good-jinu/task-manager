@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { Task } from "@notion-task-manager/db";
+import type { Task } from "@task-manager/db";
 import { onMount } from "svelte";
 import { goto } from "$app/navigation";
 import { page } from "$app/stores";

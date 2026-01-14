@@ -1,7 +1,7 @@
-import type { ExecutionStep } from "@notion-task-manager/core";
-import { TaskManagerAgent } from "@notion-task-manager/core";
-import { AgentExecutionService, TaskService } from "@notion-task-manager/db";
 import { json } from "@sveltejs/kit";
+import type { ExecutionStep } from "@task-manager/core";
+import { TaskManagerAgent } from "@task-manager/core";
+import { AgentExecutionService, TaskService } from "@task-manager/db";
 import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async (event) => {

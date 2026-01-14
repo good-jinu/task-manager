@@ -1,8 +1,8 @@
+import { json } from "@sveltejs/kit";
 import {
 	type WorkspaceIntegration,
 	WorkspaceIntegrationService,
-} from "@notion-task-manager/db";
-import { json } from "@sveltejs/kit";
+} from "@task-manager/db";
 import type { RequestHandler } from "./$types";
 
 interface IntegrationStatusResponse {

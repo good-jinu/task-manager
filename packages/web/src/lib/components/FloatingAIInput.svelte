@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { Task } from "@notion-task-manager/db";
+import type { Task } from "@task-manager/db";
 import { Close, Send } from "./icons";
 
 interface Props {

@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { Task, TaskStatus } from "@notion-task-manager/db";
+import type { Task, TaskStatus } from "@task-manager/db";
 import { goto } from "$app/navigation";
 import { taskService } from "$lib/services/task-service";
 import { Check, Edit, Plus, Trash2 } from "./icons";

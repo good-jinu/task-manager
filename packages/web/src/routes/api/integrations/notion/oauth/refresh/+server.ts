@@ -1,5 +1,5 @@
-import { UserService } from "@notion-task-manager/db";
 import { json } from "@sveltejs/kit";
+import { UserService } from "@task-manager/db";
 import { AUTH_NOTION_ID, AUTH_NOTION_SECRET } from "$env/static/private";
 import { requireAuth } from "$lib/auth";
 import { getUserFromDatabase } from "$lib/user";

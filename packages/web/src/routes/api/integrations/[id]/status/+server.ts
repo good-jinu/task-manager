@@ -1,5 +1,5 @@
-import { TaskIntegrationService, TaskService } from "@notion-task-manager/db";
 import { json } from "@sveltejs/kit";
+import { TaskIntegrationService, TaskService } from "@task-manager/db";
 import { requireAuth } from "$lib/auth";
 import type { RequestHandler } from "./$types";
 

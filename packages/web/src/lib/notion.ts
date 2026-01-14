@@ -1,9 +1,6 @@
-import type { User } from "@notion-task-manager/db";
-import { UserService } from "@notion-task-manager/db";
-import {
-	NotionAuthClient,
-	NotionTaskManager,
-} from "@notion-task-manager/notion";
+import type { User } from "@task-manager/db";
+import { UserService } from "@task-manager/db";
+import { NotionAuthClient, NotionTaskManager } from "@task-manager/notion";
 import { AUTH_NOTION_ID, AUTH_NOTION_SECRET } from "$env/static/private";
 
 /**

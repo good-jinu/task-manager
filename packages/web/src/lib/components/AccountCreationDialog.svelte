@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { Task } from "@notion-task-manager/db";
+import type { Task } from "@task-manager/db";
 import { Dialog } from "bits-ui";
 import { ArrowRightAlt, Check, Close, NotionLogo, Spinner } from "./icons";
 import { Button } from "./ui";

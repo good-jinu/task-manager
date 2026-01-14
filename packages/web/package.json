@@ -1,5 +1,5 @@
 {
-	"name": "@notion-task-manager/web",
+	"name": "@task-manager/web",
 	"private": true,
 	"version": "0.1.0",
 	"type": "module",
@@ -30,9 +30,9 @@
 	},
 	"dependencies": {
 		"@auth/sveltekit": "^1.11.1",
-		"@notion-task-manager/core": "workspace:*",
-		"@notion-task-manager/db": "workspace:*",
-		"@notion-task-manager/notion": "workspace:*",
+		"@task-manager/core": "workspace:*",
+		"@task-manager/db": "workspace:*",
+		"@task-manager/notion": "workspace:*",
 		"@tanstack/svelte-query": "^6.0.14",
 		"@vite-pwa/sveltekit": "^1.1.0",
 		"bits-ui": "^2.15.2",

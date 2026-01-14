@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { Task } from "@notion-task-manager/db";
+import type { Task } from "@task-manager/db";
 import { taskService } from "$lib/services/task-service";
 import { Plus } from "./icons";
 import TaskItem from "./TaskItem.svelte";

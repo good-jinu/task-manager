@@ -59,7 +59,7 @@ export async function requireAuthOrGuest(
  */
 async function validateGuestUser(guestId: string): Promise<void> {
 	try {
-		const { GuestUserService } = await import("@notion-task-manager/db");
+		const { GuestUserService } = await import("@task-manager/db");
 		const guestUserService = new GuestUserService();
 		const guestUser = await guestUserService.getGuestUser(guestId);
 

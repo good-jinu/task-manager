@@ -1,5 +1,5 @@
 import type { Session } from "@auth/sveltekit";
-import type { Workspace } from "@notion-task-manager/db";
+import type { Workspace } from "@task-manager/db";
 import { get } from "svelte/store";
 import { browser } from "$app/environment";
 import { type AppState, appState } from "$lib/stores/app-state";

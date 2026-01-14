@@ -1,5 +1,5 @@
 {
-	"name": "@notion-task-manager/notion",
+	"name": "@task-manager/notion",
 	"private": true,
 	"version": "0.1.0",
 	"type": "module",
@@ -12,7 +12,7 @@
 		}
 	},
 	"dependencies": {
-		"@notion-task-manager/db": "workspace:*",
+		"@task-manager/db": "workspace:*",
 		"@notionhq/client": "^2.2.15"
 	},
 	"devDependencies": {

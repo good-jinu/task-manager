@@ -1,5 +1,5 @@
 import type { Account, User } from "@auth/sveltekit";
-import { UserService, WorkspaceService } from "@notion-task-manager/db";
+import { UserService, WorkspaceService } from "@task-manager/db";
 
 /**
  * Handle user sign-in process

@@ -1,4 +1,4 @@
-import type { Workspace } from "@notion-task-manager/db";
+import type { Workspace } from "@task-manager/db";
 
 /**
  * Load all workspaces for the current user

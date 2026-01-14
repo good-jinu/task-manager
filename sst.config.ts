@@ -3,7 +3,7 @@
 export default $config({
 	app(input) {
 		return {
-			name: "notion-task-manager",
+			name: "task-manager",
 			removal: input?.stage === "production" ? "retain" : "remove",
 			protect: ["production"].includes(input?.stage),
 			home: "aws",

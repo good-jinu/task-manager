@@ -1,5 +1,5 @@
-import { ValidationError, WorkspaceService } from "@notion-task-manager/db";
 import { json } from "@sveltejs/kit";
+import { ValidationError, WorkspaceService } from "@task-manager/db";
 import { requireAuth } from "$lib/auth";
 import type { RequestHandler } from "./$types";
 

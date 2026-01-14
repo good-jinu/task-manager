@@ -1,5 +1,5 @@
 import { signIn } from "@auth/sveltekit/client";
-import type { Task } from "@notion-task-manager/db";
+import type { Task } from "@task-manager/db";
 import { get } from "svelte/store";
 import { browser } from "$app/environment";
 import { appState } from "$lib/stores/app-state";

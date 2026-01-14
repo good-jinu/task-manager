@@ -1,5 +1,5 @@
-import { ValidationError } from "@notion-task-manager/db";
 import { json, type RequestEvent } from "@sveltejs/kit";
+import { ValidationError } from "@task-manager/db";
 import { type AuthResult, getAuthStatus } from "./auth-service";
 
 export interface ApiHandlerOptions {

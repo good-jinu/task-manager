@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { AgentExecutionRecord } from "@notion-task-manager/db";
+import type { AgentExecutionRecord } from "@task-manager/db";
 import { onMount } from "svelte";
 import { LoadingSpinner } from "$lib/components";
 

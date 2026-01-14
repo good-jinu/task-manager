@@ -1,5 +1,5 @@
 import type { Session } from "@auth/sveltekit";
-import { AgentExecutionService } from "@notion-task-manager/db";
+import { AgentExecutionService } from "@task-manager/db";
 import { createNotionTaskManagerWithAuth } from "$lib/notion";
 import type { NotionDatabase } from "$lib/types/notion";
 import { getUserFromDatabase } from "$lib/user";

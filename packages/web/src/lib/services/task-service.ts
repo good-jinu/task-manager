@@ -3,7 +3,7 @@
  * Replaces scattered task CRUD operations and raw fetch calls
  */
 
-import type { Task, TaskStatus } from "@notion-task-manager/db";
+import type { Task, TaskStatus } from "@task-manager/db";
 import { ApiClient } from "$lib/utils/api-client";
 
 export interface CreateTaskParams {

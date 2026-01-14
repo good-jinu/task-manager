@@ -1,4 +1,4 @@
-import { WorkspaceService } from "@notion-task-manager/db";
+import { WorkspaceService } from "@task-manager/db";
 import { handleGet, handlePost } from "$lib/server";
 import type { RequestHandler } from "./$types";
 

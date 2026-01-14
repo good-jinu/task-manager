@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { Task } from "@notion-task-manager/db";
+import type { Task } from "@task-manager/db";
 import { marked } from "marked";
 import { ArrowLeft, Calendar, Clock, Edit, Flag, Save, Tag, X } from "./icons";
 

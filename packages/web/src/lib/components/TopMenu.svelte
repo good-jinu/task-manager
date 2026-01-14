@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { Workspace } from "@notion-task-manager/db";
+import type { Workspace } from "@task-manager/db";
 import { DropdownMenu } from "bits-ui";
 import { Home, Menu, NotionLogo, Settings, User } from "./icons";
 import WorkspaceSelector from "./WorkspaceSelector.svelte";

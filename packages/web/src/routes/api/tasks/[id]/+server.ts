@@ -1,6 +1,6 @@
-import { TaskService } from "@notion-task-manager/db";
 import type { RequestEvent } from "@sveltejs/kit";
 import { json } from "@sveltejs/kit";
+import { TaskService } from "@task-manager/db";
 import { requireAuthOrGuest } from "$lib/auth/middleware";
 
 const taskService = new TaskService();

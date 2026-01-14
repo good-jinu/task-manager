@@ -1,5 +1,5 @@
 {
-	"name": "@notion-task-manager/db",
+	"name": "@task-manager/db",
 	"private": true,
 	"version": "0.1.0",
 	"type": "module",
@@ -14,7 +14,7 @@
 	"dependencies": {
 		"@aws-sdk/client-dynamodb": "^3.705.0",
 		"@aws-sdk/lib-dynamodb": "^3.705.0",
-		"@notion-task-manager/core": "workspace:*",
+		"@task-manager/core": "workspace:*",
 		"sst": "^3.3.0"
 	},
 	"devDependencies": {
