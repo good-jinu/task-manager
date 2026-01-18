@@ -85,41 +85,6 @@ describe("Guest Banner Integration", () => {
 		expect(result.data.items).toHaveLength(3);
 	});
 
-	it("should handle migration API call", async () => {
-		const mockGuestId = "guest_123e4567-e89b-12d3-a456-426614174000";
-
-		// Mock migration API
-		const mockFetch = fetch as ReturnType<typeof vi.fn>;
-		mockFetch.mockResolvedValueOnce({
-			ok: true,
-			json: async () => ({
-				success: true,
-				data: {
-					totalTasks: 3,
-					successCount: 3,
-					failureCount: 0,
-				},
-			}),
-		});
-
-		// Simulate migration
-		const response = await fetch("/api/guest/migrate", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({ guestId: mockGuestId }),
-		});
-
-		const result = await response.json();
-
-		// Verify migration result
-		expect(result.success).toBe(true);
-		expect(result.data.totalTasks).toBe(3);
-		expect(result.data.successCount).toBe(3);
-		expect(result.data.failureCount).toBe(0);
-	});
-
 	it("should handle API errors gracefully", async () => {
 		// Mock API error
 		const mockFetch = fetch as ReturnType<typeof vi.fn>;

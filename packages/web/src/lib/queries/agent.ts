@@ -9,13 +9,27 @@ import {
 
 // Fetch all executions
 async function fetchExecutions(): Promise<AgentExecutionRecord[]> {
+	console.log("[fetchExecutions] Starting fetch to /api/agent/executions");
 	const response = await fetch("/api/agent/executions");
 
+	console.log("[fetchExecutions] Response:", {
+		ok: response.ok,
+		status: response.status,
+		statusText: response.statusText,
+		headers: Object.fromEntries(response.headers.entries()),
+	});
+
 	if (!response.ok) {
+		const errorText = await response.text();
+		console.error("[fetchExecutions] Error response:", errorText);
 		throw new Error(`Failed to fetch executions: ${response.statusText}`);
 	}
 
 	const data = await response.json();
+	console.log(
+		"[fetchExecutions] Success, executions count:",
+		data.executions?.length || 0,
+	);
 	return data.executions || [];
 }
 
@@ -37,6 +51,8 @@ async function fetchExecution(
 async function executeTask(
 	params: ExecuteTaskParams,
 ): Promise<ExecuteTaskResponse> {
+	console.log("[executeTask] Starting task execution request:", params);
+
 	const response = await fetch("/api/agent/execute-task", {
 		method: "POST",
 		headers: {
@@ -45,19 +61,36 @@ async function executeTask(
 		body: JSON.stringify(params),
 	});
 
+	console.log("[executeTask] Response received:", {
+		ok: response.ok,
+		status: response.status,
+		statusText: response.statusText,
+		headers: Object.fromEntries(response.headers.entries()),
+	});
+
 	if (!response.ok) {
 		const errorData = await response.json();
+		console.error("[executeTask] Error response:", errorData);
 		throw new Error(errorData.error || "Failed to execute task");
 	}
 
-	return response.json();
+	const result = await response.json();
+	console.log("[executeTask] Success response:", result);
+	return result;
 }
 
 // Query hook for all executions
-export function useExecutions() {
+export function useExecutions(workspaceId?: string) {
+	console.log(
+		"[useExecutions] Called with workspaceId:",
+		workspaceId,
+		"enabled:",
+		!!workspaceId,
+	);
 	return createQuery(() => ({
 		queryKey: queryKeys.executions(),
 		queryFn: fetchExecutions,
+		enabled: !!workspaceId, // Only fetch when workspace is available
 		staleTime: 10 * 1000, // 10 seconds
 		gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
 		refetchInterval: 10 * 1000, // Refetch every 10 seconds to catch new/updated executions

@@ -58,32 +58,65 @@ export class MigrationService {
 		targetWorkspaceId?: string,
 	): Promise<MigrationResult> {
 		const migrationId = randomUUID();
+		console.log("[MigrationService.importFromNotion] Starting import:", {
+			migrationId,
+			userId,
+			notionDatabaseId,
+			targetWorkspaceId,
+		});
+
 		let workspaceId = targetWorkspaceId;
 
 		// Check if notionTaskManager is available
 		if (!this.notionTaskManager) {
+			console.error(
+				"[MigrationService.importFromNotion] NotionTaskManager not available",
+			);
 			throw new Error("NotionTaskManager is not available");
 		}
 
 		try {
 			// Create workspace if not provided
 			if (!workspaceId) {
+				console.log(
+					"[MigrationService.importFromNotion] No workspace provided, fetching database info",
+				);
 				const database =
 					await this.notionTaskManager.getDatabase(notionDatabaseId);
 				if (!database) {
+					console.error(
+						"[MigrationService.importFromNotion] Database not found:",
+						{ notionDatabaseId },
+					);
 					throw new Error(`Notion database not found: ${notionDatabaseId}`);
 				}
 
+				console.log(
+					"[MigrationService.importFromNotion] Creating new workspace:",
+					{
+						databaseTitle: database.title,
+					},
+				);
 				const workspace = await this.workspaceService.createWorkspace(userId, {
 					name: database.title || "Imported from Notion",
 					description: database.description || "Imported from Notion database",
 				});
 				workspaceId = workspace.id;
+				console.log("[MigrationService.importFromNotion] Workspace created:", {
+					workspaceId,
+				});
 			}
 
 			// Get all pages from the Notion database
+			console.log(
+				"[MigrationService.importFromNotion] Fetching pages from Notion database",
+			);
 			const notionPages =
 				await this.notionTaskManager.getDatabasePages(notionDatabaseId);
+
+			console.log("[MigrationService.importFromNotion] Pages fetched:", {
+				totalPages: notionPages.length,
+			});
 
 			// Initialize migration progress
 			const migrationProgress: MigrationProgress = {
@@ -95,35 +128,94 @@ export class MigrationService {
 				failureCount: 0,
 			};
 			this.migrations.set(migrationId, migrationProgress);
+			console.log(
+				"[MigrationService.importFromNotion] Migration progress initialized",
+			);
 
 			const errors: MigrationError[] = [];
 			const importedTasks: Task[] = [];
 
 			// Process each Notion page
 			for (const notionPage of notionPages) {
+				console.log("[MigrationService.importFromNotion] Processing page:", {
+					pageId: notionPage.id,
+					title: notionPage.title,
+					processedCount: migrationProgress.processedTasks + 1,
+					totalCount: notionPages.length,
+				});
+
 				try {
 					// Get page content
+					console.log(
+						"[MigrationService.importFromNotion] Fetching page content:",
+						{
+							pageId: notionPage.id,
+						},
+					);
 					const content = await this.notionTaskManager.getPageContent(
 						notionPage.id,
 					);
+					console.log("[MigrationService.importFromNotion] Content fetched:", {
+						pageId: notionPage.id,
+						contentLength: content.length,
+					});
 
 					// Create internal task
+					console.log(
+						"[MigrationService.importFromNotion] Creating internal task:",
+						{
+							workspaceId,
+							title: notionPage.title || "Untitled",
+						},
+					);
 					const task = await this.taskService.createTask({
 						workspaceId,
 						title: notionPage.title || "Untitled",
 						content: content || undefined,
 						status: notionPage.archived ? "archived" : "todo",
 					});
+					console.log(
+						"[MigrationService.importFromNotion] Internal task created:",
+						{
+							taskId: task.id,
+							title: task.title,
+						},
+					);
 
 					// Create task integration linking internal task to Notion page
+					console.log(
+						"[MigrationService.importFromNotion] Creating task integration:",
+						{
+							taskId: task.id,
+							notionPageId: notionPage.id,
+						},
+					);
 					await this.taskIntegrationService.create(task.id, {
 						provider: "notion",
 						externalId: notionPage.id,
 					});
+					console.log(
+						"[MigrationService.importFromNotion] Task integration created",
+					);
 
 					importedTasks.push(task);
 					migrationProgress.successCount++;
+					console.log(
+						"[MigrationService.importFromNotion] Page processed successfully:",
+						{
+							pageId: notionPage.id,
+							successCount: migrationProgress.successCount,
+						},
+					);
 				} catch (error) {
+					console.error(
+						"[MigrationService.importFromNotion] Failed to process page:",
+						{
+							pageId: notionPage.id,
+							title: notionPage.title,
+							error,
+						},
+					);
 					migrationProgress.failureCount++;
 					errors.push({
 						notionPageId: notionPage.id,
@@ -139,7 +231,7 @@ export class MigrationService {
 			migrationProgress.status = "completed";
 			this.migrations.set(migrationId, { ...migrationProgress });
 
-			return {
+			const result = {
 				migrationId,
 				workspaceId,
 				totalTasks: notionPages.length,
@@ -147,6 +239,17 @@ export class MigrationService {
 				failureCount: migrationProgress.failureCount,
 				errors,
 			};
+
+			console.log("[MigrationService.importFromNotion] Import completed:", {
+				migrationId,
+				workspaceId,
+				totalTasks: result.totalTasks,
+				successCount: result.successCount,
+				failureCount: result.failureCount,
+				errorCount: errors.length,
+			});
+
+			return result;
 		} catch (error) {
 			// Mark migration as failed
 			const migrationProgress = this.migrations.get(migrationId);

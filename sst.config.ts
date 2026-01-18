@@ -111,6 +111,53 @@ export default $config({
 			},
 		);
 
+		// SQS Queue for async task processing
+		const taskQueue = new sst.aws.Queue("TaskQueue", {
+			fifo: false,
+			visibilityTimeout: "15 minutes", // Worker has 15 minutes to process
+		});
+
+		// Worker Lambda to process tasks from queue
+		const taskWorker = new sst.aws.Function("TaskWorker", {
+			handler: "packages/workers/src/task-processor.handler",
+			runtime: "nodejs22.x",
+			timeout: "15 minutes",
+			memory: "1024 MB",
+			link: [
+				usersTable,
+				agentExecutionsTable,
+				tasksTable,
+				workspacesTable,
+				guestUsersTable,
+				taskIntegrationsTable,
+				workspaceIntegrationsTable,
+				taskQueue,
+			],
+			environment: {
+				// Authentication
+				AUTH_SECRET: process.env.AUTH_SECRET ?? "",
+				AUTH_NOTION_ID: process.env.AUTH_NOTION_ID ?? "",
+				AUTH_NOTION_SECRET: process.env.AUTH_NOTION_SECRET ?? "",
+				AUTH_NOTION_REDIRECT_URI: process.env.AUTH_NOTION_REDIRECT_URI ?? "",
+
+				// Database
+				APP_AWS_REGION: process.env.APP_AWS_REGION ?? "us-east-1",
+
+				// OpenAI Configuration
+				OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "",
+				OPENAI_BASE_URL: process.env.OPENAI_BASE_URL ?? "",
+				OPENAI_NAME: process.env.OPENAI_NAME ?? "",
+				OPENAI_MODEL: process.env.OPENAI_MODEL ?? "",
+
+				// DeepInfra Configuration
+				DEEPINFRA_API_KEY: process.env.DEEPINFRA_API_KEY ?? "",
+				DEEPINFRA_MODEL: process.env.DEEPINFRA_MODEL ?? "",
+			},
+		});
+
+		// Subscribe worker to queue
+		taskQueue.subscribe(taskWorker.arn);
+
 		// Domain configuration from environment variables
 		const webDomain = process.env.WEB_DOMAIN;
 
@@ -126,6 +173,7 @@ export default $config({
 				guestUsersTable,
 				taskIntegrationsTable,
 				workspaceIntegrationsTable,
+				taskQueue,
 			],
 			environment: {
 				// Authentication
@@ -149,11 +197,14 @@ export default $config({
 			},
 			server: {
 				runtime: "nodejs22.x",
+				timeout: "100 seconds",
 			},
 		});
 
 		return {
 			web: web.url,
+			taskQueue: taskQueue.url,
+			taskWorker: taskWorker.name,
 			usersTable: usersTable.name,
 			agentExecutionsTable: agentExecutionsTable.name,
 			tasksTable: tasksTable.name,

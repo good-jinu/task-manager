@@ -42,6 +42,11 @@ export function createTaskExecutorFactory(
 	workspaceId: string,
 	onStepComplete?: (step: ExecutionStep) => Promise<void>,
 ) {
+	console.log("[createTaskExecutorFactory] Creating factory:", {
+		workspaceId,
+		hasOnStepComplete: !!onStepComplete,
+	});
+
 	const toolCommonArgs: TaskToolCommonArgs = {
 		workspaceId,
 		taskService,
@@ -51,6 +56,11 @@ export function createTaskExecutorFactory(
 		func: (input: TaskToolCommonArgs & I) => Promise<unknown>;
 	}) {
 		return async (input: I) => {
+			console.log("[funcWrapper] Tool execution started:", {
+				funcName: params.func.name,
+				input,
+			});
+
 			const mergedInput = { ...toolCommonArgs, ...input };
 
 			// Helper function to safely serialize objects for storage
@@ -63,23 +73,40 @@ export function createTaskExecutorFactory(
 			};
 
 			try {
+				console.log("[funcWrapper] Executing function:", params.func.name);
 				const output = await params.func(mergedInput);
-				onStepComplete?.({
-					stepId: crypto.randomUUID(),
-					toolName: params.func.name,
-					input: safeSerialize(input),
-					output: safeSerialize(output),
-					timestamp: new Date().toISOString(),
+				console.log("[funcWrapper] Function executed successfully:", {
+					funcName: params.func.name,
+					output,
 				});
+
+				if (onStepComplete) {
+					console.log("[funcWrapper] Calling onStepComplete");
+					await onStepComplete({
+						stepId: crypto.randomUUID(),
+						toolName: params.func.name,
+						input: safeSerialize(input),
+						output: safeSerialize(output),
+						timestamp: new Date().toISOString(),
+					});
+				}
 				return output;
 			} catch (error) {
-				onStepComplete?.({
-					stepId: crypto.randomUUID(),
-					toolName: params.func.name,
-					input: safeSerialize(input),
-					error: (error as Error).message,
-					timestamp: new Date().toISOString(),
+				console.error("[funcWrapper] Function execution failed:", {
+					funcName: params.func.name,
+					error,
 				});
+
+				if (onStepComplete) {
+					console.log("[funcWrapper] Calling onStepComplete with error");
+					await onStepComplete({
+						stepId: crypto.randomUUID(),
+						toolName: params.func.name,
+						input: safeSerialize(input),
+						error: (error as Error).message,
+						timestamp: new Date().toISOString(),
+					});
+				}
 				throw error;
 			}
 		};
@@ -92,9 +119,14 @@ export function createTaskExecutorFactory(
 		get_task?: boolean;
 		delete_task?: boolean;
 	}) => {
+		console.log(
+			"[createTaskExecutorFactory] Building tools with config:",
+			toolsConfig,
+		);
 		const tools: Record<string, Tool> = {};
 
 		if (toolsConfig.search_tasks) {
+			console.log("[createTaskExecutorFactory] Adding search_tasks tool");
 			tools.search_tasks = {
 				description:
 					"Search for existing tasks in the workspace that match the query. Use this to find tasks before creating or updating them.",
@@ -109,6 +141,7 @@ export function createTaskExecutorFactory(
 		}
 
 		if (toolsConfig.create_task) {
+			console.log("[createTaskExecutorFactory] Adding create_task tool");
 			tools.create_task = {
 				description:
 					"Create a new task in the workspace. Use this when no similar existing task is found.",
@@ -123,6 +156,7 @@ export function createTaskExecutorFactory(
 		}
 
 		if (toolsConfig.update_task) {
+			console.log("[createTaskExecutorFactory] Adding update_task tool");
 			tools.update_task = {
 				description:
 					"Update an existing task. Use this when you have found a task that needs to be modified.",
@@ -137,6 +171,7 @@ export function createTaskExecutorFactory(
 		}
 
 		if (toolsConfig.get_task) {
+			console.log("[createTaskExecutorFactory] Adding get_task tool");
 			tools.get_task = {
 				description:
 					"Get detailed information about a specific task by its ID.",
@@ -151,6 +186,7 @@ export function createTaskExecutorFactory(
 		}
 
 		if (toolsConfig.delete_task) {
+			console.log("[createTaskExecutorFactory] Adding delete_task tool");
 			tools.delete_task = {
 				description:
 					"Delete a task from the workspace. Use this when a task needs to be permanently removed.",
@@ -164,6 +200,7 @@ export function createTaskExecutorFactory(
 			};
 		}
 
+		console.log("[createTaskExecutorFactory] Tools built:", Object.keys(tools));
 		return tools;
 	};
 }

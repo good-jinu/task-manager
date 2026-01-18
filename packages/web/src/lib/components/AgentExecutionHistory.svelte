@@ -1,9 +1,17 @@
 <script lang="ts">
 import { LoadingSpinner } from "$lib/components";
 import { useExecutions } from "$lib/queries/agent";
+import { appState } from "$lib/stores/app-state";
 
-// Query for executions
-const executionsQuery = useExecutions();
+// Only fetch executions when we have a workspace (user is initialized)
+const executionsQuery = $derived.by(() => {
+	const workspaceId = $appState.currentWorkspace?.id;
+	console.log(
+		"[AgentExecutionHistory] Creating query with workspaceId:",
+		workspaceId,
+	);
+	return useExecutions(workspaceId);
+});
 
 function formatTimestamp(timestamp: string) {
 	return new Date(timestamp).toLocaleString();

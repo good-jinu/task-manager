@@ -303,3 +303,44 @@ label {
 button {
   color: var(--foreground-base);
 }
+
+/* Prose (Typography) Styles */
+.prose {
+  --tw-prose-body: var(--foreground-base);
+  --tw-prose-headings: var(--foreground-emphasis);
+  --tw-prose-lead: var(--foreground-secondary);
+  --tw-prose-links: var(--primary);
+  --tw-prose-bold: var(--foreground-emphasis);
+  --tw-prose-counters: var(--foreground-secondary);
+  --tw-prose-bullets: var(--subtle-base);
+  --tw-prose-hr: var(--subtle-base);
+  --tw-prose-quotes: var(--foreground-emphasis);
+  --tw-prose-quote-borders: var(--subtle-base);
+  --tw-prose-captions: var(--foreground-secondary);
+  --tw-prose-code: var(--foreground-emphasis);
+  --tw-prose-pre-code: var(--foreground-base);
+  --tw-prose-pre-bg: var(--surface-muted);
+  --tw-prose-th-borders: var(--subtle-base);
+  --tw-prose-td-borders: var(--subtle-hover);
+}
+
+@media (prefers-color-scheme: dark) {
+  .prose {
+    --tw-prose-body: var(--foreground-base);
+    --tw-prose-headings: var(--foreground-emphasis);
+    --tw-prose-lead: var(--foreground-secondary);
+    --tw-prose-links: var(--primary);
+    --tw-prose-bold: var(--foreground-emphasis);
+    --tw-prose-counters: var(--foreground-secondary);
+    --tw-prose-bullets: var(--subtle-base);
+    --tw-prose-hr: var(--subtle-base);
+    --tw-prose-quotes: var(--foreground-emphasis);
+    --tw-prose-quote-borders: var(--subtle-base);
+    --tw-prose-captions: var(--foreground-secondary);
+    --tw-prose-code: var(--foreground-emphasis);
+    --tw-prose-pre-code: var(--foreground-base);
+    --tw-prose-pre-bg: var(--surface-muted);
+    --tw-prose-th-borders: var(--subtle-base);
+    --tw-prose-td-borders: var(--subtle-hover);
+  }
+}

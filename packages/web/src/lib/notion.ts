@@ -1,6 +1,6 @@
 import type { User } from "@task-manager/db";
-import { UserService } from "@task-manager/db";
-import { NotionAuthClient, NotionTaskManager } from "@task-manager/notion";
+import { createNotionTaskManagerWithAuth as createNotionClient } from "@task-manager/db";
+import type { NotionTaskManager } from "@task-manager/notion";
 import { AUTH_NOTION_ID, AUTH_NOTION_SECRET } from "$env/static/private";
 
 /**
@@ -9,25 +9,5 @@ import { AUTH_NOTION_ID, AUTH_NOTION_SECRET } from "$env/static/private";
  * @returns NotionTaskManager with auth client
  */
 export function createNotionTaskManagerWithAuth(user: User): NotionTaskManager {
-	const authClient = new NotionAuthClient(user, {
-		clientId: AUTH_NOTION_ID,
-		clientSecret: AUTH_NOTION_SECRET,
-		onTokenRefresh: async (
-			userId,
-			newAccessToken,
-			newRefreshToken,
-			expiresAt,
-		) => {
-			// Update user tokens in database when refreshed
-			const userService = new UserService();
-			await userService.updateUser(userId, {
-				notionAccessToken: newAccessToken,
-				...(newRefreshToken && { notionRefreshToken: newRefreshToken }),
-				...(expiresAt && { tokenExpiresAt: expiresAt }),
-			});
-			console.log(`Updated tokens in database for user: ${userId}`);
-		},
-	});
-
-	return new NotionTaskManager(authClient);
+	return createNotionClient(user, AUTH_NOTION_ID, AUTH_NOTION_SECRET);
 }

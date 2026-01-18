@@ -34,6 +34,7 @@ interface NotionDatabase {
 interface Props {
 	isOpen: boolean;
 	workspaceId: string;
+	workspaceName?: string;
 	isGuestMode?: boolean;
 	onClose: () => void;
 	onConnectNotion: (
@@ -48,6 +49,7 @@ interface Props {
 let {
 	isOpen,
 	workspaceId,
+	workspaceName: initialWorkspaceName = "My Tasks",
 	isGuestMode = false,
 	onClose,
 	onConnectNotion,
@@ -59,6 +61,9 @@ let showNotionDialog = $state(false);
 let showGuestUpgradePrompt = $state(false);
 let showDeleteWorkspaceDialog = $state(false);
 let isDeleting = $state(false);
+let isEditingWorkspaceName = $state(false);
+let workspaceName = $state("");
+let isSavingWorkspaceName = $state(false);
 
 // Use TanStack Query hooks - make them reactive to workspaceId changes
 let databasesQuery = $state<ReturnType<typeof useDatabases> | null>(null);
@@ -120,6 +125,10 @@ $effect(() => {
 
 		// Preload components that might be needed
 		lazyLoader.preloadForTrigger("settingsOpen");
+
+		// Reset workspace name when drawer opens
+		workspaceName = initialWorkspaceName;
+		isEditingWorkspaceName = false;
 	}
 });
 
@@ -260,6 +269,53 @@ async function handleConfirmDeleteWorkspace() {
 		isDeleting = false;
 	}
 }
+
+function handleEditWorkspaceName() {
+	isEditingWorkspaceName = true;
+}
+
+function handleCancelEditWorkspaceName() {
+	isEditingWorkspaceName = false;
+	workspaceName = initialWorkspaceName;
+}
+
+async function handleSaveWorkspaceName() {
+	if (isSavingWorkspaceName || !workspaceName.trim()) return;
+
+	isSavingWorkspaceName = true;
+
+	try {
+		const response = await fetch(`/api/workspaces/${workspaceId}`, {
+			method: "PUT",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				name: workspaceName.trim(),
+			}),
+		});
+
+		if (!response.ok) {
+			const errorData = await response.json();
+			throw new Error(errorData.error || "Failed to update workspace name");
+		}
+
+		// Success - exit edit mode
+		isEditingWorkspaceName = false;
+
+		// Reload the page to reflect the new workspace name
+		window.location.reload();
+	} catch (error) {
+		console.error("Failed to update workspace name:", error);
+		alert(
+			error instanceof Error
+				? error.message
+				: "Failed to update workspace name",
+		);
+	} finally {
+		isSavingWorkspaceName = false;
+	}
+}
 </script>
 
 <Drawer
@@ -380,7 +436,62 @@ async function handleConfirmDeleteWorkspace() {
 		<!-- Workspace Section -->
 		<section>
 			<h3 class="text-base font-medium text-foreground-base mb-3">Workspace</h3>
-			<div class="space-y-2">
+			<div class="space-y-3">
+				<!-- Workspace Name -->
+				<div class="p-3 bg-surface-muted rounded-lg">
+					<div class="text-xs text-foreground-secondary mb-2">Workspace Name</div>
+					{#if isEditingWorkspaceName}
+						<div class="space-y-2">
+							<input
+								type="text"
+								bind:value={workspaceName}
+								placeholder="Enter workspace name"
+								class="w-full px-3 py-2 text-sm bg-surface-base border border-subtle-base rounded-md text-foreground-base placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+								maxlength="100"
+								disabled={isSavingWorkspaceName}
+							/>
+							<div class="flex gap-2">
+								<Button
+									onclick={handleSaveWorkspaceName}
+									variant="primary"
+									size="sm"
+									disabled={isSavingWorkspaceName || !workspaceName.trim()}
+									class="flex-1 min-h-[36px]"
+								>
+									{#if isSavingWorkspaceName}
+										Saving...
+									{:else}
+										Save
+									{/if}
+								</Button>
+								<Button
+									onclick={handleCancelEditWorkspaceName}
+									variant="outline"
+									size="sm"
+									disabled={isSavingWorkspaceName}
+									class="flex-1 min-h-[36px]"
+								>
+									Cancel
+								</Button>
+							</div>
+						</div>
+					{:else}
+						<div class="flex items-center justify-between gap-2">
+							<span class="text-sm font-medium text-foreground-base break-all">
+								{initialWorkspaceName}
+							</span>
+							<button
+								onclick={handleEditWorkspaceName}
+								class="px-3 py-1.5 text-xs text-primary hover:text-primary-button-hover hover:bg-primary/10 rounded-md transition-colors flex-shrink-0"
+								aria-label="Edit workspace name"
+							>
+								Edit
+							</button>
+						</div>
+					{/if}
+				</div>
+				
+				<!-- Workspace ID -->
 				<div class="p-3 bg-surface-muted rounded-lg">
 					<div class="text-xs text-foreground-secondary mb-1">Workspace ID</div>
 					<code class="text-xs font-mono text-foreground-base break-all">

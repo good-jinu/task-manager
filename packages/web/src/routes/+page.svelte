@@ -239,6 +239,7 @@ function handleURLParametersAfterInit() {
 	<SettingsDrawer
 		isOpen={showSettingsDrawer}
 		workspaceId={currentWorkspace.id}
+		workspaceName={currentWorkspace.name}
 		isGuestMode={$isGuestMode && !isAuthenticated}
 		onClose={handleCloseSettingsDrawer}
 		onConnectNotion={handleConnectNotion}

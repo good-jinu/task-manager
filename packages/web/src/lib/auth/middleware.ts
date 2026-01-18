@@ -20,17 +20,28 @@ export interface AuthResult {
 export async function requireAuthOrGuest(
 	event: RequestEvent,
 ): Promise<AuthResult> {
+	console.log("[requireAuthOrGuest] Starting auth check");
+
 	// Try authenticated user first
 	try {
 		const session = await event.locals.auth();
+		console.log("[requireAuthOrGuest] Session check:", {
+			hasSession: !!session,
+			userId: session?.user?.id,
+		});
 		if (session?.user?.id) {
+			console.log(
+				"[requireAuthOrGuest] Authenticated user found:",
+				session.user.id,
+			);
 			return {
 				userId: session.user.id,
 				isGuest: false,
 				session,
 			};
 		}
-	} catch {
+	} catch (error) {
+		console.log("[requireAuthOrGuest] Session check failed:", error);
 		// Fall through to guest validation
 	}
 
@@ -38,7 +49,10 @@ export async function requireAuthOrGuest(
 	const guestId =
 		event.request.headers.get("x-guest-id") || event.cookies.get("guest-id");
 
+	console.log("[requireAuthOrGuest] Guest ID check:", { guestId });
+
 	if (!guestId) {
+		console.error("[requireAuthOrGuest] No guest ID found, returning 401");
 		throw json(
 			{ error: "Authentication required or guest ID missing" },
 			{ status: 401 },
@@ -46,7 +60,9 @@ export async function requireAuthOrGuest(
 	}
 
 	// Validate guest user exists
+	console.log("[requireAuthOrGuest] Validating guest user:", guestId);
 	await validateGuestUser(guestId);
+	console.log("[requireAuthOrGuest] Guest user validated successfully");
 
 	return {
 		userId: guestId,

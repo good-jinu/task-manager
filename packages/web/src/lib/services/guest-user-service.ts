@@ -77,27 +77,45 @@ export class GuestUserService {
 	 * Attempt to recover guest session using multiple strategies
 	 */
 	async recoverGuestSession(): Promise<GuestRecoveryResult> {
+		console.log("[GuestUserService] Starting recoverGuestSession");
+
 		// Strategy 1: Check if we have a guest cookie (server-side guest session)
 		if (browser) {
 			const guestCookie = document.cookie
 				.split("; ")
 				.find((row) => row.startsWith("guest-id="));
 
+			console.log("[GuestUserService] Guest cookie check:", {
+				found: !!guestCookie,
+			});
+
 			if (guestCookie) {
 				const guestId = guestCookie.split("=")[1];
-				console.log("Found guest cookie, fetching workspace from server...");
+				console.log(
+					"[GuestUserService] Found guest cookie, fetching workspace from server...",
+					guestId,
+				);
 
 				try {
 					// Fetch the guest's workspace from the server
 					const response = await fetch("/api/workspaces");
+					console.log("[GuestUserService] Workspaces fetch response:", {
+						ok: response.ok,
+						status: response.status,
+					});
+
 					if (response.ok) {
 						const data = await response.json();
 						const workspaces = data.workspaces || [];
+						console.log(
+							"[GuestUserService] Workspaces fetched:",
+							workspaces.length,
+						);
 
 						if (workspaces.length > 0) {
 							const workspace = workspaces[0];
 							console.log(
-								"Recovered guest workspace from server:",
+								"[GuestUserService] Recovered guest workspace from server:",
 								workspace.id,
 							);
 
@@ -107,6 +125,7 @@ export class GuestUserService {
 							);
 							const tasksData = await tasksResponse.json();
 							const tasks = tasksData.items || [];
+							console.log("[GuestUserService] Tasks fetched:", tasks.length);
 
 							// Update local storage with correct data
 							saveGuestDataLocally({
@@ -125,15 +144,21 @@ export class GuestUserService {
 						}
 					}
 				} catch (error) {
-					console.error("Failed to fetch guest workspace from server:", error);
+					console.error(
+						"[GuestUserService] Failed to fetch guest workspace from server:",
+						error,
+					);
 				}
 			}
 		}
 
 		// Strategy 2: Try to load from local storage (fallback)
+		console.log("[GuestUserService] Trying local storage fallback");
 		const localData = loadGuestDataLocally();
 		if (localData) {
-			console.log("Found local guest data, using as fallback");
+			console.log(
+				"[GuestUserService] Found local guest data, using as fallback",
+			);
 			return {
 				success: true,
 				workspace: {
@@ -150,9 +175,15 @@ export class GuestUserService {
 		}
 
 		// Strategy 3: Create new guest session
-		console.log("No existing session found, creating new guest session...");
+		console.log(
+			"[GuestUserService] No existing session found, creating new guest session...",
+		);
 		try {
 			const registration = await this.registerGuestUser();
+			console.log(
+				"[GuestUserService] New guest registered:",
+				registration.guestId,
+			);
 			return {
 				success: true,
 				workspace: registration.workspace,
@@ -161,7 +192,10 @@ export class GuestUserService {
 				message: "New guest session created",
 			};
 		} catch (error) {
-			console.error("Failed to create new guest session:", error);
+			console.error(
+				"[GuestUserService] Failed to create new guest session:",
+				error,
+			);
 			return {
 				success: false,
 				workspace: null,
@@ -208,58 +242,6 @@ export class GuestUserService {
 			console.error("Failed to get guest task count:", error);
 		}
 		return 0;
-	}
-
-	/**
-	 * Migrate guest data to authenticated account
-	 */
-	async migrateGuestData(guestTasks: Task[]): Promise<boolean> {
-		if (!browser) {
-			console.warn("Migration can only be performed in browser environment");
-			return false;
-		}
-
-		try {
-			// Get guest ID from localStorage or cookie
-			const guestId =
-				localStorage.getItem("taskflow_guest_id") ||
-				document.cookie
-					.split("; ")
-					.find((row) => row.startsWith("guest-id="))
-					?.split("=")[1];
-
-			if (!guestId) {
-				console.warn("No guest ID found for migration");
-				return false;
-			}
-
-			const response = await fetch("/api/guest/migrate", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					"x-guest-id": guestId,
-				},
-				body: JSON.stringify({
-					tasks: guestTasks,
-				}),
-			});
-
-			if (response.ok) {
-				// Clear guest data after successful migration
-				localStorage.removeItem("guest-backup");
-				localStorage.removeItem("taskflow_guest_id");
-				localStorage.removeItem("taskflow_guest_workspace");
-				isGuestMode.set(false);
-				guestUser.set(null);
-				return true;
-			} else {
-				const errorData = await response.json();
-				console.error("Migration failed:", errorData.error);
-			}
-		} catch (error) {
-			console.error("Failed to migrate guest data:", error);
-		}
-		return false;
 	}
 }
 

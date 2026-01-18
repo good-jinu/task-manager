@@ -36,6 +36,12 @@ export class TaskIntegrationService {
 		taskId: string,
 		input: CreateTaskIntegrationInput,
 	): Promise<TaskIntegration> {
+		console.log("[TaskIntegrationService.create] Creating integration:", {
+			taskId,
+			provider: input.provider,
+			externalId: input.externalId,
+		});
+
 		if (!taskId?.trim()) {
 			throw new ValidationError("Task ID is required");
 		}
@@ -63,6 +69,14 @@ export class TaskIntegrationService {
 			}),
 		);
 
+		console.log(
+			"[TaskIntegrationService.create] Integration created successfully:",
+			{
+				taskId: integration.taskId,
+				provider: integration.provider,
+			},
+		);
+
 		return integration;
 	}
 
@@ -70,6 +84,10 @@ export class TaskIntegrationService {
 	 * Get task integration by task ID
 	 */
 	async getByTaskId(taskId: string): Promise<TaskIntegration | null> {
+		console.log("[TaskIntegrationService.getByTaskId] Fetching integration:", {
+			taskId,
+		});
+
 		if (!taskId?.trim()) {
 			throw new ValidationError("Task ID is required");
 		}
@@ -81,13 +99,26 @@ export class TaskIntegrationService {
 			}),
 		);
 
-		return (result.Item as TaskIntegration) || null;
+		const integration = (result.Item as TaskIntegration) || null;
+		console.log("[TaskIntegrationService.getByTaskId] Integration fetched:", {
+			taskId,
+			found: !!integration,
+			provider: integration?.provider,
+			externalId: integration?.externalId,
+		});
+
+		return integration;
 	}
 
 	/**
 	 * Get task integration by external ID
 	 */
 	async getByExternalId(externalId: string): Promise<TaskIntegration | null> {
+		console.log(
+			"[TaskIntegrationService.getByExternalId] Fetching integration:",
+			{ externalId },
+		);
+
 		if (!externalId?.trim()) {
 			throw new ValidationError("External ID is required");
 		}
@@ -104,7 +135,18 @@ export class TaskIntegrationService {
 			}),
 		);
 
-		return (result.Items?.[0] as TaskIntegration) || null;
+		const integration = (result.Items?.[0] as TaskIntegration) || null;
+		console.log(
+			"[TaskIntegrationService.getByExternalId] Integration fetched:",
+			{
+				externalId,
+				found: !!integration,
+				taskId: integration?.taskId,
+				provider: integration?.provider,
+			},
+		);
+
+		return integration;
 	}
 
 	/**

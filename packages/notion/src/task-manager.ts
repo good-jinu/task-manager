@@ -12,6 +12,25 @@ import type {
 	PageObjectResponse,
 	RichTextItemResponse,
 } from "@notionhq/client/build/src/api-endpoints";
+
+// RichTextItemRequest is not exported, so we define it based on the Notion API structure
+type RichTextItemRequest = {
+	type?: "text";
+	text: {
+		content: string;
+		link?: {
+			url: string;
+		};
+	};
+	annotations?: {
+		bold?: boolean;
+		italic?: boolean;
+		strikethrough?: boolean;
+		underline?: boolean;
+		code?: boolean;
+	};
+};
+
 import type { NotionAuthClient } from "./auth-client";
 import type { NotionDatabase, NotionPage, PageProperties } from "./types";
 
@@ -46,8 +65,13 @@ export class NotionTaskManager {
 	 * Get all databases accessible to the user
 	 */
 	async getDatabases(): Promise<NotionDatabase[]> {
+		console.log("[NotionTaskManager.getDatabases] Starting database fetch");
 		try {
 			const client = await this.getClient();
+			console.log(
+				"[NotionTaskManager.getDatabases] Client obtained, searching databases",
+			);
+
 			const response = await client.search({
 				filter: {
 					value: "database",
@@ -55,13 +79,34 @@ export class NotionTaskManager {
 				},
 			});
 
-			return response.results
+			console.log(
+				"[NotionTaskManager.getDatabases] Search response received:",
+				{
+					totalResults: response.results.length,
+				},
+			);
+
+			const databases = response.results
 				.filter((result) => result.object === "database")
 				.filter((database) => this.hasRequiredDatabaseProperties(database))
 				.map((database: DatabaseObjectResponse) =>
 					this.mapNotionDatabaseToInterface(database),
 				);
+
+			console.log(
+				"[NotionTaskManager.getDatabases] Databases filtered and mapped:",
+				{
+					count: databases.length,
+					titles: databases.map((db) => db.title),
+				},
+			);
+
+			return databases;
 		} catch (error) {
+			console.error(
+				"[NotionTaskManager.getDatabases] Failed to get databases:",
+				error,
+			);
 			if (isNotionClientError(error)) {
 				throw new Error(`Failed to get databases: ${error.message}`);
 			}
@@ -73,16 +118,44 @@ export class NotionTaskManager {
 	 * Get all pages from a specific database
 	 */
 	async getDatabasePages(databaseId: string): Promise<NotionPage[]> {
+		console.log("[NotionTaskManager.getDatabasePages] Fetching pages:", {
+			databaseId,
+		});
 		try {
 			const client = await this.getClient();
+			console.log(
+				"[NotionTaskManager.getDatabasePages] Client obtained, querying database",
+			);
+
 			const response = await client.databases.query({
 				database_id: databaseId,
 			});
 
-			return response.results
+			console.log(
+				"[NotionTaskManager.getDatabasePages] Query response received:",
+				{
+					totalResults: response.results.length,
+				},
+			);
+
+			const pages = response.results
 				.filter(isFullPage)
 				.map((page: PageObjectResponse) => this.mapNotionPageToInterface(page));
+
+			console.log("[NotionTaskManager.getDatabasePages] Pages mapped:", {
+				count: pages.length,
+				titles: pages.map((p) => p.title),
+			});
+
+			return pages;
 		} catch (error) {
+			console.error(
+				"[NotionTaskManager.getDatabasePages] Failed to get pages:",
+				{
+					databaseId,
+					error,
+				},
+			);
 			if (isNotionClientError(error)) {
 				throw new Error(`Failed to get database pages: ${error.message}`);
 			}
@@ -169,8 +242,14 @@ export class NotionTaskManager {
 		databaseId: string,
 		properties: PageProperties,
 	): Promise<NotionPage> {
+		console.log("[NotionTaskManager.createPage] Creating page:", {
+			databaseId,
+			title: properties.title,
+			hasContent: !!properties.content,
+		});
 		try {
 			const client = await this.getClient();
+			console.log("[NotionTaskManager.createPage] Client obtained");
 
 			// Build the properties object for the Notion API
 			// The title property is handled specially as a rich text array
@@ -210,6 +289,11 @@ export class NotionTaskManager {
 						}))
 				: [];
 
+			console.log("[NotionTaskManager.createPage] Built page structure:", {
+				hasChildren: children.length > 0,
+				childrenCount: children.length,
+			});
+
 			const response = await client.pages.create({
 				parent: {
 					database_id: databaseId,
@@ -221,11 +305,25 @@ export class NotionTaskManager {
 			});
 
 			if (!isFullPage(response)) {
+				console.error(
+					"[NotionTaskManager.createPage] Incomplete response received",
+				);
 				throw new Error("Failed to create page: incomplete response");
 			}
 
-			return this.mapNotionPageToInterface(response);
+			const page = this.mapNotionPageToInterface(response);
+			console.log("[NotionTaskManager.createPage] Page created successfully:", {
+				pageId: page.id,
+				title: page.title,
+			});
+
+			return page;
 		} catch (error) {
+			console.error("[NotionTaskManager.createPage] Failed to create page:", {
+				databaseId,
+				title: properties.title,
+				error,
+			});
 			if (isNotionClientError(error)) {
 				throw new Error(`Failed to create page: ${error.message}`);
 			}
@@ -349,8 +447,14 @@ export class NotionTaskManager {
 	private convertMarkdownToBlocks(markdown: string): BlockObjectRequest[] {
 		const lines = markdown.split("\n");
 		const blocks: BlockObjectRequest[] = [];
+		const processedLines = new Set<number>(); // Track which lines have been processed
 
 		for (let i = 0; i < lines.length; i++) {
+			// Skip if this line was already processed as a nested item
+			if (processedLines.has(i)) {
+				continue;
+			}
+
 			const line = lines[i];
 
 			// Skip empty lines
@@ -358,118 +462,116 @@ export class NotionTaskManager {
 				continue;
 			}
 
+			// Detect indentation level (for nested lists)
+			const indentMatch = line.match(/^(\s*)/);
+			const indentLevel = indentMatch
+				? Math.floor(indentMatch[1].length / 2)
+				: 0;
+			const trimmedLine = line.trim();
+
+			// Skip indented lines at the top level (they should be children of previous items)
+			if (indentLevel > 0) {
+				continue;
+			}
+
 			// Handle headings
-			if (line.startsWith("### ")) {
+			if (trimmedLine.startsWith("### ")) {
 				blocks.push({
 					object: "block",
 					type: "heading_3",
 					heading_3: {
-						rich_text: [
-							{
-								type: "text",
-								text: {
-									content: line.substring(4),
-								},
-							},
-						],
+						rich_text: this.parseInlineFormatting(trimmedLine.substring(4)),
 					},
 				});
-			} else if (line.startsWith("## ")) {
+			} else if (trimmedLine.startsWith("## ")) {
 				blocks.push({
 					object: "block",
 					type: "heading_2",
 					heading_2: {
-						rich_text: [
-							{
-								type: "text",
-								text: {
-									content: line.substring(3),
-								},
-							},
-						],
+						rich_text: this.parseInlineFormatting(trimmedLine.substring(3)),
 					},
 				});
-			} else if (line.startsWith("# ")) {
+			} else if (trimmedLine.startsWith("# ")) {
 				blocks.push({
 					object: "block",
 					type: "heading_1",
 					heading_1: {
-						rich_text: [
-							{
-								type: "text",
-								text: {
-									content: line.substring(2),
-								},
-							},
-						],
+						rich_text: this.parseInlineFormatting(trimmedLine.substring(2)),
 					},
 				});
 			}
-			// Handle bulleted lists
-			else if (line.startsWith("- ") || line.startsWith("* ")) {
-				blocks.push({
-					object: "block",
-					type: "bulleted_list_item",
-					bulleted_list_item: {
-						rich_text: [
-							{
-								type: "text",
-								text: {
-									content: line.substring(2),
-								},
-							},
-						],
-					},
-				});
-			}
-			// Handle numbered lists
-			else if (/^\d+\.\s/.test(line)) {
-				const match = line.match(/^\d+\.\s(.*)$/);
-				if (match) {
-					blocks.push({
-						object: "block",
-						type: "numbered_list_item",
-						numbered_list_item: {
-							rich_text: [
-								{
-									type: "text",
-									text: {
-										content: match[1],
-									},
-								},
-							],
-						},
-					});
-				}
-			}
-			// Handle todo items
-			else if (line.startsWith("- [ ] ") || line.startsWith("- [x] ")) {
-				const checked = line.startsWith("- [x] ");
-				const content = line.substring(6);
-				blocks.push({
+			// Handle todo items (must come before bulleted lists)
+			else if (
+				trimmedLine.startsWith("- [ ] ") ||
+				trimmedLine.startsWith("- [x] ")
+			) {
+				const checked = trimmedLine.startsWith("- [x] ");
+				const content = trimmedLine.substring(6);
+				const block: any = {
 					object: "block",
 					type: "to_do",
 					to_do: {
-						rich_text: [
-							{
-								type: "text",
-								text: {
-									content: content,
-								},
-							},
-						],
+						rich_text: this.parseInlineFormatting(content),
 						checked: checked,
 					},
-				});
+				};
+
+				// Handle nested items
+				const children = this.collectNestedItems(lines, i, indentLevel);
+				if (children.length > 0) {
+					block.to_do.children = children;
+				}
+
+				blocks.push(block as BlockObjectRequest);
+			}
+			// Handle bulleted lists
+			else if (trimmedLine.startsWith("- ") || trimmedLine.startsWith("* ")) {
+				const content = trimmedLine.substring(2);
+				const block: any = {
+					object: "block",
+					type: "bulleted_list_item",
+					bulleted_list_item: {
+						rich_text: this.parseInlineFormatting(content),
+					},
+				};
+
+				// Handle nested items
+				const children = this.collectNestedItems(lines, i, indentLevel);
+				if (children.length > 0) {
+					block.bulleted_list_item.children = children;
+				}
+
+				blocks.push(block as BlockObjectRequest);
+			}
+			// Handle numbered lists
+			else if (/^\d+\.\s/.test(trimmedLine)) {
+				const match = trimmedLine.match(/^\d+\.\s(.*)$/);
+				if (match) {
+					const block: any = {
+						object: "block",
+						type: "numbered_list_item",
+						numbered_list_item: {
+							rich_text: this.parseInlineFormatting(match[1]),
+						},
+					};
+
+					// Handle nested items
+					const children = this.collectNestedItems(lines, i, indentLevel);
+					if (children.length > 0) {
+						block.numbered_list_item.children = children;
+					}
+
+					blocks.push(block as BlockObjectRequest);
+				}
 			}
 			// Handle code blocks
-			else if (line.startsWith("```")) {
-				const language = line.substring(3).trim() || "plain text";
+			else if (trimmedLine.startsWith("```")) {
+				const language = trimmedLine.substring(3).trim() || "plain text";
 				const codeLines: string[] = [];
 				i++; // Move to next line
 
 				// Collect code lines until closing ```
-				while (i < lines.length && !lines[i].startsWith("```")) {
+				while (i < lines.length && !lines[i].trim().startsWith("```")) {
 					codeLines.push(lines[i]);
 					i++;
 				}
@@ -491,19 +593,12 @@ export class NotionTaskManager {
 				});
 			}
 			// Handle quotes
-			else if (line.startsWith("> ")) {
+			else if (trimmedLine.startsWith("> ")) {
 				blocks.push({
 					object: "block",
 					type: "quote",
 					quote: {
-						rich_text: [
-							{
-								type: "text",
-								text: {
-									content: line.substring(2),
-								},
-							},
-						],
+						rich_text: this.parseInlineFormatting(trimmedLine.substring(2)),
 					},
 				});
 			}
@@ -513,20 +608,233 @@ export class NotionTaskManager {
 					object: "block",
 					type: "paragraph",
 					paragraph: {
-						rich_text: [
-							{
-								type: "text",
-								text: {
-									content: line,
-								},
-							},
-						],
+						rich_text: this.parseInlineFormatting(trimmedLine),
 					},
 				});
 			}
 		}
 
 		return blocks;
+	}
+
+	/**
+	 * Collect nested list items (children) for a parent item
+	 */
+	private collectNestedItems(
+		lines: string[],
+		currentIndex: number,
+		parentIndentLevel: number,
+	): BlockObjectRequest[] {
+		const children: BlockObjectRequest[] = [];
+		let i = currentIndex + 1;
+
+		while (i < lines.length) {
+			const line = lines[i];
+			if (line.trim() === "") {
+				i++;
+				continue;
+			}
+
+			const indentMatch = line.match(/^(\s*)/);
+			const indentLevel = indentMatch
+				? Math.floor(indentMatch[1].length / 2)
+				: 0;
+
+			// If indent level is not greater than parent, we're done with children
+			if (indentLevel <= parentIndentLevel) {
+				break;
+			}
+
+			// Only process direct children (one level deeper)
+			if (indentLevel === parentIndentLevel + 1) {
+				const trimmedLine = line.trim();
+
+				// Handle nested bulleted list
+				if (trimmedLine.startsWith("- ") || trimmedLine.startsWith("* ")) {
+					const content = trimmedLine.substring(2);
+					const block: any = {
+						object: "block",
+						type: "bulleted_list_item",
+						bulleted_list_item: {
+							rich_text: this.parseInlineFormatting(content),
+						},
+					};
+
+					// Recursively collect nested children
+					const nestedChildren = this.collectNestedItems(lines, i, indentLevel);
+					if (nestedChildren.length > 0) {
+						block.bulleted_list_item.children = nestedChildren;
+					}
+
+					children.push(block as BlockObjectRequest);
+				}
+				// Handle nested numbered list
+				else if (/^\d+\.\s/.test(trimmedLine)) {
+					const match = trimmedLine.match(/^\d+\.\s(.*)$/);
+					if (match) {
+						const block: any = {
+							object: "block",
+							type: "numbered_list_item",
+							numbered_list_item: {
+								rich_text: this.parseInlineFormatting(match[1]),
+							},
+						};
+
+						// Recursively collect nested children
+						const nestedChildren = this.collectNestedItems(
+							lines,
+							i,
+							indentLevel,
+						);
+						if (nestedChildren.length > 0) {
+							block.numbered_list_item.children = nestedChildren;
+						}
+
+						children.push(block as BlockObjectRequest);
+					}
+				}
+			}
+
+			i++;
+		}
+
+		return children;
+	}
+
+	/**
+	 * Parse inline markdown formatting (bold, italic, code, links)
+	 * Returns array of rich text objects with proper annotations
+	 */
+	private parseInlineFormatting(text: string): RichTextItemRequest[] {
+		const richText: RichTextItemRequest[] = [];
+
+		// If no special formatting, return simple text
+		if (
+			!text.includes("**") &&
+			!text.includes("*") &&
+			!text.includes("`") &&
+			!text.includes("[")
+		) {
+			return [{ type: "text", text: { content: text } }];
+		}
+
+		const patterns: Array<{
+			regex: RegExp;
+			annotation: Record<string, boolean> | null;
+		}> = [
+			// Bold: **text**
+			{
+				regex: /\*\*([^*]+)\*\*/g,
+				annotation: { bold: true } as Record<string, boolean>,
+			},
+			// Italic: *text* or _text_
+			{
+				regex: /(?<!\*)\*([^*]+)\*(?!\*)/g,
+				annotation: { italic: true } as Record<string, boolean>,
+			},
+			{
+				regex: /_([^_]+)_/g,
+				annotation: { italic: true } as Record<string, boolean>,
+			},
+			// Code: `text`
+			{
+				regex: /`([^`]+)`/g,
+				annotation: { code: true } as Record<string, boolean>,
+			},
+			// Strikethrough: ~~text~~
+			{
+				regex: /~~([^~]+)~~/g,
+				annotation: { strikethrough: true } as Record<string, boolean>,
+			},
+			// Links: [text](url)
+			{ regex: /\[([^\]]+)\]\(([^)]+)\)/g, annotation: null },
+		];
+
+		// Find all matches with their positions
+		const matches: Array<{
+			start: number;
+			end: number;
+			content: string;
+			annotation: Record<string, boolean> | null;
+			url?: string;
+		}> = [];
+
+		for (const pattern of patterns) {
+			const regex = new RegExp(pattern.regex.source, "g");
+			let match = regex.exec(text);
+
+			while (match !== null) {
+				if (pattern.annotation === null) {
+					// Link pattern
+					matches.push({
+						start: match.index,
+						end: match.index + match[0].length,
+						content: match[1],
+						annotation: null,
+						url: match[2],
+					});
+				} else {
+					matches.push({
+						start: match.index,
+						end: match.index + match[0].length,
+						content: match[1],
+						annotation: pattern.annotation,
+					});
+				}
+				match = regex.exec(text);
+			}
+		}
+
+		// Sort matches by position
+		matches.sort((a, b) => a.start - b.start);
+
+		// Build rich text array
+		let lastEnd = 0;
+
+		for (const match of matches) {
+			// Add plain text before this match
+			if (match.start > lastEnd) {
+				const plainText = text.substring(lastEnd, match.start);
+				if (plainText) {
+					richText.push({
+						type: "text",
+						text: { content: plainText },
+					});
+				}
+			}
+
+			// Add formatted text
+			const textObj: RichTextItemRequest = {
+				type: "text",
+				text: { content: match.content },
+			};
+
+			if (match.url) {
+				textObj.text.link = { url: match.url };
+			}
+
+			if (match.annotation) {
+				textObj.annotations = match.annotation;
+			}
+
+			richText.push(textObj);
+			lastEnd = match.end;
+		}
+
+		// Add remaining plain text
+		if (lastEnd < text.length) {
+			const plainText = text.substring(lastEnd);
+			if (plainText) {
+				richText.push({
+					type: "text",
+					text: { content: plainText },
+				});
+			}
+		}
+
+		return richText.length > 0
+			? richText
+			: [{ type: "text", text: { content: text } }];
 	}
 
 	/**
@@ -606,10 +914,21 @@ export class NotionTaskManager {
 	 * @returns The text content of the page as a string
 	 */
 	async getPageContent(pageId: string): Promise<string> {
+		console.log("[NotionTaskManager.getPageContent] Fetching content:", {
+			pageId,
+		});
 		try {
 			const client = await this.getClient();
+			console.log(
+				"[NotionTaskManager.getPageContent] Client obtained, listing blocks",
+			);
+
 			const response = await client.blocks.children.list({
 				block_id: pageId,
+			});
+
+			console.log("[NotionTaskManager.getPageContent] Blocks retrieved:", {
+				blockCount: response.results.length,
 			});
 
 			const contentParts: string[] = [];
@@ -623,8 +942,22 @@ export class NotionTaskManager {
 				}
 			}
 
-			return contentParts.join("\n");
+			const content = contentParts.join("\n");
+			console.log("[NotionTaskManager.getPageContent] Content extracted:", {
+				pageId,
+				contentLength: content.length,
+				blocksParsed: contentParts.length,
+			});
+
+			return content;
 		} catch (error) {
+			console.error(
+				"[NotionTaskManager.getPageContent] Failed to get content:",
+				{
+					pageId,
+					error,
+				},
+			);
 			if (isNotionClientError(error)) {
 				throw new Error(`Failed to get page content: ${error.message}`);
 			}

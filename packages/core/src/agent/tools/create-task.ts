@@ -20,9 +20,11 @@ export type CreateTaskInput = z.infer<typeof createTaskInputSchema>;
 export async function executeCreateTask(
 	args: TaskToolCommonArgs & { input: CreateTaskInput },
 ) {
+	console.log("[executeCreateTask] Starting task creation:", args.input);
 	const { workspaceId, taskService, input } = args;
 
 	try {
+		console.log("[executeCreateTask] Creating task in workspace:", workspaceId);
 		const task = await taskService.createTask({
 			workspaceId,
 			title: input.title,
@@ -30,6 +32,11 @@ export async function executeCreateTask(
 			priority: input.priority,
 			dueDate: input.dueDate,
 			status: input.status || "todo",
+		});
+
+		console.log("[executeCreateTask] Task created successfully:", {
+			taskId: task.id,
+			title: task.title,
 		});
 
 		return {
@@ -42,6 +49,7 @@ export async function executeCreateTask(
 			message: `Created task: "${task.title}"`,
 		};
 	} catch (error) {
+		console.error("[executeCreateTask] Task creation failed:", error);
 		const errorMessage =
 			error instanceof Error ? error.message : "Unknown error";
 		throw new Error(`Failed to create task: ${errorMessage}`);

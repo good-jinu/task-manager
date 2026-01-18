@@ -130,6 +130,11 @@ export class GuestUserService {
 		guestId: string,
 		permanentUserId: string,
 	): Promise<{ success: boolean; workspaceId?: string; message: string }> {
+		console.log("[GuestUserService.transferGuestWorkspace] Starting transfer", {
+			guestId,
+			permanentUserId,
+		});
+
 		// Validate inputs
 		if (
 			!guestId ||
@@ -142,15 +147,34 @@ export class GuestUserService {
 
 		try {
 			// Get guest user to verify it exists and hasn't been migrated
+			console.log(
+				"[GuestUserService.transferGuestWorkspace] Fetching guest user",
+			);
 			const guestUser = await this.getGuestUser(guestId);
+
 			if (!guestUser) {
+				console.log(
+					"[GuestUserService.transferGuestWorkspace] Guest user not found",
+				);
 				return {
 					success: false,
 					message: "Guest user not found or expired",
 				};
 			}
 
+			console.log(
+				"[GuestUserService.transferGuestWorkspace] Guest user found",
+				{
+					migrated: guestUser.migrated,
+					createdAt: guestUser.createdAt,
+					expiresAt: guestUser.expiresAt,
+				},
+			);
+
 			if (guestUser.migrated) {
+				console.log(
+					"[GuestUserService.transferGuestWorkspace] Guest already migrated",
+				);
 				return {
 					success: false,
 					message: "Guest user has already been migrated",
@@ -158,10 +182,24 @@ export class GuestUserService {
 			}
 
 			// Get all workspaces for the guest user
+			console.log(
+				"[GuestUserService.transferGuestWorkspace] Fetching guest workspaces",
+			);
 			const guestWorkspaces =
 				await this.workspaceService.listWorkspaces(guestId);
 
+			console.log(
+				"[GuestUserService.transferGuestWorkspace] Guest workspaces found",
+				{
+					count: guestWorkspaces.length,
+					workspaceIds: guestWorkspaces.map((w) => w.id),
+				},
+			);
+
 			if (guestWorkspaces.length === 0) {
+				console.log(
+					"[GuestUserService.transferGuestWorkspace] No workspaces to transfer",
+				);
 				return {
 					success: false,
 					message: "No guest workspace found to transfer",
@@ -170,6 +208,14 @@ export class GuestUserService {
 
 			// Transfer ownership of the first (primary) workspace
 			const primaryWorkspace = guestWorkspaces[0];
+			console.log(
+				"[GuestUserService.transferGuestWorkspace] Transferring primary workspace",
+				{
+					workspaceId: primaryWorkspace.id,
+					workspaceName: primaryWorkspace.name,
+				},
+			);
+
 			const transferredWorkspace =
 				await this.workspaceService.transferWorkspaceOwnership(
 					primaryWorkspace.id,
@@ -177,16 +223,33 @@ export class GuestUserService {
 					permanentUserId,
 				);
 
+			console.log(
+				"[GuestUserService.transferGuestWorkspace] Workspace ownership transferred",
+				{
+					workspaceId: transferredWorkspace.id,
+					newUserId: transferredWorkspace.userId,
+				},
+			);
+
 			// Mark the guest user as migrated
+			console.log(
+				"[GuestUserService.transferGuestWorkspace] Marking guest as migrated",
+			);
 			await this.markGuestAsMigrated(guestId);
 
+			console.log(
+				"[GuestUserService.transferGuestWorkspace] Transfer completed successfully",
+			);
 			return {
 				success: true,
 				workspaceId: transferredWorkspace.id,
 				message: "Guest workspace successfully transferred to permanent user",
 			};
 		} catch (error) {
-			console.error("Failed to transfer guest workspace:", error);
+			console.error(
+				"[GuestUserService.transferGuestWorkspace] Transfer failed:",
+				error,
+			);
 			return {
 				success: false,
 				message:

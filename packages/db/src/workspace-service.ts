@@ -226,6 +226,15 @@ export class WorkspaceService {
 		fromUserId: string,
 		toUserId: string,
 	): Promise<Workspace> {
+		console.log(
+			"[WorkspaceService.transferWorkspaceOwnership] Starting transfer",
+			{
+				workspaceId,
+				fromUserId,
+				toUserId,
+			},
+		);
+
 		// Validate inputs
 		validateWorkspaceId(workspaceId);
 		validateUserId(fromUserId);
@@ -233,18 +242,43 @@ export class WorkspaceService {
 
 		try {
 			// First, verify the workspace exists and belongs to the fromUserId
+			console.log(
+				"[WorkspaceService.transferWorkspaceOwnership] Fetching workspace",
+			);
 			const workspace = await this.getWorkspace(workspaceId);
+
 			if (!workspace) {
+				console.log(
+					"[WorkspaceService.transferWorkspaceOwnership] Workspace not found",
+				);
 				throw new Error(`Workspace with ID ${workspaceId} not found`);
 			}
 
+			console.log(
+				"[WorkspaceService.transferWorkspaceOwnership] Workspace found",
+				{
+					currentUserId: workspace.userId,
+					name: workspace.name,
+				},
+			);
+
 			if (workspace.userId !== fromUserId) {
+				console.log(
+					"[WorkspaceService.transferWorkspaceOwnership] Ownership mismatch",
+					{
+						expectedUserId: fromUserId,
+						actualUserId: workspace.userId,
+					},
+				);
 				throw new Error(
 					`Workspace ${workspaceId} does not belong to user ${fromUserId}`,
 				);
 			}
 
 			// Update the workspace ownership
+			console.log(
+				"[WorkspaceService.transferWorkspaceOwnership] Updating workspace ownership in DynamoDB",
+			);
 			const result = await this.client.send(
 				new UpdateCommand({
 					TableName: this.tableName,
@@ -260,8 +294,22 @@ export class WorkspaceService {
 				}),
 			);
 
-			return result.Attributes as Workspace;
+			const transferredWorkspace = result.Attributes as Workspace;
+			console.log(
+				"[WorkspaceService.transferWorkspaceOwnership] Transfer completed successfully",
+				{
+					workspaceId: transferredWorkspace.id,
+					newUserId: transferredWorkspace.userId,
+					updatedAt: transferredWorkspace.updatedAt,
+				},
+			);
+
+			return transferredWorkspace;
 		} catch (error) {
+			console.error(
+				"[WorkspaceService.transferWorkspaceOwnership] Transfer failed:",
+				error,
+			);
 			if (error instanceof Error) {
 				if (error.name === "ConditionalCheckFailedException") {
 					throw new Error(

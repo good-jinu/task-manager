@@ -1,0 +1,14 @@
+{
+	"name": "@task-manager/workers",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"dependencies": {
+		"@task-manager/core": "workspace:*",
+		"@task-manager/db": "workspace:*",
+		"@task-manager/queue": "workspace:*",
+		"@types/aws-lambda": "^8.10.145"
+	}
+}

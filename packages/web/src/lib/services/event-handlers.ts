@@ -157,25 +157,38 @@ export function handleGuestSignUp(): void {
  * Handle Notion login with guest data migration
  */
 export async function handleNotionLogin(migrateData: boolean): Promise<void> {
+	console.log("[handleNotionLogin] Starting Notion login flow", {
+		migrateData,
+		browser,
+	});
+
 	if (!browser) {
 		throw new Error("Login can only be initiated from the browser");
 	}
 
 	try {
 		const currentState = get(appState);
-		const hasGuestData =
-			currentState.tasks.length > 0 || localStorage.getItem("guest-id");
+		const guestId = localStorage.getItem("guest-id");
+		const hasGuestData = currentState.tasks.length > 0 || guestId;
+
+		console.log("[handleNotionLogin] Guest data check", {
+			taskCount: currentState.tasks.length,
+			guestId,
+			hasGuestData,
+			willMigrate: Boolean(migrateData) && Boolean(hasGuestData),
+		});
 
 		// Store migration preference for after authentication
 		setupMigration(Boolean(migrateData) && Boolean(hasGuestData));
 
+		console.log("[handleNotionLogin] Initiating Notion OAuth flow");
 		// Initiate Notion OAuth flow
 		await signIn("notion", {
 			callbackUrl: window.location.origin,
 			redirect: true,
 		});
 	} catch (error) {
-		console.error("Notion login failed:", error);
+		console.error("[handleNotionLogin] Notion login failed:", error);
 		throw error;
 	}
 }

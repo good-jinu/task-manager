@@ -41,15 +41,26 @@ async function loadWorkspaceData(workspaceId: string): Promise<void> {
  * Initialize authenticated user
  */
 async function initializeAuthenticatedUser(session: Session): Promise<void> {
+	console.log("[initializeAuthenticatedUser] Starting initialization", {
+		userId: session.user?.id,
+		isNewUser: session.user?.isNewUser,
+	});
+
 	try {
 		// Load workspaces
 		const workspaces = await loadWorkspaces();
+		console.log("[initializeAuthenticatedUser] Workspaces loaded", {
+			count: workspaces.length,
+		});
 		appState.setWorkspaces(workspaces);
 
 		let currentWorkspace = workspaces.length > 0 ? workspaces[0] : null;
 
 		// Create default workspace if none exist
 		if (!currentWorkspace) {
+			console.log(
+				"[initializeAuthenticatedUser] No workspaces found, creating default",
+			);
 			currentWorkspace = await createDefaultWorkspace();
 			appState.setWorkspaces([currentWorkspace]);
 		}
@@ -59,29 +70,60 @@ async function initializeAuthenticatedUser(session: Session): Promise<void> {
 
 		// Load tasks and integrations for the current workspace
 		if (currentWorkspace) {
+			console.log("[initializeAuthenticatedUser] Loading workspace data", {
+				workspaceId: currentWorkspace.id,
+			});
 			await loadWorkspaceData(currentWorkspace.id);
 		}
 
 		// Handle pending guest data migration
-		if (browser && localStorage.getItem("pending_migration") === "true") {
+		const pendingMigration =
+			browser && localStorage.getItem("pending_migration") === "true";
+		console.log(
+			"[initializeAuthenticatedUser] Checking for pending migration",
+			{
+				pendingMigration,
+				isNewUser: session.user?.isNewUser,
+			},
+		);
+
+		if (pendingMigration) {
 			const migrationSuccess = await handlePendingMigration(
 				session.user?.isNewUser || false,
 			);
 
+			console.log("[initializeAuthenticatedUser] Migration result", {
+				success: migrationSuccess,
+			});
+
 			if (migrationSuccess) {
+				console.log(
+					"[initializeAuthenticatedUser] Reloading workspaces after migration",
+				);
 				// Reload workspaces after migration
 				const updatedWorkspaces = await loadWorkspaces();
+				console.log("[initializeAuthenticatedUser] Updated workspaces loaded", {
+					count: updatedWorkspaces.length,
+				});
 				appState.setWorkspaces(updatedWorkspaces);
 
 				if (updatedWorkspaces.length > 0) {
 					const newCurrentWorkspace = updatedWorkspaces[0];
+					console.log(
+						"[initializeAuthenticatedUser] Setting migrated workspace as current",
+						{
+							workspaceId: newCurrentWorkspace.id,
+						},
+					);
 					appState.setCurrentWorkspace(newCurrentWorkspace);
 					await loadWorkspaceData(newCurrentWorkspace.id);
 				}
 			}
 		}
+
+		console.log("[initializeAuthenticatedUser] Initialization complete");
 	} catch (error) {
-		console.error("Failed to initialize authenticated user:", error);
+		console.error("[initializeAuthenticatedUser] Failed to initialize:", error);
 		appState.setError("Failed to initialize workspace");
 	}
 }
@@ -90,10 +132,17 @@ async function initializeAuthenticatedUser(session: Session): Promise<void> {
  * Initialize guest user
  */
 async function initializeGuestUser(): Promise<void> {
+	console.log("[initializeGuestUser] Starting guest initialization");
 	appState.setLoading(true);
 
 	try {
 		const result = await guestUserService.recoverGuestSession();
+		console.log("[initializeGuestUser] Recovery result:", {
+			success: result.success,
+			hasWorkspace: !!result.workspace,
+			taskCount: result.tasks.length,
+			message: result.message,
+		});
 
 		if (result.success && result.workspace) {
 			appState.setCurrentWorkspace(result.workspace);
@@ -105,14 +154,20 @@ async function initializeGuestUser(): Promise<void> {
 				currentWorkspace: result.workspace,
 				tasks: result.tasks,
 			});
+			console.log("[initializeGuestUser] Guest user initialized successfully");
 		} else {
+			console.error(
+				"[initializeGuestUser] Failed to initialize:",
+				result.message,
+			);
 			appState.setError(result.message || "Failed to initialize workspace");
 		}
 	} catch (error) {
-		console.error("Failed to setup guest session:", error);
+		console.error("[initializeGuestUser] Exception during setup:", error);
 		appState.setError("Failed to initialize workspace");
 	} finally {
 		appState.setLoading(false);
+		console.log("[initializeGuestUser] Initialization complete");
 	}
 }
 
@@ -134,17 +189,24 @@ function handleURLParameters(): void {
  * Initialize the application based on authentication status
  */
 export async function initializeApp(session: Session | null): Promise<void> {
+	console.log("[initializeApp] Starting app initialization", {
+		isAuthenticated: !!session,
+	});
+
 	await performanceMonitor.measure("app_initialization", async () => {
 		const isAuthenticated = !!session;
 
 		if (isAuthenticated) {
+			console.log("[initializeApp] Initializing authenticated user");
 			await initializeAuthenticatedUser(session);
 		} else {
+			console.log("[initializeApp] Initializing guest user");
 			await initializeGuestUser();
 		}
 
 		// Handle URL parameters for both authenticated and guest users
 		handleURLParameters();
+		console.log("[initializeApp] App initialization complete");
 	});
 }
 

@@ -15,6 +15,7 @@ export { GuestUserService } from "./guest-user-service";
 export { MigrationService } from "./migration-service";
 export type { NotionTaskManagerInterface } from "./notion-adapter";
 export { NotionAdapter } from "./notion-adapter";
+export { createNotionTaskManagerWithAuth } from "./notion-helper";
 export { TaskIntegrationService } from "./task-integration-service";
 export { TaskService } from "./task-service";
 // Export user types and service
