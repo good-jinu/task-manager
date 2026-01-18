@@ -1,38 +1,113 @@
 import { json } from "@sveltejs/kit";
 import type { ExecutionStep } from "@task-manager/core";
 import { TaskManagerAgent } from "@task-manager/core";
-import { AgentExecutionService, TaskService } from "@task-manager/db";
+import {
+	AgentExecutionService,
+	type Task,
+	TaskService,
+} from "@task-manager/db";
+import { requireAuthOrGuest } from "$lib/auth/middleware";
 import type { RequestHandler } from "./$types";
 
-export const POST: RequestHandler = async (event) => {
-	let executionId: string | undefined;
-	let userId: string | undefined;
+// Async function to process the task execution in the background
+async function processTaskExecution(
+	userId: string,
+	executionId: string,
+	workspaceId: string,
+	query: string,
+	contextTasks: Task[],
+) {
+	const executionService = new AgentExecutionService();
+	const taskService = new TaskService();
+
+	console.log("Background processing started:", {
+		userId,
+		executionId,
+		workspaceId,
+		query,
+	});
 
 	try {
-		// Check if user is authenticated or guest
-		try {
-			const session = await event.locals.auth();
-			if (!session?.user || !session.user.id) {
-				throw new Error("Not authenticated");
-			}
-			userId = session.user.id;
-		} catch {
-			// Check for guest user ID in headers or cookies
-			const guestId =
-				event.request.headers.get("x-guest-id") ||
-				event.cookies.get("guest-id");
+		const agent = new TaskManagerAgent({ taskService });
 
-			if (!guestId) {
-				return json(
-					{ error: "Authentication required or guest ID missing" },
-					{ status: 401 },
-				);
-			}
-			userId = guestId;
+		const result = await agent.execute({
+			userId,
+			executionId,
+			workspaceId,
+			query,
+			contextTasks,
+			onStepComplete: async (step: ExecutionStep) => {
+				console.log("Agent step completed:", {
+					toolName: step.toolName,
+					workspaceId,
+				});
+				// Record each step as it completes
+				try {
+					await executionService.addExecutionStep(userId, executionId, step);
+				} catch (stepError) {
+					console.error("Failed to add execution step:", stepError);
+					// Don't fail the entire execution if step recording fails
+				}
+			},
+		});
+
+		console.log("Agent execution completed:", {
+			action: result.action,
+			taskId: result.taskId,
+			workspaceId,
+		});
+
+		// Update execution record with success
+		const mappedAction =
+			result.action === "queried" || result.action === "deleted"
+				? "none"
+				: result.action;
+
+		await executionService.updateExecutionStatus(userId, executionId, "done", {
+			result: {
+				action: mappedAction,
+				reasoning: result.reasoning,
+			},
+		});
+	} catch (error) {
+		console.error("Task agent execution failed:", error);
+
+		const errorMessage =
+			error instanceof Error ? error.message : "Unknown error";
+
+		// Update execution status with error
+		try {
+			await executionService.updateExecutionStatus(
+				userId,
+				executionId,
+				"fail",
+				{
+					error: errorMessage,
+				},
+			);
+		} catch (updateError) {
+			console.error(
+				"Failed to update execution status with error:",
+				updateError,
+			);
 		}
+	}
+}
+
+export const POST: RequestHandler = async (event) => {
+	try {
+		// Use centralized auth middleware
+		const { userId } = await requireAuthOrGuest(event);
 
 		const requestBody = await event.request.json();
 		const { query, workspaceId, contextTasks = [] } = requestBody;
+
+		console.log("Execute task API called with:", {
+			userId,
+			workspaceId,
+			query,
+			contextTasksCount: contextTasks.length,
+		});
 
 		// Validate required fields
 		if (!query || typeof query !== "string" || !query.trim()) {
@@ -61,94 +136,30 @@ export const POST: RequestHandler = async (event) => {
 			databaseId: workspaceId, // Use workspaceId as databaseId for internal tasks
 		});
 
-		executionId = executionRecord.executionId;
+		const executionId = executionRecord.executionId;
 
-		// Process the task execution
-		const taskService = new TaskService();
-		const agent = new TaskManagerAgent({ taskService });
-
-		const steps: ExecutionStep[] = [];
-
-		const result = await agent.execute({
+		// Start async processing (don't await)
+		processTaskExecution(
 			userId,
 			executionId,
 			workspaceId,
-			query: query.trim(),
+			query.trim(),
 			contextTasks,
-			onStepComplete: async (step: ExecutionStep) => {
-				steps.push(step);
-				// Record each step as it completes
-				try {
-					if (executionId && userId) {
-						await executionService.addExecutionStep(userId, executionId, step);
-					}
-				} catch (stepError) {
-					console.error("Failed to add execution step:", stepError);
-					// Don't fail the entire execution if step recording fails
-				}
-			},
+		).catch((error) => {
+			console.error("Background task execution failed:", error);
 		});
 
-		// Update execution record with success
-		const mappedAction =
-			result.action === "queried" || result.action === "deleted"
-				? "none"
-				: result.action;
-		try {
-			await executionService.updateExecutionStatus(
-				userId,
-				executionId,
-				"done",
-				{
-					result: {
-						action: mappedAction,
-						reasoning: result.reasoning,
-					},
-				},
-			);
-		} catch (updateError) {
-			console.error("Failed to update execution status:", updateError);
-			// Don't fail the entire request if status update fails
-		}
-
-		// Get updated tasks for the workspace
-		const tasksResult = await taskService.listTasks(workspaceId);
-		const tasks = tasksResult.items;
-
+		// Return immediately with executionId
 		return json({
 			success: true,
 			executionId,
-			result: {
-				action: result.action,
-				message: result.message,
-				tasks: tasks,
-			},
+			status: "pending",
 		});
 	} catch (error) {
-		console.error("Task agent execution failed:", error);
+		console.error("Failed to create task execution:", error);
 
 		const errorMessage =
 			error instanceof Error ? error.message : "Unknown error";
-
-		// Try to update execution status with error if we have the executionId and it was created
-		try {
-			if (executionId && userId) {
-				const executionService = new AgentExecutionService();
-				await executionService.updateExecutionStatus(
-					userId,
-					executionId,
-					"fail",
-					{
-						error: errorMessage,
-					},
-				);
-			}
-		} catch (updateError) {
-			console.error(
-				"Failed to update execution status with error:",
-				updateError,
-			);
-		}
 
 		return json(
 			{

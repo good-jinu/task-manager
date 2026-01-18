@@ -1,28 +1,22 @@
 import { json } from "@sveltejs/kit";
 import { AgentExecutionService } from "@task-manager/db";
-import { requireAuth } from "$lib/auth";
-import { getUserFromDatabase } from "$lib/user";
+import { requireAuthOrGuest } from "$lib/auth/middleware";
 import type { RequestHandler } from "./$types";
 
 export const GET: RequestHandler = async (event) => {
 	try {
-		const session = await requireAuth(event);
-
-		const user = await getUserFromDatabase(session.user.id);
-		if (!user) {
-			return json({ error: "User not found in database" }, { status: 404 });
-		}
+		// Use centralized auth middleware
+		const { userId } = await requireAuthOrGuest(event);
 
 		const executionId = event.params.id;
 
-		if (!executionId || !executionId.trim()) {
+		if (!executionId) {
 			return json({ error: "Execution ID is required" }, { status: 400 });
 		}
 
-		// Get execution by ID
 		const executionService = new AgentExecutionService();
 		const execution = await executionService.getExecutionById(
-			user.id,
+			userId,
 			executionId,
 		);
 
@@ -31,10 +25,11 @@ export const GET: RequestHandler = async (event) => {
 		}
 
 		return json({
+			success: true,
 			execution,
 		});
 	} catch (error) {
-		console.error("Failed to get agent execution:", error);
+		console.error("Failed to fetch execution:", error);
 
 		if (error instanceof Error) {
 			if (

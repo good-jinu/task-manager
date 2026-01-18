@@ -1,24 +1,25 @@
 <script lang="ts">
 import type { Task } from "@task-manager/db";
+import { refreshTasks, useTasks } from "$lib/queries";
 import { taskService } from "$lib/services/task-service";
 import { Plus } from "./icons";
 import TaskItem from "./TaskItem.svelte";
 
 interface Props {
-	tasks: Task[];
 	workspaceId: string;
-	onTasksUpdate?: (tasks: Task[]) => void;
 	selectedContextTasks?: Set<string>;
 	onContextToggle?: (taskId: string) => void;
 }
 
 let {
-	tasks = [],
 	workspaceId,
-	onTasksUpdate,
 	selectedContextTasks = new Set(),
 	onContextToggle,
 }: Props = $props();
+
+// Use tasks query - make it reactive to workspaceId changes
+let tasksQuery = $derived(useTasks(workspaceId));
+const tasks = $derived(tasksQuery.data || []);
 
 let isCreatingTask = $state(false);
 let newTaskTitle = $state("");
@@ -31,17 +32,11 @@ async function handleAddTask() {
 			workspaceId,
 			title: newTaskTitle,
 		});
-		await refreshTasks();
+		// Refresh tasks using query invalidation
+		refreshTasks(workspaceId);
 		resetTaskCreation();
 	} catch (error) {
 		console.error("Failed to create task:", error);
-	}
-}
-
-async function refreshTasks() {
-	if (onTasksUpdate) {
-		const updatedTasks = await taskService.fetchTasks(workspaceId);
-		onTasksUpdate(updatedTasks);
 	}
 }
 
@@ -102,7 +97,16 @@ function handleKeydown(event: KeyboardEvent) {
 
 	<!-- Tasks List -->
 	<div class="flex-1 overflow-y-auto p-4">
-		{#if tasks.length === 0}
+		{#if tasksQuery.isLoading}
+			<div class="text-center py-12 text-muted-foreground">
+				<p class="text-lg">Loading tasks...</p>
+			</div>
+		{:else if tasksQuery.isError}
+			<div class="text-center py-12 text-error">
+				<p class="text-lg">Failed to load tasks</p>
+				<p class="text-sm">{tasksQuery.error?.message}</p>
+			</div>
+		{:else if tasks.length === 0}
 			<div class="text-center py-12 text-muted-foreground">
 				<p class="text-lg">No tasks yet</p>
 				<p class="text-sm">Click "Add Task" to create your first task</p>
@@ -113,7 +117,6 @@ function handleKeydown(event: KeyboardEvent) {
 					<TaskItem
 						{task}
 						{workspaceId}
-						{onTasksUpdate}
 						isContextSelected={selectedContextTasks.has(task.id)}
 						{onContextToggle}
 					/>

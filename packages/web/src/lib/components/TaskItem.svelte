@@ -1,6 +1,7 @@
 <script lang="ts">
 import type { Task, TaskStatus } from "@task-manager/db";
 import { goto } from "$app/navigation";
+import { refreshTasks } from "$lib/queries";
 import { taskService } from "$lib/services/task-service";
 import { Check, Edit, Plus, Trash2 } from "./icons";
 import { Badge } from "./ui";
@@ -9,7 +10,6 @@ import { cn } from "./utils";
 interface Props {
 	task: Task;
 	workspaceId?: string;
-	onTasksUpdate?: (tasks: Task[]) => void;
 	isContextSelected?: boolean;
 	onContextToggle?: (taskId: string) => void;
 	compact?: boolean;
@@ -19,7 +19,6 @@ interface Props {
 let {
 	task,
 	workspaceId = "",
-	onTasksUpdate,
 	isContextSelected = false,
 	onContextToggle,
 	compact = false,
@@ -41,7 +40,8 @@ async function handleStatusToggle() {
 	isUpdating = true;
 	try {
 		await taskService.toggleTaskStatus(task.id, task.status);
-		await refreshTasks();
+		// Refresh tasks using query invalidation
+		refreshTasks(workspaceId);
 	} catch (error) {
 		console.error("Failed to update task:", error);
 	} finally {
@@ -55,7 +55,8 @@ async function handleDelete() {
 	isUpdating = true;
 	try {
 		await taskService.deleteTask(task.id);
-		await refreshTasks();
+		// Refresh tasks using query invalidation
+		refreshTasks(workspaceId);
 	} catch (error) {
 		console.error("Failed to delete task:", error);
 	} finally {
@@ -69,19 +70,13 @@ async function handleEditSave() {
 	isUpdating = true;
 	try {
 		await taskService.updateTask(task.id, { title: editTitle.trim() });
-		await refreshTasks();
+		// Refresh tasks using query invalidation
+		refreshTasks(workspaceId);
 		isEditing = false;
 	} catch (error) {
 		console.error("Failed to update task:", error);
 	} finally {
 		isUpdating = false;
-	}
-}
-
-async function refreshTasks() {
-	if (onTasksUpdate && workspaceId) {
-		const updatedTasks = await taskService.fetchTasks(workspaceId);
-		onTasksUpdate(updatedTasks);
 	}
 }
 

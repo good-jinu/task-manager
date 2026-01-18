@@ -43,7 +43,7 @@ let { data }: { data: PageData } = $props();
 
 // Reactive session data
 let session = $derived(data.session);
-let isAuthenticated = $derived(!!session);
+let isAuthenticated = $derived(!!session?.user?.id);
 
 // Component wiring setup
 const { manager, subscribe, subscribeToEvents } = useComponentWiring();
@@ -194,8 +194,6 @@ function handleURLParametersAfterInit() {
 				<div class="lg:col-span-2">
 					<TaskBoard 
 						workspaceId={currentWorkspace.id}
-						{tasks}
-						onTasksUpdate={handleTasksUpdate}
 						selectedContextTasks={selectedContextTasks}
 						onContextToggle={handleContextToggle}
 					/>
@@ -212,7 +210,6 @@ function handleURLParametersAfterInit() {
 				workspaceId={currentWorkspace.id}
 				selectedTasks={$contextTasks}
 				onClearContext={handleClearContext}
-				onTasksUpdate={handleTasksUpdate}
 			/>
 
 			<!-- Error Display -->

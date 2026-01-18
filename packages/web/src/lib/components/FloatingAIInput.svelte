@@ -1,63 +1,89 @@
 <script lang="ts">
 import type { Task } from "@task-manager/db";
+import {
+	refreshExecutions,
+	refreshTasks,
+	useExecuteTask,
+	useExecution,
+} from "$lib/queries";
 import { Close, Send } from "./icons";
 
 interface Props {
 	workspaceId: string;
 	selectedTasks: Task[];
 	onClearContext?: () => void;
-	onTasksUpdate?: (tasks: Task[]) => void;
 }
 
-let {
-	workspaceId,
-	selectedTasks = [],
-	onClearContext,
-	onTasksUpdate,
-}: Props = $props();
+let { workspaceId, selectedTasks = [], onClearContext }: Props = $props();
 
 let input = $state("");
-let isLoading = $state(false);
+let currentExecutionId = $state<string | undefined>(undefined);
 
-async function handleSendMessage() {
-	if (!input.trim() || isLoading) return;
+// Mutation for executing tasks
+const executeTaskMutation = useExecuteTask();
 
-	const message = input.trim();
-	input = "";
-	isLoading = true;
+// Query for polling execution status - reactive to currentExecutionId
+let executionQuery = $derived(useExecution(currentExecutionId));
 
-	try {
-		const response = await fetch("/api/agent/execute-task", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				query: message,
-				workspaceId,
-				contextTasks: selectedTasks,
-			}),
-		});
+// Watch for execution completion
+$effect(() => {
+	const execution = executionQuery.data;
+	const execId = currentExecutionId;
 
-		const result = await response.json();
+	if (execution && execId) {
+		if (execution.status === "done") {
+			// Execution completed successfully
+			console.log("Task execution completed:", execution);
 
-		if (result.success) {
-			// Update tasks immediately with the result
-			if (result.result?.tasks && onTasksUpdate) {
-				onTasksUpdate(result.result.tasks);
-			}
+			// Refresh tasks using query invalidation
+			refreshTasks(workspaceId);
 
-			// Clear context after sending
+			// Refresh executions list to show updated status
+			refreshExecutions();
+
+			// Clear context after completion
 			if (onClearContext) {
 				onClearContext();
 			}
-		} else {
-			console.error("Task execution failed:", result.error);
+
+			// Reset execution ID to stop polling
+			currentExecutionId = undefined;
+		} else if (execution.status === "fail") {
+			// Execution failed
+			console.error("Task execution failed:", execution.error);
+
+			// Refresh executions list to show failed status
+			refreshExecutions();
+
+			// Reset execution ID to stop polling
+			currentExecutionId = undefined;
+		}
+	}
+});
+
+async function handleSendMessage() {
+	if (!input.trim() || executeTaskMutation.isPending) return;
+
+	const message = input.trim();
+	input = "";
+
+	console.log("Sending task to agent with workspaceId:", workspaceId);
+
+	try {
+		const result = await executeTaskMutation.mutateAsync({
+			query: message,
+			workspaceId,
+			contextTasks: selectedTasks,
+		});
+
+		console.log("Agent execution started:", result);
+
+		// Start polling by setting the execution ID
+		if (result.executionId) {
+			currentExecutionId = result.executionId;
 		}
 	} catch (error) {
 		console.error("Failed to execute task:", error);
-	} finally {
-		isLoading = false;
 	}
 }
 
@@ -67,6 +93,10 @@ function handleKeydown(event: KeyboardEvent) {
 		handleSendMessage();
 	}
 }
+
+const isLoading = $derived(
+	executeTaskMutation.isPending || executionQuery.data?.status === "pending",
+);
 </script>
 
 <div class="fixed bottom-4 left-4 right-4 z-5">

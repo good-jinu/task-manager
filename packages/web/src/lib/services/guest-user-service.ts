@@ -77,10 +77,63 @@ export class GuestUserService {
 	 * Attempt to recover guest session using multiple strategies
 	 */
 	async recoverGuestSession(): Promise<GuestRecoveryResult> {
-		// Strategy 1: Try to load from local storage
+		// Strategy 1: Check if we have a guest cookie (server-side guest session)
+		if (browser) {
+			const guestCookie = document.cookie
+				.split("; ")
+				.find((row) => row.startsWith("guest-id="));
+
+			if (guestCookie) {
+				const guestId = guestCookie.split("=")[1];
+				console.log("Found guest cookie, fetching workspace from server...");
+
+				try {
+					// Fetch the guest's workspace from the server
+					const response = await fetch("/api/workspaces");
+					if (response.ok) {
+						const data = await response.json();
+						const workspaces = data.workspaces || [];
+
+						if (workspaces.length > 0) {
+							const workspace = workspaces[0];
+							console.log(
+								"Recovered guest workspace from server:",
+								workspace.id,
+							);
+
+							// Fetch tasks for this workspace
+							const tasksResponse = await fetch(
+								`/api/tasks?workspaceId=${workspace.id}`,
+							);
+							const tasksData = await tasksResponse.json();
+							const tasks = tasksData.items || [];
+
+							// Update local storage with correct data
+							saveGuestDataLocally({
+								guestId,
+								workspaceId: workspace.id,
+								tasks,
+							});
+
+							return {
+								success: true,
+								workspace,
+								tasks,
+								recoveredFromLocal: false,
+								message: "Session recovered from server",
+							};
+						}
+					}
+				} catch (error) {
+					console.error("Failed to fetch guest workspace from server:", error);
+				}
+			}
+		}
+
+		// Strategy 2: Try to load from local storage (fallback)
 		const localData = loadGuestDataLocally();
 		if (localData) {
-			console.log("Found local guest data, using local data only");
+			console.log("Found local guest data, using as fallback");
 			return {
 				success: true,
 				workspace: {
@@ -92,12 +145,12 @@ export class GuestUserService {
 				},
 				tasks: localData.tasks,
 				recoveredFromLocal: true,
-				message: "Session recovered from local storage only",
+				message: "Session recovered from local storage",
 			};
 		}
 
-		// Strategy 2: Create new guest session
-		console.log("No local data found, creating new guest session...");
+		// Strategy 3: Create new guest session
+		console.log("No existing session found, creating new guest session...");
 		try {
 			const registration = await this.registerGuestUser();
 			return {

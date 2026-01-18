@@ -1,36 +1,9 @@
 <script lang="ts">
-import type { AgentExecutionRecord } from "@task-manager/db";
-import { onMount } from "svelte";
 import { LoadingSpinner } from "$lib/components";
+import { useExecutions } from "$lib/queries/agent";
 
-let executions: AgentExecutionRecord[] = $state([]);
-let loading = $state(true);
-let error = $state("");
-
-onMount(async () => {
-	await loadExecutions();
-});
-
-async function loadExecutions() {
-	loading = true;
-	error = "";
-
-	try {
-		const response = await fetch("/api/agent/executions");
-		const data = await response.json();
-
-		if (response.ok) {
-			executions = data.executions || [];
-		} else {
-			error = data.error || "Failed to load execution history";
-		}
-	} catch (err) {
-		error = "Failed to load execution history";
-		console.error("Error loading executions:", err);
-	} finally {
-		loading = false;
-	}
-}
+// Query for executions
+const executionsQuery = useExecutions();
 
 function formatTimestamp(timestamp: string) {
 	return new Date(timestamp).toLocaleString();
@@ -53,19 +26,19 @@ function getStatusColor(status: string) {
 <div class="bg-surface-base border border-subtle-base rounded-lg p-4">
 	<h3 class="text-lg font-semibold text-foreground-base mb-4">AI Execution History</h3>
 	
-	{#if loading}
+	{#if executionsQuery.isLoading}
 		<LoadingSpinner text="Loading execution history..." />
-	{:else if error}
+	{:else if executionsQuery.isError}
 		<div class="text-error p-4 bg-error-alert-bg border border-error-border rounded">
-			{error}
+			{executionsQuery.error?.message || "Failed to load execution history"}
 		</div>
-	{:else if executions.length === 0}
+	{:else if !executionsQuery.data || executionsQuery.data.length === 0}
 		<div class="text-muted-foreground p-4 text-center">
 			No AI executions yet. Try asking the AI to help with your tasks!
 		</div>
 	{:else}
 		<div class="space-y-3">
-			{#each executions as execution (execution.executionId)}
+			{#each executionsQuery.data as execution (execution.executionId)}
 				<div class="border border-subtle-base rounded-lg p-3">
 					<div class="flex items-start justify-between mb-2">
 						<div class="flex-1">
