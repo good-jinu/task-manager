@@ -1,5 +1,5 @@
 import { Client } from "@notionhq/client";
-import type { User } from "@task-manager/db";
+import type { User } from "@task-manager/core";
 
 export type TokenRefreshCallback = (
 	userId: string,

@@ -11,11 +11,15 @@
 			"types": "./src/index.ts"
 		}
 	},
+	"scripts": {
+		"check": "tsc --noEmit"
+	},
 	"dependencies": {
-		"@task-manager/db": "workspace:*",
+		"@task-manager/core": "workspace:*",
 		"@notionhq/client": "^2.2.15"
 	},
 	"devDependencies": {
+		"@types/node": "^22",
 		"typescript": "^5.9.3"
 	}
 }

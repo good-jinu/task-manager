@@ -1,4 +1,4 @@
-import type { Task } from "@task-manager/db";
+import type { Task } from "@task-manager/core";
 
 /**
  * Message payload for task execution queue

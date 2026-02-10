@@ -117,42 +117,46 @@ export default $config({
 			visibilityTimeout: "15 minutes", // Worker has 15 minutes to process
 		});
 
+		const commonLink = [
+			usersTable,
+			agentExecutionsTable,
+			tasksTable,
+			workspacesTable,
+			guestUsersTable,
+			taskIntegrationsTable,
+			workspaceIntegrationsTable,
+			taskQueue,
+		];
+
+		const commonEnv = {
+			// Authentication
+			AUTH_SECRET: process.env.AUTH_SECRET ?? "",
+			AUTH_NOTION_ID: process.env.AUTH_NOTION_ID ?? "",
+			AUTH_NOTION_SECRET: process.env.AUTH_NOTION_SECRET ?? "",
+			AUTH_NOTION_REDIRECT_URI: process.env.AUTH_NOTION_REDIRECT_URI ?? "",
+
+			// Database
+			APP_AWS_REGION: process.env.APP_AWS_REGION ?? "us-east-1",
+
+			// OpenAI Configuration
+			OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "",
+			OPENAI_BASE_URL: process.env.OPENAI_BASE_URL ?? "",
+			OPENAI_NAME: process.env.OPENAI_NAME ?? "",
+			OPENAI_MODEL: process.env.OPENAI_MODEL ?? "",
+
+			// DeepInfra Configuration
+			DEEPINFRA_API_KEY: process.env.DEEPINFRA_API_KEY ?? "",
+			DEEPINFRA_MODEL: process.env.DEEPINFRA_MODEL ?? "",
+		};
+
 		// Worker Lambda to process tasks from queue
 		const taskWorker = new sst.aws.Function("TaskWorker", {
 			handler: "packages/workers/src/task-processor.handler",
 			runtime: "nodejs22.x",
 			timeout: "15 minutes",
 			memory: "1024 MB",
-			link: [
-				usersTable,
-				agentExecutionsTable,
-				tasksTable,
-				workspacesTable,
-				guestUsersTable,
-				taskIntegrationsTable,
-				workspaceIntegrationsTable,
-				taskQueue,
-			],
-			environment: {
-				// Authentication
-				AUTH_SECRET: process.env.AUTH_SECRET ?? "",
-				AUTH_NOTION_ID: process.env.AUTH_NOTION_ID ?? "",
-				AUTH_NOTION_SECRET: process.env.AUTH_NOTION_SECRET ?? "",
-				AUTH_NOTION_REDIRECT_URI: process.env.AUTH_NOTION_REDIRECT_URI ?? "",
-
-				// Database
-				APP_AWS_REGION: process.env.APP_AWS_REGION ?? "us-east-1",
-
-				// OpenAI Configuration
-				OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "",
-				OPENAI_BASE_URL: process.env.OPENAI_BASE_URL ?? "",
-				OPENAI_NAME: process.env.OPENAI_NAME ?? "",
-				OPENAI_MODEL: process.env.OPENAI_MODEL ?? "",
-
-				// DeepInfra Configuration
-				DEEPINFRA_API_KEY: process.env.DEEPINFRA_API_KEY ?? "",
-				DEEPINFRA_MODEL: process.env.DEEPINFRA_MODEL ?? "",
-			},
+			link: commonLink,
+			environment: commonEnv,
 		});
 
 		// Subscribe worker to queue
@@ -165,36 +169,8 @@ export default $config({
 		const web = new sst.aws.SvelteKit("TaskManagerWeb", {
 			path: "packages/web",
 			...(webDomain ? { domain: { name: webDomain } } : {}),
-			link: [
-				usersTable,
-				agentExecutionsTable,
-				tasksTable,
-				workspacesTable,
-				guestUsersTable,
-				taskIntegrationsTable,
-				workspaceIntegrationsTable,
-				taskQueue,
-			],
-			environment: {
-				// Authentication
-				AUTH_SECRET: process.env.AUTH_SECRET ?? "",
-				AUTH_NOTION_ID: process.env.AUTH_NOTION_ID ?? "",
-				AUTH_NOTION_SECRET: process.env.AUTH_NOTION_SECRET ?? "",
-				AUTH_NOTION_REDIRECT_URI: process.env.AUTH_NOTION_REDIRECT_URI ?? "",
-
-				// Database
-				APP_AWS_REGION: process.env.APP_AWS_REGION ?? "us-east-1",
-
-				// OpenAI Configuration
-				OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "",
-				OPENAI_BASE_URL: process.env.OPENAI_BASE_URL ?? "",
-				OPENAI_NAME: process.env.OPENAI_NAME ?? "",
-				OPENAI_MODEL: process.env.OPENAI_MODEL ?? "",
-
-				// DeepInfra Configuration
-				DEEPINFRA_API_KEY: process.env.DEEPINFRA_API_KEY ?? "",
-				DEEPINFRA_MODEL: process.env.DEEPINFRA_MODEL ?? "",
-			},
+			link: commonLink,
+			environment: commonEnv,
 			server: {
 				runtime: "nodejs22.x",
 				timeout: "100 seconds",
