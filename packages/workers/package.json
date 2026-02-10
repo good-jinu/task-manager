@@ -8,7 +8,10 @@
 	"dependencies": {
 		"@task-manager/core": "workspace:*",
 		"@task-manager/db": "workspace:*",
-		"@task-manager/queue": "workspace:*",
-		"@types/aws-lambda": "^8.10.145"
+		"@task-manager/queue": "workspace:*"
+	},
+	"devDependencies": {
+		"@types/aws-lambda": "^8.10.145",
+		"@types/node": "^22"
 	}
 }
