@@ -7,6 +7,7 @@ import {
 	useExecution,
 } from "$lib/queries";
 import { Close, Send } from "./icons";
+import { cn } from "./utils";
 
 interface Props {
 	workspaceId: string;
