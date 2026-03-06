@@ -19,6 +19,3 @@ build/
 # ide
 .kiro
 .vscode
-
-# sst
-sst-env.d.ts
