@@ -112,10 +112,10 @@ function handleTaskClick(event: MouseEvent) {
 
 // Priority colors using semantic color system
 const priorityColors = {
-	low: "bg-info-alert-bg text-info",
-	medium: "bg-warning-alert-bg text-warning-foreground",
-	high: "bg-accent-icon-bg text-accent",
-	urgent: "bg-error-alert-bg text-error",
+	low: "bg-info/10 text-info border-info/20",
+	medium: "bg-warning/10 text-warning-foreground border-warning/20",
+	high: "bg-accent/10 text-accent border-accent/20",
+	urgent: "bg-error/10 text-error border-error/20",
 };
 
 // Status styles
@@ -127,52 +127,75 @@ const isArchived = $derived(task.archived || task.status === "archived");
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div 
 	class={cn(
-		'relative bg-surface-base border rounded-lg overflow-hidden transition-all duration-200 cursor-pointer',
-		isContextSelected ? 'border-accent bg-accent-icon-bg' : 'border-subtle-base hover:border-subtle-hover',
+		'group relative bg-surface-base border rounded-xl overflow-hidden transition-all duration-300 cursor-pointer shadow-sm hover:shadow-md',
+		isContextSelected ? 'border-accent bg-accent/5 ring-1 ring-accent/20' : 'border-subtle-base hover:border-primary/30',
+		isCompleted && 'opacity-75 hover:opacity-100 bg-surface-muted/30',
 		className
 	)}
 	onclick={handleTaskClick}
 	role="button"
 	tabindex="0"
 >
+	<!-- Status accent line -->
+	<div class={cn(
+		"absolute left-0 top-0 bottom-0 w-1 transition-all duration-300",
+		isCompleted ? "bg-success/40" : "bg-primary/0 group-hover:bg-primary/40",
+		task.status === 'in-progress' && "bg-info"
+	)}></div>
+
 	<!-- Main task content -->
 	<div class={cn(
-		'flex items-center gap-3',
-		compact ? 'p-2 min-h-[36px]' : 'p-4 min-h-[44px]'
+		'flex items-start gap-4',
+		compact ? 'p-3' : 'p-5'
 	)}>
 		<!-- Checkbox for task completion -->
 		<button
 			onclick={handleStatusToggle}
 			disabled={isUpdating || isArchived}
 			class={cn(
-				'flex-shrink-0 rounded border-2 flex items-center justify-center',
-				'transition-colors duration-200',
-				compact ? 'w-4 h-4' : 'w-5 h-5',
+				'flex-shrink-0 mt-0.5 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-200 active:scale-90',
 				isCompleted 
 					? 'bg-success border-success text-success-foreground' 
-					: 'border-subtle-base hover:border-success',
+					: 'bg-white border-subtle-base hover:border-success/50',
 				isArchived && 'opacity-50 cursor-not-allowed'
 			)}
 			aria-label={isCompleted ? 'Mark as incomplete' : 'Mark as complete'}
 		>
 			{#if isCompleted}
-				<Check class={compact ? "w-2 h-2" : "w-3 h-3"} />
+				<Check class="w-3.5 h-3.5" />
 			{/if}
 		</button>
 
 		<!-- Task content -->
 		<div class="flex-1 min-w-0">
 			{#if isEditing}
-				<input
-					bind:value={editTitle}
-					onkeydown={handleEditKeydown}
-					class="w-full px-2 py-1 border border-subtle-base rounded focus:outline-none focus:ring-2 focus:ring-focus focus:border-transparent bg-surface-base text-foreground-base"
-				/>
+				<div class="flex flex-col gap-2">
+					<input
+						bind:value={editTitle}
+						onkeydown={handleEditKeydown}
+						class="w-full px-3 py-1.5 border border-primary/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 bg-surface-base text-foreground-base font-medium"
+					/>
+					<div class="flex gap-2">
+						<button
+							onclick={handleEditSave}
+							disabled={!editTitle.trim() || isUpdating}
+							class="px-3 py-1 text-xs bg-primary text-primary-foreground rounded-lg font-bold hover:brightness-110 disabled:opacity-50"
+						>
+							Save
+						</button>
+						<button
+							onclick={handleEditCancel}
+							class="px-3 py-1 text-xs bg-surface-muted text-foreground-secondary rounded-lg font-bold hover:bg-subtle-base"
+						>
+							Cancel
+						</button>
+					</div>
+				</div>
 			{:else}
-				<div class="flex items-start justify-between gap-2">
+				<div class="flex items-start justify-between gap-3">
 					<h3 class={cn(
-						'leading-tight',
-						compact ? 'text-sm font-medium' : 'font-medium text-foreground-base',
+						'text-base leading-snug tracking-tight transition-all duration-300',
+						compact ? 'text-sm font-semibold' : 'font-bold text-foreground-base',
 						isCompleted && 'line-through text-muted-foreground'
 					)}>
 						{task.title}
@@ -181,7 +204,7 @@ const isArchived = $derived(task.archived || task.status === "archived");
 					{#if task.priority && !compact}
 						<Badge 
 							variant="secondary" 
-							class={cn('text-xs', priorityColors[task.priority])}
+							class={cn('text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 border', priorityColors[task.priority])}
 						>
 							{task.priority}
 						</Badge>
@@ -190,81 +213,66 @@ const isArchived = $derived(task.archived || task.status === "archived");
 
 				{#if task.content && !compact}
 					<p class={cn(
-						'text-sm text-foreground-secondary line-clamp-2 mt-1',
-						isCompleted && 'line-through text-muted-foreground'
+						'text-sm text-foreground-secondary line-clamp-2 mt-1.5 leading-relaxed',
+						isCompleted && 'opacity-60'
 					)}>
 						{task.content}
 					</p>
 				{/if}
 
-				{#if task.dueDate && !compact}
-					<div class="mt-2 text-xs text-muted-foreground">
-						Due: {new Date(task.dueDate).toLocaleDateString()}
-					</div>
-				{/if}
+				<div class="flex flex-wrap items-center gap-3 mt-3">
+					{#if task.dueDate && !compact}
+						<div class="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+							<div class="w-1 h-1 rounded-full bg-muted-foreground/40"></div>
+							{new Date(task.dueDate).toLocaleDateString()}
+						</div>
+					{/if}
 
-				<!-- Status indicator for non-todo/done states -->
-				{#if task.status === 'in-progress' && !compact}
-					<div class="mt-2">
-						<Badge variant="secondary" class="bg-info-alert-bg text-info text-xs">
+					<!-- Status indicator for non-todo/done states -->
+					{#if task.status === 'in-progress' && !compact}
+						<Badge variant="secondary" class="bg-info/10 text-info text-[10px] font-bold uppercase tracking-wider border border-info/20">
 							In Progress
 						</Badge>
-					</div>
-				{/if}
+					{/if}
+				</div>
 			{/if}
 		</div>
 
-		<!-- Action buttons -->
-		{#if workspaceId}
-			<div class="flex items-center gap-2">
-				{#if isEditing}
-					<button
-						onclick={handleEditSave}
-						disabled={!editTitle.trim() || isUpdating}
-						class="px-2 py-1 text-xs bg-success text-success-foreground rounded hover:bg-success-button-hover disabled:opacity-50"
-					>
-						Save
-					</button>
-					<button
-						onclick={handleEditCancel}
-						class="px-2 py-1 text-xs bg-subtle-base text-foreground-base rounded hover:bg-subtle-hover"
-					>
-						Cancel
-					</button>
-				{:else}
-					<!-- Add to AI Context button -->
-					<button
-						onclick={handleContextToggle}
-						class={cn(
-							'p-1 rounded transition-colors',
-							isContextSelected 
-								? 'bg-accent text-accent-foreground' 
-								: 'bg-surface-muted text-foreground-secondary hover:bg-subtle-hover'
-						)}
-						title="Add to AI context"
-					>
-						<Plus class="w-4 h-4" />
-					</button>
+		<!-- Action buttons (visible on hover) -->
+		{#if workspaceId && !isEditing}
+			<div class="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+				<!-- Add to AI Context button -->
+				<button
+					onclick={handleContextToggle}
+					class={cn(
+						'p-1.5 rounded-lg transition-all duration-200 active:scale-95',
+						isContextSelected
+							? 'bg-accent text-accent-foreground'
+							: 'bg-surface-muted text-foreground-secondary hover:bg-primary/10 hover:text-primary'
+					)}
+					title="Add to AI context"
+				>
+					<Plus class="w-4 h-4" />
+				</button>
 
-					<!-- Edit button -->
-					<button
-						onclick={() => (isEditing = true)}
-						class="p-1 bg-surface-muted text-foreground-secondary rounded hover:bg-subtle-hover transition-colors"
-						title="Edit task"
-					>
-						<Edit class="w-4 h-4" />
-					</button>
+				<!-- Edit button -->
+				<button
+					onclick={() => (isEditing = true)}
+					class="p-1.5 bg-surface-muted text-foreground-secondary rounded-lg hover:bg-primary/10 hover:text-primary transition-all duration-200 active:scale-95"
+					title="Edit task"
+				>
+					<Edit class="w-4 h-4" />
+				</button>
 
-					<!-- Delete button -->
-					<button
-						onclick={handleDelete}
-						disabled={isUpdating}
-						class="p-1 bg-error-alert-bg text-error rounded hover:bg-error-button-hover transition-colors disabled:opacity-50"
-						title="Delete task"
-					>
-						<Trash2 class="w-4 h-4" />
-					</button>
-				{/if}
+				<!-- Delete button -->
+				<button
+					onclick={handleDelete}
+					disabled={isUpdating}
+					class="p-1.5 bg-error/10 text-error rounded-lg hover:bg-error/20 transition-all duration-200 active:scale-95 disabled:opacity-50"
+					title="Delete task"
+				>
+					<Trash2 class="w-4 h-4" />
+				</button>
 			</div>
 		{/if}
 	</div>

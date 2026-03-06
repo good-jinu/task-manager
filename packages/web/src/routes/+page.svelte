@@ -6,6 +6,7 @@ import AccountCreationDialog from "$lib/components/AccountCreationDialog.svelte"
 import AgentExecutionHistory from "$lib/components/AgentExecutionHistory.svelte";
 import FloatingAIInput from "$lib/components/FloatingAIInput.svelte";
 import GuestBanner from "$lib/components/GuestBanner.svelte";
+import OnboardingTour from "$lib/components/OnboardingTour.svelte";
 import SettingsDrawer from "$lib/components/SettingsDrawer.svelte";
 import TaskBoard from "$lib/components/TaskBoard.svelte";
 import TopMenu from "$lib/components/TopMenu.svelte";
@@ -72,6 +73,7 @@ let integrations = $derived(componentState.integrations);
 // App state from store
 let {
 	tasks,
+	isTourVisible,
 	currentWorkspace,
 	workspaces,
 	loading,
@@ -162,6 +164,11 @@ function handleURLParametersAfterInit() {
 </svelte:head>
 
 <div class="min-h-screen bg-page-bg">
+	<!-- Onboarding Tour -->
+	{#if isTourVisible}
+		<OnboardingTour onComplete={() => appState.setTourVisible(false)} />
+	{/if}
+
 	<!-- Top Menu -->
 	<TopMenu 
 		onMenuAction={handleMenuAction}

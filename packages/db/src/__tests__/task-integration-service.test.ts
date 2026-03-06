@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { TaskIntegrationService } from "../task-integration-service";
 import { ValidationError } from "../validation";
+
+vi.mock("../client", () => ({
+	getTableName: vi.fn((tableName: string) => `test-${tableName}-table`),
+}));
 
 describe("TaskIntegrationService", () => {
 	describe("validation", () => {

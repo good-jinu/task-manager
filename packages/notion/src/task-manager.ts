@@ -6,6 +6,7 @@ import {
 } from "@notionhq/client";
 import type {
 	BlockObjectRequest,
+	BlockObjectRequestWithoutChildren,
 	BlockObjectResponse,
 	DatabaseObjectResponse,
 	GetDatabaseResponse,
@@ -507,7 +508,7 @@ export class NotionTaskManager {
 			) {
 				const checked = trimmedLine.startsWith("- [x] ");
 				const content = trimmedLine.substring(6);
-				const block: any = {
+				const block: BlockObjectRequest = {
 					object: "block",
 					type: "to_do",
 					to_do: {
@@ -519,15 +520,19 @@ export class NotionTaskManager {
 				// Handle nested items
 				const children = this.collectNestedItems(lines, i, indentLevel);
 				if (children.length > 0) {
-					block.to_do.children = children;
+					(
+						block as {
+							to_do: { children?: BlockObjectRequestWithoutChildren[] };
+						}
+					).to_do.children = children;
 				}
 
-				blocks.push(block as BlockObjectRequest);
+				blocks.push(block);
 			}
 			// Handle bulleted lists
 			else if (trimmedLine.startsWith("- ") || trimmedLine.startsWith("* ")) {
 				const content = trimmedLine.substring(2);
-				const block: any = {
+				const block: BlockObjectRequest = {
 					object: "block",
 					type: "bulleted_list_item",
 					bulleted_list_item: {
@@ -538,16 +543,22 @@ export class NotionTaskManager {
 				// Handle nested items
 				const children = this.collectNestedItems(lines, i, indentLevel);
 				if (children.length > 0) {
-					block.bulleted_list_item.children = children;
+					(
+						block as {
+							bulleted_list_item: {
+								children?: BlockObjectRequestWithoutChildren[];
+							};
+						}
+					).bulleted_list_item.children = children;
 				}
 
-				blocks.push(block as BlockObjectRequest);
+				blocks.push(block);
 			}
 			// Handle numbered lists
 			else if (/^\d+\.\s/.test(trimmedLine)) {
 				const match = trimmedLine.match(/^\d+\.\s(.*)$/);
 				if (match) {
-					const block: any = {
+					const block: BlockObjectRequest = {
 						object: "block",
 						type: "numbered_list_item",
 						numbered_list_item: {
@@ -558,10 +569,16 @@ export class NotionTaskManager {
 					// Handle nested items
 					const children = this.collectNestedItems(lines, i, indentLevel);
 					if (children.length > 0) {
-						block.numbered_list_item.children = children;
+						(
+							block as {
+								numbered_list_item: {
+									children?: BlockObjectRequestWithoutChildren[];
+								};
+							}
+						).numbered_list_item.children = children;
 					}
 
-					blocks.push(block as BlockObjectRequest);
+					blocks.push(block);
 				}
 			}
 			// Handle code blocks
@@ -624,8 +641,8 @@ export class NotionTaskManager {
 		lines: string[],
 		currentIndex: number,
 		parentIndentLevel: number,
-	): BlockObjectRequest[] {
-		const children: BlockObjectRequest[] = [];
+	): BlockObjectRequestWithoutChildren[] {
+		const children: BlockObjectRequestWithoutChildren[] = [];
 		let i = currentIndex + 1;
 
 		while (i < lines.length) {
@@ -652,7 +669,7 @@ export class NotionTaskManager {
 				// Handle nested bulleted list
 				if (trimmedLine.startsWith("- ") || trimmedLine.startsWith("* ")) {
 					const content = trimmedLine.substring(2);
-					const block: any = {
+					const block: BlockObjectRequest = {
 						object: "block",
 						type: "bulleted_list_item",
 						bulleted_list_item: {
@@ -663,16 +680,22 @@ export class NotionTaskManager {
 					// Recursively collect nested children
 					const nestedChildren = this.collectNestedItems(lines, i, indentLevel);
 					if (nestedChildren.length > 0) {
-						block.bulleted_list_item.children = nestedChildren;
+						(
+							block as {
+								bulleted_list_item: {
+									children?: BlockObjectRequestWithoutChildren[];
+								};
+							}
+						).bulleted_list_item.children = nestedChildren;
 					}
 
-					children.push(block as BlockObjectRequest);
+					children.push(block as BlockObjectRequestWithoutChildren);
 				}
 				// Handle nested numbered list
 				else if (/^\d+\.\s/.test(trimmedLine)) {
 					const match = trimmedLine.match(/^\d+\.\s(.*)$/);
 					if (match) {
-						const block: any = {
+						const block: BlockObjectRequest = {
 							object: "block",
 							type: "numbered_list_item",
 							numbered_list_item: {
@@ -687,10 +710,16 @@ export class NotionTaskManager {
 							indentLevel,
 						);
 						if (nestedChildren.length > 0) {
-							block.numbered_list_item.children = nestedChildren;
+							(
+								block as {
+									numbered_list_item: {
+										children?: BlockObjectRequestWithoutChildren[];
+									};
+								}
+							).numbered_list_item.children = nestedChildren;
 						}
 
-						children.push(block as BlockObjectRequest);
+						children.push(block as BlockObjectRequestWithoutChildren);
 					}
 				}
 			}

@@ -1,6 +1,7 @@
 <script lang="ts">
-import type { Task } from "@task-manager/db";
+import type { Task, TaskPriority, TaskStatus } from "@task-manager/db";
 import { marked } from "marked";
+import { taskService } from "$lib/services/task-service";
 import { ArrowLeft, Calendar, Clock, Edit, Flag, Save, Tag, X } from "./icons";
 
 interface Props {
@@ -12,11 +13,19 @@ interface Props {
 let { task, onTaskUpdate, onBack }: Props = $props();
 
 let isEditing = $state(false);
-let editForm = $state({
+type EditFormState = {
+	title: string;
+	content: string;
+	priority: TaskPriority;
+	status: TaskStatus;
+	dueDate: string;
+};
+
+let editForm = $state<EditFormState>({
 	title: "",
 	content: "",
-	priority: "medium",
-	status: "todo",
+	priority: "medium" as TaskPriority,
+	status: "todo" as TaskStatus,
 	dueDate: "",
 });
 
@@ -68,21 +77,16 @@ function cancelEditing() {
 
 async function saveChanges() {
 	try {
-		const response = await fetch(`/api/tasks/${task.id}`, {
-			method: "PUT",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify(editForm),
+		const updatedTask = await taskService.updateTask(task.id, {
+			title: editForm.title,
+			description: editForm.content,
+			priority: editForm.priority,
+			status: editForm.status,
+			dueDate: editForm.dueDate,
 		});
 
-		if (response.ok) {
-			const data = await response.json();
-			onTaskUpdate?.(data.task);
-			isEditing = false;
-		} else {
-			console.error("Failed to update task");
-		}
+		onTaskUpdate?.(updatedTask);
+		isEditing = false;
 	} catch (error) {
 		console.error("Error updating task:", error);
 	}
