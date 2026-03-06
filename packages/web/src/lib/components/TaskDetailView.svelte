@@ -1,6 +1,7 @@
 <script lang="ts">
 import type { Task } from "@task-manager/db";
 import { marked } from "marked";
+import { taskService } from "$lib/services/task-service";
 import { ArrowLeft, Calendar, Clock, Edit, Flag, Save, Tag, X } from "./icons";
 
 interface Props {
@@ -68,21 +69,16 @@ function cancelEditing() {
 
 async function saveChanges() {
 	try {
-		const response = await fetch(`/api/tasks/${task.id}`, {
-			method: "PUT",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify(editForm),
+		const updatedTask = await taskService.updateTask(task.id, {
+			title: editForm.title,
+			description: editForm.content,
+			priority: editForm.priority,
+			status: editForm.status as any,
+			dueDate: editForm.dueDate,
 		});
 
-		if (response.ok) {
-			const data = await response.json();
-			onTaskUpdate?.(data.task);
-			isEditing = false;
-		} else {
-			console.error("Failed to update task");
-		}
+		onTaskUpdate?.(updatedTask);
+		isEditing = false;
 	} catch (error) {
 		console.error("Error updating task:", error);
 	}

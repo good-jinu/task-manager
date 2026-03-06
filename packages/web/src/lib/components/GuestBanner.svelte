@@ -108,72 +108,64 @@ const urgencyStyles = $derived.by(() => {
 
 {#if !isDismissed}
 	<div class={cn(
-		urgencyStyles.bg, 'border', urgencyStyles.border, 'rounded-lg p-4',
-		'shadow-sm',
+		'relative overflow-hidden rounded-2xl p-6 transition-all duration-300',
+		'bg-surface-base/40 backdrop-blur-xl border border-white/20 shadow-xl',
+		urgencyStyles.bg, urgencyStyles.border,
 		className
 	)}>
-		<div class="flex items-start gap-3">
-			<div class="flex-shrink-0 mt-0.5">
-				<Info class={cn("w-5 h-5", urgencyStyles.icon)} />
+		<!-- Decorative background elements -->
+		<div class="absolute -top-24 -right-24 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
+		<div class="absolute -bottom-24 -left-24 w-48 h-48 bg-accent/10 rounded-full blur-3xl pointer-events-none"></div>
+
+		<div class="relative flex items-start gap-5">
+			<div class={cn(
+				"flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center shadow-inner",
+				urgencyStyles.bg, "brightness-95"
+			)}>
+				<Info class={cn("w-6 h-6", urgencyStyles.icon)} />
 			</div>
 			
 			<div class="flex-1 min-w-0">
-				<div class="flex items-start justify-between gap-2">
+				<div class="flex items-start justify-between gap-4">
 					<div class="flex-1">
-						<h3 class="text-sm font-medium text-foreground-emphasis mb-1">
+						<h3 class="text-lg font-bold text-foreground-base tracking-tight mb-1">
 							{#if urgencyLevel === 'critical'}
-								⚠️ Tasks expire tomorrow!
+								⚠️ Your tasks are expiring tomorrow!
 							{:else if urgencyLevel === 'high'}
-								Tasks expire in {daysRemaining} days
+								Tasks will be deleted in {daysRemaining} days
 							{:else}
-								You're using a guest account
+								Welcome to your Guest Workspace
 							{/if}
 						</h3>
 						
-						<div class="text-sm text-foreground-secondary leading-relaxed space-y-2">
-							<!-- Task count and expiration warning -->
-							<p>
-								{#if taskCount > 0}
-									You have <span class={cn("font-medium", urgencyStyles.accent)}>{taskCount}</span> 
-									task{taskCount === 1 ? '' : 's'} that will be deleted in 
-									<span class={cn("font-medium", urgencyStyles.accent)}>{daysRemaining}</span> 
-									day{daysRemaining === 1 ? '' : 's'}.
-								{:else}
-									Your tasks will be automatically deleted after 7 days.
-								{/if}
-							</p>
-							
-							<!-- Integration benefits section -->
-							{#if showIntegrationBenefits}
-								<div class="mt-3 p-3 bg-surface-base/50 rounded-lg border border-subtle-base">
-									<h4 class="text-sm font-medium text-foreground-base mb-2 flex items-center gap-2">
-										<RefreshRounded class="w-4 h-4 text-primary" />
-										Unlock Notion Integration
-									</h4>
-									<ul class="space-y-1.5 text-xs text-foreground-secondary">
-										<li class="flex items-center gap-2">
-											<CheckCircle class="w-3 h-3 text-success flex-shrink-0" />
-											<span>Sync tasks with your Notion databases</span>
-										</li>
-										<li class="flex items-center gap-2">
-											<CheckCircle class="w-3 h-3 text-success flex-shrink-0" />
-											<span>Access tasks from anywhere</span>
-										</li>
-										<li class="flex items-center gap-2">
-											<CheckCircle class="w-3 h-3 text-success flex-shrink-0" />
-											<span>Collaborate with your team</span>
-										</li>
-										<li class="flex items-center gap-2">
-											<CheckCircle class="w-3 h-3 text-success flex-shrink-0" />
-											<span>Never lose your tasks again</span>
-										</li>
-									</ul>
-								</div>
+						<div class="text-sm text-foreground-secondary leading-relaxed max-w-2xl">
+							{#if taskCount > 0}
+								<p>
+									You've created <span class={cn("font-bold px-1.5 py-0.5 rounded-md bg-white/50", urgencyStyles.accent)}>{taskCount}</span>
+									task{taskCount === 1 ? '' : 's'}. Don't let your hard work vanish!
+									Create an account now to preserve your progress indefinitely.
+								</p>
 							{:else}
 								<p>
-									Create an account to keep your tasks permanently and 
-									<span class="font-medium text-primary">sync with Notion</span>.
+									Tasks created in guest mode are stored locally and will be automatically cleared after 7 days of inactivity.
 								</p>
+							{/if}
+
+							{#if showIntegrationBenefits}
+								<div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+									<div class="flex items-center gap-2 p-2 rounded-lg bg-white/30 border border-white/40">
+										<div class="w-6 h-6 rounded-full bg-success/20 flex items-center justify-center flex-shrink-0">
+											<CheckCircle class="w-3.5 h-3.5 text-success" />
+										</div>
+										<span class="text-xs font-medium">Full Notion Sync</span>
+									</div>
+									<div class="flex items-center gap-2 p-2 rounded-lg bg-white/30 border border-white/40">
+										<div class="w-6 h-6 rounded-full bg-success/20 flex items-center justify-center flex-shrink-0">
+											<CheckCircle class="w-3.5 h-3.5 text-success" />
+										</div>
+										<span class="text-xs font-medium">Multi-device Access</span>
+									</div>
+								</div>
 							{/if}
 						</div>
 					</div>
@@ -181,49 +173,41 @@ const urgencyStyles = $derived.by(() => {
 					{#if onDismiss}
 						<button
 							onclick={handleDismiss}
-							class={cn(
-								'flex-shrink-0 p-1 rounded-md text-muted-foreground hover:text-foreground-base',
-								'hover:bg-surface-muted transition-colors',
-								'min-w-[44px] min-h-[44px] flex items-center justify-center'
-							)}
+							class="flex-shrink-0 p-2 rounded-full text-muted-foreground hover:text-foreground-base hover:bg-white/40 transition-all duration-200 active:scale-95"
 							aria-label="Dismiss banner"
 						>
-							<Close class="w-4 h-4" />
+							<Close class="w-5 h-5" />
 						</button>
 					{/if}
 				</div>
 				
-				<div class="mt-4 flex flex-col sm:flex-row gap-2">
+				<div class="mt-6 flex flex-wrap items-center gap-3">
 					{#if onSignUp}
 						<Button
 							onclick={handleSignUp}
-							variant="primary"
-							size="sm"
 							class={cn(
-								"bg-primary hover:bg-primary-button-hover text-primary-foreground",
-								"min-h-[44px] font-medium",
-								urgencyLevel === 'critical' && "bg-error hover:bg-error/90 text-white",
-								urgencyLevel === 'high' && "bg-warning hover:bg-warning/90 text-white"
+								"px-6 py-2.5 rounded-xl font-bold transition-all duration-200 shadow-lg active:scale-95",
+								"bg-primary text-primary-foreground hover:shadow-primary/25",
+								urgencyLevel === 'critical' && "bg-error hover:bg-error/90 text-white hover:shadow-error/25",
+								urgencyLevel === 'high' && "bg-warning hover:bg-warning/90 text-white hover:shadow-warning/25"
 							)}
 						>
 							{#if urgencyLevel === 'critical'}
 								Save My Tasks Now
 							{:else if urgencyLevel === 'high'}
-								Create Account & Save Tasks
+								Secure My Progress
 							{:else}
 								Create Free Account
 							{/if}
 						</Button>
 					{/if}
 					
-					<Button
+					<button
 						onclick={handleDismiss}
-						variant="outline"
-						size="sm"
-						class="border-subtle-base text-foreground-secondary hover:bg-surface-muted min-h-[44px]"
+						class="px-5 py-2.5 rounded-xl text-sm font-semibold text-foreground-secondary hover:text-foreground-base hover:bg-white/40 transition-all duration-200"
 					>
-						{urgencyLevel === 'critical' ? 'Remind Me Later' : 'Maybe Later'}
-					</Button>
+						{urgencyLevel === 'critical' ? 'Remind Me Later' : 'Keep as Guest'}
+					</button>
 				</div>
 			</div>
 		</div>

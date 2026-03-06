@@ -96,30 +96,41 @@ function handleKeydown(event: KeyboardEvent) {
 	{/if}
 
 	<!-- Tasks List -->
-	<div class="flex-1 overflow-y-auto p-4">
+	<div class="flex-1 overflow-y-auto p-6 space-y-6 bg-background-alt/30">
 		{#if tasksQuery.isLoading}
-			<div class="text-center py-12 text-muted-foreground">
-				<p class="text-lg">Loading tasks...</p>
+			<div class="flex flex-col items-center justify-center py-20 text-muted-foreground animate-pulse">
+				<div class="w-12 h-12 rounded-full border-4 border-primary/20 border-t-primary animate-spin mb-4"></div>
+				<p class="text-lg font-medium">Loading tasks...</p>
 			</div>
 		{:else if tasksQuery.isError}
-			<div class="text-center py-12 text-error">
-				<p class="text-lg">Failed to load tasks</p>
-				<p class="text-sm">{tasksQuery.error?.message}</p>
+			<div class="flex flex-col items-center justify-center py-12 px-6 bg-error/5 border border-error/20 rounded-2xl text-error text-center">
+				<div class="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center mb-4">
+					<span class="text-2xl">⚠️</span>
+				</div>
+				<p class="text-lg font-bold mb-1">Failed to load tasks</p>
+				<p class="text-sm opacity-80">{tasksQuery.error?.message}</p>
 			</div>
 		{:else if tasks.length === 0}
-			<div class="text-center py-12 text-muted-foreground">
-				<p class="text-lg">No tasks yet</p>
-				<p class="text-sm">Click "Add Task" to create your first task</p>
+			<div class="flex flex-col items-center justify-center py-24 text-center">
+				<div class="w-20 h-20 rounded-3xl bg-surface-muted flex items-center justify-center mb-6 text-4xl grayscale opacity-50">
+					📋
+				</div>
+				<h3 class="text-xl font-bold text-foreground-base mb-2">No tasks found</h3>
+				<p class="text-foreground-secondary max-w-xs mx-auto">
+					Your workspace is clear! Start by adding a task or use AI to generate some for you.
+				</p>
 			</div>
 		{:else}
-			<div class="space-y-2">
+			<div class="grid grid-cols-1 gap-4">
 				{#each tasks as task (task.id)}
-					<TaskItem
-						{task}
-						{workspaceId}
-						isContextSelected={selectedContextTasks.has(task.id)}
-						{onContextToggle}
-					/>
+					<div class="animate-in fade-in slide-in-from-bottom-2 duration-300">
+						<TaskItem
+							{task}
+							{workspaceId}
+							isContextSelected={selectedContextTasks.has(task.id)}
+							{onContextToggle}
+						/>
+					</div>
 				{/each}
 			</div>
 		{/if}

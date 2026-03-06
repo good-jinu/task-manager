@@ -215,6 +215,7 @@ importers:
       '@task-manager/queue':
         specifier: workspace:*
         version: link:../queue
+    devDependencies:
       '@types/aws-lambda':
         specifier: ^8.10.145
         version: 8.10.159
