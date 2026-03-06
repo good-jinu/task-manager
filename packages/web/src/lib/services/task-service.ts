@@ -52,7 +52,7 @@ export class TaskService {
 				workspaceId: params.workspaceId,
 				title: params.title.trim(),
 				status: params.status || "todo",
-				description: params.description,
+				content: params.description, // Maps description to content for backend
 				priority: params.priority,
 				dueDate: params.dueDate,
 			},
@@ -84,9 +84,16 @@ export class TaskService {
 	 * Update an existing task
 	 */
 	async updateTask(taskId: string, updates: UpdateTaskParams): Promise<Task> {
+		// Map description to content if present
+		const data: any = { ...updates };
+		if (data.description !== undefined) {
+			data.content = data.description;
+			delete data.description;
+		}
+
 		const response = await this.apiClient.patch<Task>(
 			`/api/tasks/${taskId}`,
-			updates,
+			data,
 			{
 				retryType: "api_call",
 				context: { operation: "update_task", taskId },

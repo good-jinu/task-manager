@@ -14,6 +14,7 @@ export interface AppState {
 
 	// Dialog states
 	showWorkspaceCreateDialog: boolean;
+	isTourVisible: boolean;
 
 	// Guest state
 	guestTaskCount: number;
@@ -28,6 +29,7 @@ const initialState: AppState = {
 	error: "",
 	selectedContextTasks: new Set(),
 	showWorkspaceCreateDialog: false,
+	isTourVisible: false,
 	guestTaskCount: 0,
 	guestDaysRemaining: 7,
 };
@@ -68,6 +70,9 @@ function createAppState() {
 
 		setShowWorkspaceCreateDialog: (show: boolean) =>
 			update((state) => ({ ...state, showWorkspaceCreateDialog: show })),
+
+		setTourVisible: (visible: boolean) =>
+			update((state) => ({ ...state, isTourVisible: visible })),
 
 		updateGuestStats: (taskCount: number, daysRemaining: number = 7) =>
 			update((state) => ({

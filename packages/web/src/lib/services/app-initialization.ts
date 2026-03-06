@@ -206,6 +206,15 @@ export async function initializeApp(session: Session | null): Promise<void> {
 
 		// Handle URL parameters for both authenticated and guest users
 		handleURLParameters();
+
+		// Check if tour should be shown for guest users
+		if (!isAuthenticated && browser) {
+			const tourCompleted = localStorage.getItem("taskflow_tour_completed");
+			if (!tourCompleted) {
+				appState.setTourVisible(true);
+			}
+		}
+
 		console.log("[initializeApp] App initialization complete");
 	});
 }

@@ -99,16 +99,19 @@ const isLoading = $derived(
 );
 </script>
 
-<div class="fixed bottom-4 left-4 right-4 z-5">
+<div class="fixed bottom-6 left-4 right-4 z-[100]" data-tour="ai-input">
 	<div class="max-w-4xl mx-auto">
 		<!-- Context Tasks Display -->
 		{#if selectedTasks.length > 0}
-			<div class="mb-2 p-3 bg-accent-icon-bg border border-accent rounded-lg shadow-sm">
-				<div class="flex items-center justify-between mb-2">
-					<span class="text-sm font-medium text-accent">AI Context ({selectedTasks.length} tasks)</span>
+			<div class="mb-3 p-4 bg-accent/5 backdrop-blur-md border border-accent/20 rounded-2xl shadow-xl animate-in slide-in-from-bottom-2 duration-300">
+				<div class="flex items-center justify-between mb-3">
+					<div class="flex items-center gap-2">
+						<div class="w-2 h-2 rounded-full bg-accent animate-pulse"></div>
+						<span class="text-xs font-bold uppercase tracking-wider text-accent">Active Context ({selectedTasks.length})</span>
+					</div>
 					<button
 						onclick={onClearContext}
-						class="text-accent hover:text-accent-button-hover"
+						class="p-1 rounded-full text-accent hover:bg-accent/10 transition-colors"
 						title="Clear context"
 					>
 						<Close class="w-4 h-4" />
@@ -116,15 +119,8 @@ const isLoading = $derived(
 				</div>
 				<div class="flex flex-wrap gap-2">
 					{#each selectedTasks as task (task.id)}
-						<div class="flex items-center gap-1 px-2 py-1 bg-surface-base border border-accent rounded text-sm">
+						<div class="flex items-center gap-2 px-3 py-1.5 bg-surface-base border border-accent/10 rounded-xl text-xs font-medium shadow-sm">
 							<span class="truncate max-w-32 text-foreground-base">{task.title}</span>
-							<button
-								onclick={onClearContext}
-								class="text-accent hover:text-accent-button-hover ml-1"
-								title="Remove from context"
-							>
-								<Close class="w-3 h-3" />
-							</button>
 						</div>
 					{/each}
 				</div>
@@ -132,34 +128,40 @@ const isLoading = $derived(
 		{/if}
 
 		<!-- AI Input Box -->
-		<div class={`bg-surface-base border rounded-lg shadow-lg transition-all duration-200 ${
-			selectedTasks.length > 0 ? 'border-accent shadow-accent-icon-bg' : 'border-subtle-base'
-		}`}>
+		<div class={cn(
+			'relative bg-surface-base border rounded-2xl shadow-2xl transition-all duration-300 overflow-hidden',
+			selectedTasks.length > 0 ? 'border-accent shadow-accent/10' : 'border-subtle-base hover:border-primary/20'
+		)}>
+			{#if isLoading}
+				<div class="absolute inset-0 bg-surface-base/50 backdrop-blur-[1px] flex items-center justify-center z-10">
+					<div class="flex items-center gap-3 px-4 py-2 bg-white rounded-full shadow-lg border border-subtle-base">
+						<div class="w-4 h-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+						<span class="text-sm font-bold text-primary animate-pulse">AI is thinking...</span>
+					</div>
+				</div>
+			{/if}
+
 			<div class="flex items-end gap-3 p-4">
 				<div class="flex-1">
 					<textarea
 						bind:value={input}
 						onkeydown={handleKeydown}
 						placeholder={selectedTasks.length > 0 
-							? `Ask AI about ${selectedTasks.length} selected task${selectedTasks.length > 1 ? 's' : ''}...`
-							: "Ask AI to help with your tasks..."
+							? `How can I help with these ${selectedTasks.length} tasks?`
+							: "Type a request for your AI assistant..."
 						}
-						class="w-full resize-none border-0 focus:outline-none focus:ring-0 placeholder-muted-foreground text-foreground-base bg-surface-base"
+						class="w-full resize-none border-0 focus:outline-none focus:ring-0 placeholder-muted-foreground text-foreground-base bg-transparent py-2 leading-relaxed"
 						rows="1"
-						style="min-height: 24px; max-height: 120px;"
+						style="min-height: 40px; max-height: 200px;"
 						disabled={isLoading}
 					></textarea>
 				</div>
 				<button
 					onclick={handleSendMessage}
 					disabled={!input.trim() || isLoading}
-					class="flex-shrink-0 p-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-button-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+					class="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-primary text-primary-foreground rounded-xl hover:brightness-110 disabled:opacity-30 disabled:grayscale transition-all duration-200 active:scale-90 shadow-lg shadow-primary/20"
 				>
-					{#if isLoading}
-						<div class="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin"></div>
-					{:else}
-						<Send class="w-5 h-5" />
-					{/if}
+					<Send class="w-5 h-5" />
 				</button>
 			</div>
 		</div>
