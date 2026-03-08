@@ -29,12 +29,21 @@ export class TaskService implements ITaskService {
 		return getTableName("tasks");
 	}
 
+	private normalizeDueDate(dueDate?: string): string | undefined {
+		if (typeof dueDate === "string" && dueDate.trim() === "") {
+			return undefined;
+		}
+
+		return dueDate;
+	}
+
 	/**
 	 * Creates a new task in the database
 	 */
 	async createTask(taskData: CreateTaskInput): Promise<Task> {
 		// Validate input data
 		validateCreateTaskInput(taskData);
+		const dueDate = this.normalizeDueDate(taskData.dueDate);
 
 		const now = new Date().toISOString();
 		const task: Task = {
@@ -44,7 +53,7 @@ export class TaskService implements ITaskService {
 			content: taskData.content,
 			status: taskData.status || "todo",
 			priority: taskData.priority,
-			dueDate: taskData.dueDate,
+			dueDate,
 			archived: false,
 			createdAt: now,
 			updatedAt: now,
@@ -101,35 +110,54 @@ export class TaskService implements ITaskService {
 		validateTaskId(taskId);
 		validateUpdateTaskInput(updates);
 
-		const updateExpressions: string[] = [];
+		const setExpressions: string[] = [];
+		const removeExpressions: string[] = [];
 		const expressionAttributeNames: Record<string, string> = {};
 		const expressionAttributeValues: Record<string, unknown> = {};
 
 		// Build update expression dynamically
 		for (const [key, value] of Object.entries(updates)) {
+			if (
+				key === "dueDate" &&
+				this.normalizeDueDate(value as string) === undefined
+			) {
+				removeExpressions.push(`#${key}`);
+				expressionAttributeNames[`#${key}`] = key;
+				continue;
+			}
+
 			if (value !== undefined) {
-				updateExpressions.push(`#${key} = :${key}`);
+				setExpressions.push(`#${key} = :${key}`);
 				expressionAttributeNames[`#${key}`] = key;
 				expressionAttributeValues[`:${key}`] = value;
 			}
 		}
 
 		// Always update the updatedAt timestamp
-		updateExpressions.push("#updatedAt = :updatedAt");
+		setExpressions.push("#updatedAt = :updatedAt");
 		expressionAttributeNames["#updatedAt"] = "updatedAt";
 		expressionAttributeValues[":updatedAt"] = new Date().toISOString();
 
-		if (updateExpressions.length === 1) {
+		if (setExpressions.length === 1 && removeExpressions.length === 0) {
 			// Only updatedAt was added, no actual updates
 			throw new Error("No valid updates provided");
 		}
+
+		const updateExpression = [
+			setExpressions.length > 0 ? `SET ${setExpressions.join(", ")}` : "",
+			removeExpressions.length > 0
+				? `REMOVE ${removeExpressions.join(", ")}`
+				: "",
+		]
+			.filter(Boolean)
+			.join(" ");
 
 		try {
 			const result = await this.client.send(
 				new UpdateCommand({
 					TableName: this.tableName,
 					Key: { id: taskId },
-					UpdateExpression: `SET ${updateExpressions.join(", ")}`,
+					UpdateExpression: updateExpression,
 					ExpressionAttributeNames: expressionAttributeNames,
 					ExpressionAttributeValues: expressionAttributeValues,
 					// Ensure the task exists

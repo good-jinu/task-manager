@@ -200,7 +200,11 @@ export function validateCreateTaskInput(input: CreateTaskInput): void {
 		}
 	}
 
-	if (input.dueDate !== undefined && input.dueDate !== null) {
+	if (
+		input.dueDate !== undefined &&
+		input.dueDate !== null &&
+		input.dueDate !== ""
+	) {
 		if (!isNonEmptyString(input.dueDate)) {
 			throw new ValidationError(
 				"Due date cannot be empty if provided",
@@ -255,7 +259,11 @@ export function validateUpdateTaskInput(input: UpdateTaskInput): void {
 		}
 	}
 
-	if (input.dueDate !== undefined && input.dueDate !== null) {
+	if (
+		input.dueDate !== undefined &&
+		input.dueDate !== null &&
+		input.dueDate !== ""
+	) {
 		if (!isNonEmptyString(input.dueDate)) {
 			throw new ValidationError(
 				"Due date cannot be empty if provided",

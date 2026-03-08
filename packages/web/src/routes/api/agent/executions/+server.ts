@@ -36,6 +36,10 @@ export const GET: RequestHandler = async (event) => {
 	} catch (error) {
 		console.error("[API /api/agent/executions] Error:", error);
 
+		if (error instanceof Response) {
+			return error;
+		}
+
 		if (error instanceof Error) {
 			if (
 				error.message.includes("unauthorized") ||

@@ -216,6 +216,39 @@ describe("TaskService Property-Based Tests", () => {
 		});
 	});
 
+	describe("due date normalization", () => {
+		it("should treat an empty due date as unset when creating a task", async () => {
+			mockClient.send.mockResolvedValueOnce({});
+
+			const result = await taskService.createTask({
+				workspaceId: "workspace-1",
+				title: "Test task",
+				dueDate: "",
+			});
+
+			expect(result.dueDate).toBeUndefined();
+		});
+
+		it("should remove due date when updating with an empty string", async () => {
+			mockClient.send.mockResolvedValueOnce({
+				Attributes: {
+					id: "task-1",
+					workspaceId: "workspace-1",
+					title: "Test task",
+					status: "todo",
+					archived: false,
+					createdAt: "2024-01-01T00:00:00.000Z",
+					updatedAt: "2024-01-02T00:00:00.000Z",
+				},
+			});
+
+			await taskService.updateTask("task-1", { dueDate: "" });
+
+			const command = mockClient.send.mock.calls[0][0];
+			expect(command.input.UpdateExpression).toContain("REMOVE #dueDate");
+		});
+	});
+
 	describe("Property 4: Query by Workspace Returns Correct Tasks", () => {
 		it("should return only tasks belonging to the specified workspace", async () => {
 			// **Feature: task-management-migration, Property 4: Query by Workspace Returns Correct Tasks**

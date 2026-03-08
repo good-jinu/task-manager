@@ -31,6 +31,10 @@ export const GET: RequestHandler = async (event) => {
 	} catch (error) {
 		console.error("Failed to fetch execution:", error);
 
+		if (error instanceof Response) {
+			return error;
+		}
+
 		if (error instanceof Error) {
 			if (
 				error.message.includes("unauthorized") ||

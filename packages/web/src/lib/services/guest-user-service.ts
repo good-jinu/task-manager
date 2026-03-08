@@ -15,6 +15,7 @@ import {
 	loadGuestDataLocally,
 	saveGuestDataLocally,
 } from "$lib/stores/guestPersistence";
+import { deleteCookie, getCookie } from "$lib/utils/cookies";
 
 export interface GuestRecoveryResult {
 	success: boolean;
@@ -32,6 +33,36 @@ export interface GuestRegistrationResult {
 }
 
 export class GuestUserService {
+	private async clearGuestSessionState(): Promise<void> {
+		if (!browser) return;
+
+		await deleteCookie("guest-id", { path: "/" });
+		localStorage.removeItem("guest-id");
+		localStorage.removeItem("pending_migration");
+		localStorage.removeItem("taskflow_guest_data");
+		localStorage.removeItem("taskflow_guest_id");
+		localStorage.removeItem("taskflow_guest_workspace");
+
+		guestUser.set(null);
+		isGuestMode.set(false);
+	}
+
+	private async resetExpiredGuestSession(
+		message: string,
+	): Promise<GuestRecoveryResult> {
+		console.warn("[GuestUserService] Resetting expired guest session");
+		await this.clearGuestSessionState();
+
+		const registration = await this.registerGuestUser();
+		return {
+			success: true,
+			workspace: registration.workspace,
+			tasks: [],
+			recoveredFromLocal: false,
+			message,
+		};
+	}
+
 	/**
 	 * Register a new guest user and create default workspace
 	 */
@@ -81,19 +112,16 @@ export class GuestUserService {
 
 		// Strategy 1: Check if we have a guest cookie (server-side guest session)
 		if (browser) {
-			const guestCookie = document.cookie
-				.split("; ")
-				.find((row) => row.startsWith("guest-id="));
+			const guestCookie = await getCookie("guest-id");
 
 			console.log("[GuestUserService] Guest cookie check:", {
 				found: !!guestCookie,
 			});
 
 			if (guestCookie) {
-				const guestId = guestCookie.split("=")[1];
 				console.log(
 					"[GuestUserService] Found guest cookie, fetching workspace from server...",
-					guestId,
+					guestCookie,
 				);
 
 				try {
@@ -103,6 +131,12 @@ export class GuestUserService {
 						ok: response.ok,
 						status: response.status,
 					});
+
+					if (response.status === 401) {
+						return await this.resetExpiredGuestSession(
+							"Guest session expired and was recreated",
+						);
+					}
 
 					if (response.ok) {
 						const data = await response.json();
@@ -123,13 +157,18 @@ export class GuestUserService {
 							const tasksResponse = await fetch(
 								`/api/tasks?workspaceId=${workspace.id}`,
 							);
+							if (tasksResponse.status === 401) {
+								return await this.resetExpiredGuestSession(
+									"Guest session expired and was recreated",
+								);
+							}
 							const tasksData = await tasksResponse.json();
-							const tasks = tasksData.items || [];
+							const tasks = tasksData.data?.items || tasksData.items || [];
 							console.log("[GuestUserService] Tasks fetched:", tasks.length);
 
 							// Update local storage with correct data
 							saveGuestDataLocally({
-								guestId,
+								guestId: guestCookie,
 								workspaceId: workspace.id,
 								tasks,
 							});
