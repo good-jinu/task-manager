@@ -1,6 +1,5 @@
 <script lang="ts">
 import type { CreateQueryResult } from "@tanstack/svelte-query";
-import { goto } from "$app/navigation";
 import {
 	useConnectDatabase,
 	useDatabases,
@@ -44,6 +43,7 @@ interface Props {
 		importExisting: boolean,
 	) => Promise<void>;
 	onSignUp?: () => void;
+	onWorkspaceDeleted?: (deletedWorkspaceId: string) => void;
 	class?: string;
 }
 
@@ -55,6 +55,7 @@ let {
 	onClose,
 	onConnectNotion,
 	onSignUp,
+	onWorkspaceDeleted,
 	class: className = "",
 }: Props = $props();
 
@@ -254,12 +255,11 @@ async function handleConfirmDeleteWorkspace() {
 			throw new Error(errorData.error || "Failed to delete workspace");
 		}
 
-		// Close dialogs and redirect to home
+		// Close dialogs and switch to another workspace
 		showDeleteWorkspaceDialog = false;
 		onClose();
 
-		// Redirect to home page
-		goto("/");
+		onWorkspaceDeleted?.(workspaceId);
 	} catch (error) {
 		console.error("Failed to delete workspace:", error);
 		// You could add a toast notification here

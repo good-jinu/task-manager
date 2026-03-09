@@ -14,6 +14,7 @@ import WorkspaceCreateDialog from "$lib/components/WorkspaceCreateDialog.svelte"
 import {
 	handleCreateWorkspace,
 	handleWorkspaceChange,
+	handleWorkspaceDeleted,
 	initializeApp,
 } from "$lib/services/app-initialization";
 import {
@@ -251,6 +252,7 @@ function handleURLParametersAfterInit() {
 		onClose={handleCloseSettingsDrawer}
 		onConnectNotion={handleConnectNotion}
 		onSignUp={handleGuestSignUp}
+		onWorkspaceDeleted={handleWorkspaceDeleted}
 	/>
 {/if}
 
