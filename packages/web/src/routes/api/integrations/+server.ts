@@ -48,6 +48,23 @@ export const POST: RequestHandler = async (event) => {
 					throw conflictError;
 				}
 
+				const existingDatabaseIntegration =
+					await workspaceIntegrationService.findByProviderAndExternalId(
+						provider,
+						externalId,
+					);
+
+				if (
+					existingDatabaseIntegration &&
+					existingDatabaseIntegration.workspaceId !== workspaceId
+				) {
+					const conflictError = new Error(
+						"This Notion database is already connected to another workspace",
+					);
+					(conflictError as Error & { status: number }).status = 409;
+					throw conflictError;
+				}
+
 				const integration = await workspaceIntegrationService.create({
 					workspaceId,
 					provider,

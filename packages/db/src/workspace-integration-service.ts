@@ -4,6 +4,7 @@ import {
 	GetCommand,
 	PutCommand,
 	QueryCommand,
+	ScanCommand,
 	UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { getDynamoDBClient, getTableName } from "./client";
@@ -166,6 +167,52 @@ export class WorkspaceIntegrationService {
 				);
 			}
 			throw new Error("Failed to find workspace integration: Unknown error");
+		}
+	}
+
+	/**
+	 * Finds integration by provider and external ID across all workspaces
+	 */
+	async findByProviderAndExternalId(
+		provider: string,
+		externalId: string,
+	): Promise<WorkspaceIntegration | null> {
+		if (!provider) {
+			throw new Error("Provider is required");
+		}
+
+		if (!externalId) {
+			throw new Error("External ID is required");
+		}
+
+		try {
+			const result = await this.client.send(
+				new ScanCommand({
+					TableName: this.tableName,
+					FilterExpression:
+						"#provider = :provider AND externalId = :externalId",
+					ExpressionAttributeNames: {
+						"#provider": "provider",
+					},
+					ExpressionAttributeValues: {
+						":provider": provider,
+						":externalId": externalId,
+					},
+					Limit: 1,
+				}),
+			);
+
+			const items = result.Items as WorkspaceIntegration[];
+			return items.length > 0 ? items[0] : null;
+		} catch (error) {
+			if (error instanceof Error) {
+				throw new Error(
+					`Failed to find integration by provider and external ID: ${error.message}`,
+				);
+			}
+			throw new Error(
+				"Failed to find integration by provider and external ID: Unknown error",
+			);
 		}
 	}
 

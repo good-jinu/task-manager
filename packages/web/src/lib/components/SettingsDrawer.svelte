@@ -28,6 +28,7 @@ interface NotionDatabase {
 	id: string;
 	name: string;
 	title: string;
+	connectedWorkspaceId?: string;
 	url?: string;
 }
 

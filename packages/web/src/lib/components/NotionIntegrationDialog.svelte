@@ -24,6 +24,7 @@ import { cn } from "./utils";
 interface NotionDatabase {
 	id: string;
 	name: string;
+	connectedWorkspaceId?: string;
 	url?: string;
 	icon?: {
 		type: "emoji" | "external" | "file";
@@ -151,6 +152,11 @@ function handleClose() {
 
 // Enhanced touch handling for database selection
 function handleDatabaseSelect(databaseId: string) {
+	const database = availableDatabases.find((db) => db.id === databaseId);
+	if (!database || isDatabaseConnectedElsewhere(database)) {
+		return;
+	}
+
 	selectedDatabaseId = databaseId;
 
 	// Light haptic feedback for selection
@@ -173,6 +179,9 @@ $effect(() => {
 		document.body.style.overflow = "";
 	};
 });
+
+const isDatabaseConnectedElsewhere = (database: NotionDatabase) =>
+	!!database.connectedWorkspaceId && database.connectedWorkspaceId !== workspaceId;
 
 const selectedDatabase = $derived(
 	availableDatabases.find((db) => db.id === selectedDatabaseId),
@@ -310,19 +319,20 @@ const selectedDatabase = $derived(
     <button
         type="button"
         class={cn(
-            'flex items-start p-4 border rounded-xl cursor-pointer transition-all w-full text-left',
+            'flex items-start p-4 border rounded-xl transition-all w-full text-left',
             'hover:bg-surface-muted hover:border-subtle-hover',
-            // Touch-friendly sizing
             'min-h-[60px]',
-            // Performance optimization for low-end devices
             capabilities.isLowEndDevice ? 'duration-100' : 'duration-200',
-            // Progressive enhancement classes
             capabilities.hasTouch && 'touch-manipulation select-none',
             selectedDatabaseId === database.id
                 ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
-                : 'border-subtle-base'
+                : 'border-subtle-base',
+            isDatabaseConnectedElsewhere(database)
+                ? 'opacity-60 cursor-not-allowed hover:border-subtle-base hover:bg-transparent'
+                : 'cursor-pointer'
         )}
         onclick={() => handleDatabaseSelect(database.id)}
+        disabled={isDatabaseConnectedElsewhere(database)}
         role="radio"
         aria-checked={selectedDatabaseId === database.id}
     >
@@ -356,6 +366,11 @@ const selectedDatabase = $derived(
                         {formatDatabaseMetadata(database)}
                     </p>
                 {/if}
+                {#if isDatabaseConnectedElsewhere(database)}
+                    <p class="text-xs text-error mt-1 font-medium">
+                        Already connected to another workspace
+                    </p>
+                {/if}
             </div>
         </div>
         
@@ -364,6 +379,8 @@ const selectedDatabase = $derived(
             <div class="flex items-center justify-center w-6 h-6 bg-primary rounded-full flex-shrink-0 mt-2">
                 <Check class="w-4 h-4 text-primary-foreground" />
             </div>
+        {:else if isDatabaseConnectedElsewhere(database)}
+            <div class="w-6 h-6 border-2 border-error rounded-full flex-shrink-0 mt-2"></div>
         {:else}
             <div class="w-6 h-6 border-2 border-subtle-base rounded-full flex-shrink-0 mt-2"></div>
         {/if}
