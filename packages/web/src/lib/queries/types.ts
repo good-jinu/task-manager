@@ -3,6 +3,7 @@ export interface NotionDatabase {
 	id: string;
 	name: string;
 	title: string; // For compatibility with existing code
+	connectedWorkspaceId?: string;
 	url?: string;
 	icon?: {
 		type: "emoji" | "external" | "file";

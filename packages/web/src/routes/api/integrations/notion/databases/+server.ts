@@ -1,12 +1,14 @@
 import { json } from "@sveltejs/kit";
 import { requireAuth } from "$lib/auth";
 import { createNotionTaskManagerWithAuth } from "$lib/notion";
+import { WorkspaceIntegrationService } from "@task-manager/db";
 import { getUserFromDatabase } from "$lib/user";
 import type { RequestHandler } from "./$types";
 
 interface NotionDatabase {
 	id: string;
 	name: string;
+	connectedWorkspaceId?: string;
 	url?: string;
 	icon?: {
 		type: "emoji" | "external" | "file";
@@ -99,16 +101,29 @@ export const GET: RequestHandler = async (event) => {
 		// Get databases using the public method
 		const databases = await notionTaskManager.getDatabases();
 
-		// Transform to our API format
-		const formattedDatabases: NotionDatabase[] = databases.map((db) => ({
-			id: db.id,
-			name: db.title,
-			url: db.url,
-			icon: undefined, // NotionDatabase interface doesn't include icon
-			properties: {}, // We don't need to expose all properties for security
-			created_time: db.createdTime.toISOString(),
-			last_edited_time: db.lastEditedTime.toISOString(),
-		}));
+		const workspaceIntegrationService = new WorkspaceIntegrationService();
+
+		// Transform to our API format and include cross-workspace connection status
+		const formattedDatabases: NotionDatabase[] = await Promise.all(
+			databases.map(async (db) => {
+				const existingIntegration =
+					await workspaceIntegrationService.findByProviderAndExternalId(
+						"notion",
+						db.id,
+					);
+
+				return {
+					id: db.id,
+					name: db.title,
+					connectedWorkspaceId: existingIntegration?.workspaceId,
+					url: db.url,
+					icon: undefined, // NotionDatabase interface doesn't include icon
+					properties: {}, // We don't need to expose all properties for security
+					created_time: db.createdTime.toISOString(),
+					last_edited_time: db.lastEditedTime.toISOString(),
+				};
+			}),
+		);
 
 		// Cache the result
 		databaseCache.set(session.user.id, {
