@@ -243,6 +243,34 @@ export async function handleWorkspaceChange(
 }
 
 /**
+ * Handle workspace deletion - switch to another workspace or create a new one
+ */
+export async function handleWorkspaceDeleted(
+	deletedWorkspaceId: string,
+): Promise<void> {
+	const currentState = get(appState);
+
+	// Remove the deleted workspace from the list
+	const remainingWorkspaces = currentState.workspaces.filter(
+		(w: Workspace) => w.id !== deletedWorkspaceId,
+	);
+	appState.setWorkspaces(remainingWorkspaces);
+
+	// Switch to another existing workspace, or create a default one
+	let nextWorkspace: Workspace | null =
+		remainingWorkspaces.length > 0 ? remainingWorkspaces[0] : null;
+
+	if (!nextWorkspace) {
+		nextWorkspace = await createDefaultWorkspace();
+		appState.setWorkspaces([nextWorkspace]);
+	}
+
+	appState.setCurrentWorkspace(nextWorkspace);
+	manager.updateState({ currentWorkspace: nextWorkspace });
+	await loadWorkspaceData(nextWorkspace.id);
+}
+
+/**
  * Handle workspace creation
  */
 export async function handleCreateWorkspace(
